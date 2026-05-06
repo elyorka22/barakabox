@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CLIENT
+  BUSINESS
+  ADMIN
+  COURIER
+}
+
+enum BusinessStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  DELIVERING
+  COMPLETED
+}
+
+model User {
+  id              String           @id @default(cuid())
+  email           String           @unique
+  passwordHash    String
+  role            Role             @default(CLIENT)
+  refreshToken    String?
+  fullName        String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  businessProfile BusinessProfile?
+  cart            Cart?
+  orders          Order[]
+
+  @@index([role])
+}
+
+model BusinessProfile {
+  id          String         @id @default(cuid())
+  userId      String         @unique
+  displayName String
+  status      BusinessStatus @default(PENDING)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products    Product[]
+
+  @@index([status])
+}
+
+model Product {
+  id           String   @id @default(cuid())
+  businessId   String
+  name         String
+  description  String?
+  price        Decimal  @db.Decimal(10, 2)
+  stock        Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  business     BusinessProfile @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  cartItems    CartItem[]
+  orderItems   OrderItem[]
+  boxItems     BoxItem[]
+
+  @@index([businessId])
+  @@index([isActive])
+}
+
+model Box {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  price       Decimal   @db.Decimal(10, 2)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  items       BoxItem[]
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+
+  @@index([isActive])
+}
+
+model BoxItem {
+  id        String   @id @default(cuid())
+  boxId     String
+  productId String
+  quantity  Int
+  createdAt DateTime @default(now())
+  box       Box      @relation(fields: [boxId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([boxId, productId])
+  @@index([productId])
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  cartId    String
+  productId String?
+  boxId     String?
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  box       Box?     @relation(fields: [boxId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productId])
+  @@unique([cartId, boxId])
+  @@index([productId])
+  @@index([boxId])
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  userId        String
+  status        OrderStatus @default(PENDING)
+  acceptedAt    DateTime?
+  deliveringAt  DateTime?
+  completedAt   DateTime?
+  idempotencyKey String
+  subtotalAmount Decimal    @db.Decimal(10, 2)
+  deliveryFee   Decimal     @db.Decimal(10, 2)
+  totalAmount   Decimal     @db.Decimal(10, 2)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items         OrderItem[]
+
+  @@index([userId, status])
+  @@index([idempotencyKey, createdAt])
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  productId  String?
+  boxId      String?
+  quantity   Int
+  unitPrice  Decimal  @db.Decimal(10, 2)
+  title      String
+  createdAt  DateTime @default(now())
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product    Product? @relation(fields: [productId], references: [id], onDelete: Restrict)
+  box        Box?     @relation(fields: [boxId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([boxId])
+}
