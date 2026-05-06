@@ -6,8 +6,16 @@ import { DesktopNav, MobileNav } from '@/components/app-nav';
 
 type LoginResponse = {
   accessToken: string;
-  user: { id: string; email: string; role: 'CLIENT' | 'BUSINESS' | 'ADMIN' | 'COURIER'; fullName: string };
+  user: { id: string; email: string; role: string; fullName: string };
 };
+
+function normalizeRole(role?: string): 'user' | 'business' | 'admin' {
+  if (!role) return 'user';
+  const normalized = role.toLowerCase();
+  if (normalized === 'business') return 'business';
+  if (normalized === 'admin') return 'admin';
+  return 'user';
+}
 
 export default function ProfilePage() {
   const [email, setEmail] = useState('client@barakabox.local');
@@ -59,12 +67,12 @@ export default function ProfilePage() {
             <p className="bb-secondary">Name: {user.fullName}</p>
             <p className="bb-secondary">Email: {user.email}</p>
             <p className="bb-secondary">Role: {user.role}</p>
-            <div className="flex flex-wrap gap-2">
-              <a className="bb-btn-secondary" href="/">Home</a>
-              {user.role === 'ADMIN' ? <a className="bb-btn-secondary" href="/admin">Admin panel</a> : null}
-              {user.role === 'BUSINESS' ? <a className="bb-btn-secondary" href="/business">Business panel</a> : null}
-              {user.role === 'COURIER' ? <a className="bb-btn-secondary" href="/courier">Courier panel</a> : null}
-            </div>
+            {normalizeRole(user.role) === 'business' ? (
+              <a className="bb-btn-primary w-full" href="/business">Open Business Panel</a>
+            ) : null}
+            {normalizeRole(user.role) === 'admin' ? (
+              <a className="bb-btn-primary w-full" href="/admin">Open Admin Panel</a>
+            ) : null}
             <button className="bb-btn-outline" onClick={logout}>Logout</button>
           </div>
         )}

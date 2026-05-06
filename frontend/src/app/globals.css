@@ -31,7 +31,7 @@ body {
 
 @layer components {
   .bb-page {
-    @apply w-full px-3 py-3;
+    @apply w-full min-h-dvh px-0 py-0;
     padding-left: max(0.75rem, env(safe-area-inset-left));
     padding-right: max(0.75rem, env(safe-area-inset-right));
     padding-top: max(0.75rem, env(safe-area-inset-top));
@@ -39,7 +39,7 @@ body {
   }
 
   .bb-shell {
-    @apply mx-auto w-full max-w-[420px] rounded-[28px] bg-white p-4 shadow-xl;
+    @apply w-full min-h-[calc(100dvh-1rem)] rounded-none bg-white p-4 shadow-none;
     animation: bb-fade-in 220ms ease-out;
   }
 
@@ -81,7 +81,7 @@ body {
   }
 
   .bb-mobile-nav {
-    @apply fixed bottom-2 left-1/2 z-30 mt-5 grid w-[calc(100%-1rem)] max-w-[404px] -translate-x-1/2 grid-cols-4 rounded-2xl border border-white/40 bg-white/80 py-2 text-center text-xs shadow-lg backdrop-blur-md;
+    @apply fixed bottom-2 left-1/2 z-30 mt-5 grid w-[calc(100%-1rem)] -translate-x-1/2 grid-cols-3 rounded-2xl border border-white/40 bg-white/80 py-2 text-center text-xs shadow-lg backdrop-blur-md;
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
     animation: bb-slide-up 220ms ease-out;
   }
