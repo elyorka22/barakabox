@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from 'uuid';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api';
 const ACCESS_TOKEN_KEY = 'barakabox_access_token';
 const USER_KEY = 'barakabox_user';
@@ -85,7 +87,7 @@ export const guestStorage = {
     if (typeof window === 'undefined') return '';
     const existing = window.localStorage.getItem(GUEST_ID_KEY);
     if (existing) return existing;
-    const created = crypto.randomUUID();
+    const created = uuidv4();
     window.localStorage.setItem(GUEST_ID_KEY, created);
     return created;
   },
