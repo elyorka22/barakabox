@@ -24,7 +24,7 @@ export default function AdminPage() {
 
   return (
     <main className="bb-page">
-      <section className="bb-shell max-w-4xl">
+      <section className="bb-shell">
         <DesktopNav />
         <h1 className="text-2xl font-bold">Admin panel</h1>
         <button className="bb-btn-primary mt-4" onClick={loadStats}>Load stats</button>

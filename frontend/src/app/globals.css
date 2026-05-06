@@ -20,7 +20,7 @@
 }
 
 body {
-  background: #f5f5f5;
+  background: #F7F7F7;
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   min-height: 100dvh;
@@ -32,8 +32,8 @@ body {
 @layer components {
   .bb-page {
     @apply w-full min-h-dvh px-0 py-0;
-    padding-left: max(0.75rem, env(safe-area-inset-left));
-    padding-right: max(0.75rem, env(safe-area-inset-right));
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
     padding-top: max(0.75rem, env(safe-area-inset-top));
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
@@ -52,7 +52,7 @@ body {
   }
 
   .bb-btn-primary {
-    @apply inline-flex min-h-12 items-center justify-center rounded-2xl bg-[#1caf50] px-4 py-2 text-sm font-semibold text-white transition active:scale-[0.98] active:opacity-90 disabled:opacity-50;
+    @apply inline-flex min-h-12 items-center justify-center rounded-2xl bg-[#16A34A] px-4 py-2 text-sm font-semibold text-white transition active:scale-[0.98] active:opacity-90 disabled:opacity-50;
     position: relative;
     overflow: hidden;
     isolation: isolate;
@@ -81,7 +81,9 @@ body {
   }
 
   .bb-mobile-nav {
-    @apply fixed bottom-2 left-1/2 z-30 mt-5 grid w-[calc(100%-1rem)] -translate-x-1/2 grid-cols-3 rounded-2xl border border-white/40 bg-white/80 py-2 text-center text-xs shadow-lg backdrop-blur-md;
+    @apply fixed inset-x-0 bottom-0 z-30 mt-5 grid grid-cols-3 border-t border-gray-200 bg-white/90 py-2 text-center text-xs shadow-lg backdrop-blur-md;
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
     animation: bb-slide-up 220ms ease-out;
   }

@@ -2,15 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { api, authStorage } from '@/lib/api';
-import { DesktopNav, MobileNav } from '@/components/app-nav';
+import { MobileNav } from '@/components/app-nav';
 
-type Product = { id: string; name: string; price: string };
-type Box = {
-  id: string;
-  name: string;
-  price: string;
-  items: Array<{ quantity: number; product: { name: string } }>;
-};
 type CartResponse = {
   items: Array<{
     id: string;
@@ -22,115 +15,55 @@ type CartResponse = {
 
 export default function ClientPage() {
   const [token, setToken] = useState('');
-  const [products, setProducts] = useState<Product[]>([]);
-  const [boxes, setBoxes] = useState<Box[]>([]);
   const [cart, setCart] = useState<CartResponse | null>(null);
-  const [email, setEmail] = useState('client@barakabox.local');
-  const [password, setPassword] = useState('password123');
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const savedToken = authStorage.getAccessToken();
-    if (savedToken) {
-      setToken(savedToken);
-    }
+    setToken(savedToken);
+    void loadCart(savedToken);
   }, []);
 
-  const withLoading = async (key: string, task: () => Promise<void>) => {
-    setLoading((prev) => ({ ...prev, [key]: true }));
+  const withLoading = async (task: () => Promise<void>) => {
+    setLoading(true);
     setError('');
     try {
       await task();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Request failed');
     } finally {
-      setLoading((prev) => ({ ...prev, [key]: false }));
+      setLoading(false);
     }
   };
 
-  const login = async () => {
-    await withLoading('login', async () => {
-      const data = await api.post<{ accessToken: string }>('/auth/login', { email, password });
-      setToken(data.accessToken);
-      authStorage.setAccessToken(data.accessToken);
-      setMessage('Logged in');
-    });
-  };
-
-  const loadProducts = async () => {
-    await withLoading('products', async () => {
-      const data = await api.get<Product[]>('/products');
-      setProducts(data);
-    });
-  };
-
-  const loadBoxes = async () => {
-    await withLoading('boxes', async () => {
-      const data = await api.get<Box[]>('/boxes');
-      setBoxes(data);
-    });
-  };
-
-  const loadCart = async () => {
-    if (!token) return;
-    await withLoading('cart', async () => {
-      const data = await api.get<CartResponse>('/cart', token);
+  const loadCart = async (activeToken?: string) => {
+    await withLoading(async () => {
+      const data = await api.get<CartResponse>('/cart', activeToken ?? token, true);
       setCart(data);
     });
   };
 
   const placeOrder = async () => {
-    await withLoading('order', async () => {
-      const response = await api.post<{ subtotalAmount: string; deliveryFee: string; totalAmount: string }>(
-        '/orders',
-        {},
-        token,
-      );
-      setMessage(
-        `Order created. Subtotal: $${response.subtotalAmount}, delivery: $${response.deliveryFee}, total: $${response.totalAmount}`,
-      );
+    await withLoading(async () => {
+      await api.post('/orders', {}, token);
       await loadCart();
     });
   };
 
-  const updateProductQty = async (productId: string, delta: number) => {
-    if (!token) return;
-    if (delta > 0) {
-      await withLoading(`add-${productId}`, async () => {
-        await api.post('/cart/items', { productId, quantity: 1 }, token);
-        await loadCart();
-      });
-      return;
-    }
+  const updateProductQty = async (productId: string, quantity: number) => {
     const existing = cart?.items.find((i) => i.product?.id === productId);
     if (!existing) return;
-    if (existing.quantity <= 1) {
-      await withLoading(`remove-${productId}`, async () => {
+    if (quantity <= 0) {
+      await withLoading(async () => {
         await api.delete('/cart/items', { productId }, token);
         await loadCart();
       });
       return;
     }
-    await withLoading(`decrease-${productId}`, async () => {
-      await api.post('/cart/items', { productId, quantity: -1 }, token);
-      await loadCart();
-    });
-  };
-
-  const addBox = async (boxId: string) => {
-    if (!token) return;
-    await withLoading(`box-${boxId}`, async () => {
-      await api.post('/cart/boxes', { boxId, quantity: 1 }, token);
-      await loadCart();
-    });
-  };
-
-  const removeBox = async (boxId: string) => {
-    if (!token) return;
-    await withLoading(`box-rm-${boxId}`, async () => {
-      await api.delete('/cart/boxes', { boxId }, token);
+    const diff = quantity - existing.quantity;
+    await withLoading(async () => {
+      await api.post('/cart/items', { productId, quantity: diff }, token);
       await loadCart();
     });
   };
@@ -146,118 +79,56 @@ export default function ClientPage() {
 
   return (
     <main className="bb-page">
-      <div className="mx-auto w-full max-w-7xl">
-        <DesktopNav />
-      </div>
-      <div className="mx-auto grid w-full max-w-7xl gap-6 lg:grid-cols-[360px_1fr]">
-        <aside className="bb-card">
-          <h1 className="text-xl font-bold">Client Access</h1>
-          <p className="mt-1 text-sm text-[#4B5563]">Sign in to manage your cart</p>
-          <div className="mt-4 space-y-2">
-            <input className="bb-input" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <input className="bb-input" value={password} onChange={(e) => setPassword(e.target.value)} />
-          </div>
-          <button
-            className="bb-btn-primary mt-3 w-full py-3"
-            onClick={login}
-            disabled={loading.login}
-          >
-            {loading.login ? 'Logging in...' : token ? 'Connected' : 'Login'}
-          </button>
-          <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-            <button className="bb-btn-secondary" onClick={loadProducts} disabled={loading.products}>
-              {loading.products ? 'Loading...' : 'Products'}
-            </button>
-            <button className="bb-btn-secondary" onClick={loadBoxes} disabled={loading.boxes}>
-              {loading.boxes ? 'Loading...' : 'Boxes'}
-            </button>
-            <button className="bb-btn-secondary" onClick={loadCart} disabled={loading.cart || !token}>
-              {loading.cart ? 'Loading...' : 'Cart'}
-            </button>
-            <button className="bb-btn-primary rounded-xl" onClick={placeOrder} disabled={loading.order || !token}>
-              {loading.order ? 'Placing...' : 'Order'}
-            </button>
-          </div>
-          {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
-          {message ? <p className="mt-2 text-sm text-[#374151]">{message}</p> : null}
-          <div className="mt-5 rounded-2xl bg-gray-100 p-4">
-            <p className="text-xs text-[#4B5563]">Cart subtotal</p>
-            <p className="text-2xl font-bold">${cartTotal.toFixed(2)}</p>
-          </div>
-        </aside>
-
-        <section className="space-y-5">
-          <div className="bb-card">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Popular items</h2>
-              <span className="text-xs text-[#1caf50]">See all</span>
+      <section className="bb-shell pb-28">
+        <h1 className="text-2xl font-bold text-[#121212]">Cart</h1>
+        <p className="mt-1 text-sm text-gray-500">Review items and checkout.</p>
+        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+        <div className="mt-4 space-y-3">
+          {!cart || cart.items.length === 0 ? (
+            <div className="rounded-3xl bg-white p-5 text-center shadow-sm">
+              <p className="text-sm text-gray-500">Your cart is empty.</p>
             </div>
-            {products.length === 0 ? <p className="mt-3 text-sm text-[#4B5563]">No products loaded.</p> : null}
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {products.map((p) => (
-                <div key={p.id} className="rounded-2xl border border-gray-100 p-3 shadow-sm">
-                  <div className="h-28 rounded-xl bg-gradient-to-r from-green-200 to-green-100" />
-                  <h3 className="mt-3 font-semibold">{p.name}</h3>
-                  <p className="text-sm text-[#4B5563]">${p.price}</p>
-                  <div className="mt-3 flex items-center justify-end gap-2">
-                    <button className="h-8 w-8 rounded-full border border-gray-300 disabled:opacity-50" onClick={() => updateProductQty(p.id, -1)} disabled={!token}>
-                      -
-                    </button>
-                    <button className="h-8 w-8 rounded-full border border-gray-300 disabled:opacity-50" onClick={() => updateProductQty(p.id, 1)} disabled={!token}>
-                      +
-                    </button>
+          ) : null}
+          {cart?.items.map((item) => {
+            const title = item.product ? item.product.name : item.box?.name ?? 'Unknown';
+            const price = Number(item.product?.price ?? item.box?.price ?? 0);
+            return (
+              <article key={item.id} className="rounded-3xl bg-white p-4 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-[#121212]">{title}</h3>
+                    <p className="text-xs text-gray-500">${price.toFixed(2)} each</p>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bb-card">
-            <h2 className="text-lg font-semibold">Box bundles</h2>
-            {boxes.length === 0 ? <p className="mt-3 text-sm text-[#4B5563]">No boxes loaded.</p> : null}
-            <div className="mt-4 space-y-3">
-              {boxes.map((box) => (
-                <div key={box.id} className="rounded-2xl border border-gray-100 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h3 className="font-semibold">{box.name}</h3>
-                      <p className="text-xs text-[#4B5563]">{box.items.map((item) => `${item.quantity}x ${item.product.name}`).join(', ')}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold">${box.price}</p>
-                      <button className="mt-1 rounded-full bg-[#1caf50] px-3 py-1 text-xs font-semibold text-white disabled:opacity-50" onClick={() => addBox(box.id)} disabled={!token || loading[`box-${box.id}`]}>
-                        {loading[`box-${box.id}`] ? 'Adding...' : 'Add'}
+                  {item.product ? (
+                    <div className="flex items-center gap-2">
+                      <button className="h-8 w-8 rounded-full bg-[#F3F4F6] font-bold" onClick={() => updateProductQty(item.product!.id, item.quantity - 1)}>
+                        -
+                      </button>
+                      <span className="w-6 text-center text-sm font-semibold">{item.quantity}</span>
+                      <button className="h-8 w-8 rounded-full bg-[#F3F4F6] font-bold" onClick={() => updateProductQty(item.product!.id, item.quantity + 1)}>
+                        +
                       </button>
                     </div>
-                  </div>
+                  ) : (
+                    <span className="rounded-xl bg-[#F3F4F6] px-3 py-1 text-xs font-semibold">{item.quantity}x</span>
+                  )}
                 </div>
-              ))}
+              </article>
+            );
+          })}
+        </div>
+        <div className="fixed inset-x-0 bottom-0 z-20 bg-white p-4 shadow-[0_-8px_20px_rgba(0,0,0,0.08)]" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+          <div className="mx-auto w-full">
+            <div className="mb-2 flex items-center justify-between text-sm text-gray-600">
+              <span>Subtotal</span>
+              <span className="font-semibold">${cartTotal.toFixed(2)}</span>
             </div>
+            <button className="w-full rounded-2xl bg-[#16A34A] py-3 text-sm font-semibold text-white disabled:opacity-60" onClick={placeOrder} disabled={loading || cartTotal <= 0}>
+              {loading ? 'Processing...' : 'Checkout'}
+            </button>
           </div>
-
-          <div className="bb-card">
-            <h2 className="text-lg font-semibold">Your cart</h2>
-            {!cart || cart.items.length === 0 ? (
-              <p className="mt-3 text-sm text-[#4B5563]">Your cart is empty.</p>
-            ) : (
-              <ul className="mt-3 space-y-2">
-                {cart.items.map((item) => (
-                  <li key={item.id} className="flex items-center justify-between rounded-xl border border-gray-100 p-3 text-sm">
-                    <span>
-                      {item.product ? item.product.name : item.box?.name} x {item.quantity}
-                    </span>
-                    {item.box ? (
-                      <button className="rounded-full border border-gray-300 px-3 py-1 text-xs disabled:opacity-50" onClick={() => removeBox(item.box!.id)} disabled={loading[`box-rm-${item.box.id}`]}>
-                        Remove
-                      </button>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </section>
-      </div>
+        </div>
+      </section>
       <MobileNav />
     </main>
   );

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { api, authStorage } from '@/lib/api';
-import { DesktopNav, MobileNav } from '@/components/app-nav';
+import { MobileNav } from '@/components/app-nav';
 
 type LoginResponse = {
   accessToken: string;
@@ -50,30 +50,40 @@ export default function ProfilePage() {
 
   return (
     <main className="bb-page">
-      <section className="bb-shell max-w-3xl">
-        <DesktopNav />
-        <h1 className="text-2xl font-bold">Profile</h1>
+      <section className="bb-shell pb-24">
+        <h1 className="text-2xl font-bold text-[#121212]">Profile</h1>
         {!user ? (
           <div className="mt-4 space-y-3">
-            <input className="bb-input" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <input className="bb-input" value={password} onChange={(e) => setPassword(e.target.value)} />
-            <button className="bb-btn-primary w-full" onClick={login} disabled={loading}>
+            <input className="bb-input rounded-2xl border-none bg-white" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input className="bb-input rounded-2xl border-none bg-white" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <button className="w-full rounded-2xl bg-[#16A34A] py-3 text-sm font-semibold text-white" onClick={login} disabled={loading}>
               {loading ? 'Logging in...' : 'Login'}
             </button>
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
           </div>
         ) : (
-          <div className="mt-4 space-y-3">
-            <p className="bb-secondary">Name: {user.fullName}</p>
-            <p className="bb-secondary">Email: {user.email}</p>
-            <p className="bb-secondary">Role: {user.role}</p>
+          <div className="mt-4 space-y-4">
+            <div className="rounded-3xl bg-white p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#F3F4F6] text-lg">👤</div>
+                <div>
+                  <p className="font-semibold text-[#121212]">{user.fullName}</p>
+                  <p className="text-sm text-gray-500">{user.email}</p>
+                </div>
+              </div>
+            </div>
+            <div className="rounded-3xl bg-white p-4 shadow-sm">
+              <p className="border-b border-gray-100 py-2 text-sm text-[#121212]">Orders</p>
+              <p className="border-b border-gray-100 py-2 text-sm text-[#121212]">Addresses</p>
+              <p className="py-2 text-sm text-[#121212]">Payment methods</p>
+            </div>
             {normalizeRole(user.role) === 'business' ? (
-              <a className="bb-btn-primary w-full" href="/business">Open Business Panel</a>
+              <a className="block w-full rounded-2xl bg-[#16A34A] px-4 py-3 text-center text-sm font-semibold text-white" href="/business">Go to Business Panel</a>
             ) : null}
             {normalizeRole(user.role) === 'admin' ? (
-              <a className="bb-btn-primary w-full" href="/admin">Open Admin Panel</a>
+              <a className="block w-full rounded-2xl bg-[#121212] px-4 py-3 text-center text-sm font-semibold text-white" href="/admin">Go to Admin Panel</a>
             ) : null}
-            <button className="bb-btn-outline" onClick={logout}>Logout</button>
+            <button className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700" onClick={logout}>Logout</button>
           </div>
         )}
       </section>

@@ -50,7 +50,7 @@ export default function ModeratorPage() {
 
   return (
     <main className="bb-page">
-      <section className="bb-shell max-w-5xl space-y-4 text-[#111827]">
+      <section className="bb-shell space-y-4 text-[#111827]">
       <DesktopNav />
       <h1 className="text-2xl font-bold">Admin</h1>
       <div className="grid gap-2 sm:grid-cols-4">

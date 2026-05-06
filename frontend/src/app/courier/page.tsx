@@ -33,7 +33,7 @@ export default function CourierPage() {
 
   return (
     <main className="bb-page">
-      <section className="bb-shell max-w-5xl">
+      <section className="bb-shell">
         <DesktopNav />
         <h1 className="text-2xl font-bold">Courier panel</h1>
         <button className="bb-btn-primary mt-4" onClick={loadOrders}>Load orders</button>
