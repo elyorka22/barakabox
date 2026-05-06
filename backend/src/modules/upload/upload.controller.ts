@@ -175,7 +175,7 @@ export class UploadController {
     }
   }
 
-  @Delete(':key(*)')
+  @Delete('*key')
   @Throttle({ default: { limit: 15, ttl: 60_000 } })
   async remove(@CurrentUser() user: { sub: string }, @Param('key') key?: string) {
     if (!key) {
