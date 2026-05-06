@@ -7,7 +7,7 @@ import { api, authStorage } from '@/lib/api';
 import { formatMoneyUz } from '@/lib/format';
 import { MobileNav } from '@/components/app-nav';
 
-type Product = { id: string; name: string; price: string };
+type Product = { id: string; name: string; price: string; imageUrl?: string | null };
 
 export default function ProductDetailPage() {
   const params = useParams<{ id: string }>();
@@ -40,7 +40,11 @@ export default function ProductDetailPage() {
     <main className="bb-page">
       <section className="bb-shell">
         <Link href="/" className="text-sm text-gray-500">Orqaga</Link>
-        <div className="mt-3 h-56 rounded-3xl bg-gradient-to-br from-green-200 to-green-100" />
+        {product?.imageUrl ? (
+          <img src={product.imageUrl} alt={product.name} className="mt-3 h-56 w-full rounded-3xl object-cover" />
+        ) : (
+          <div className="mt-3 h-56 rounded-3xl bg-gradient-to-br from-green-200 to-green-100" />
+        )}
         <h1 className="mt-4 text-2xl font-bold text-[#121212]">{product?.name ?? 'Mahsulot'}</h1>
         <p className="mt-1 text-sm text-gray-500">⭐ 4.8 • Yangi va sifatli mahsulot</p>
         <p className="mt-2 text-2xl font-bold text-[#121212]">{formatMoneyUz(product?.price ?? 0)}</p>

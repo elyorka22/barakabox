@@ -1,6 +1,9 @@
-import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { DatabaseModule } from './infrastructure/database/database.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -12,12 +15,13 @@ import { BusinessesModule } from './modules/businesses/businesses.module';
 import { BoxesModule } from './modules/boxes/boxes.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { UploadModule } from './modules/upload/upload.module';
 import { QueueService } from './infrastructure/queue/queue.service';
 import { EventEmitterService } from './infrastructure/events/event-emitter.service';
 import { CacheService } from './infrastructure/cache/cache.service';
 import { validateEnv } from './infrastructure/config/env.validation';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
-import { AuthRateLimitMiddleware } from './common/middleware/auth-rate-limit.middleware';
+import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
 
 @Module({
   imports: [
@@ -30,6 +34,14 @@ import { AuthRateLimitMiddleware } from './common/middleware/auth-rate-limit.mid
       validate: validateEnv,
     }),
     JwtModule.register({ global: true }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60_000,
+        limit: 60,
+      },
+    ]),
+    ScheduleModule.forRoot(),
     DatabaseModule,
     AuthModule,
     UsersModule,
@@ -40,19 +52,21 @@ import { AuthRateLimitMiddleware } from './common/middleware/auth-rate-limit.mid
     BoxesModule,
     AdminModule,
     CategoriesModule,
+    UploadModule,
   ],
   controllers: [AppController],
-  providers: [QueueService, EventEmitterService, CacheService],
+  providers: [
+    QueueService,
+    EventEmitterService,
+    CacheService,
+    {
+      provide: APP_GUARD,
+      useClass: CustomThrottlerGuard,
+    },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     consumer.apply(RequestLoggerMiddleware).forRoutes('*');
-    consumer
-      .apply(AuthRateLimitMiddleware)
-      .forRoutes(
-        { path: 'auth/login', method: RequestMethod.POST },
-        { path: 'auth/register', method: RequestMethod.POST },
-        { path: 'auth/refresh', method: RequestMethod.POST },
-      );
   }
 }

@@ -7,13 +7,13 @@ import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
 import { OrderStatus, Prisma } from '@prisma/client';
 
-const FINAL_ORDER_STATUSES: OrderStatus[] = ['REJECTED', 'COMPLETED'];
 const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  PENDING: ['ACCEPTED', 'REJECTED'],
-  ACCEPTED: ['DELIVERING', 'REJECTED'],
-  DELIVERING: ['COMPLETED'],
-  REJECTED: [],
-  COMPLETED: [],
+  NEW: ['PICKING', 'CANCELLED'],
+  PICKING: ['READY', 'CANCELLED'],
+  READY: ['DELIVERING', 'CANCELLED'],
+  DELIVERING: ['DELIVERED', 'CANCELLED'],
+  DELIVERED: [],
+  CANCELLED: [],
 };
 
 @Injectable()
@@ -41,7 +41,7 @@ export class OrdersService {
           type: 'product' as const,
           entityId: item.product.id,
           title: item.product.name,
-          unitPrice: Number(item.product.price),
+          price: Number(item.product.price),
           quantity: item.quantity,
         };
       }
@@ -50,7 +50,7 @@ export class OrdersService {
           type: 'box' as const,
           entityId: item.box.id,
           title: item.box.name,
-          unitPrice: Number(item.box.price),
+          price: Number(item.box.price),
           quantity: item.quantity,
         };
       }
@@ -80,7 +80,7 @@ export class OrdersService {
     }
 
     const subtotal = normalizedItems.reduce(
-      (sum, item) => sum + item.unitPrice * item.quantity,
+      (sum, item) => sum + item.price * item.quantity,
       0,
     );
     const threshold = Number(this.configService.get('FREE_DELIVERY_THRESHOLD') ?? 30);
@@ -110,12 +110,40 @@ export class OrdersService {
               boxId: item.type === 'box' ? item.entityId : null,
               title: item.title,
               quantity: item.quantity,
-              unitPrice: item.unitPrice,
+              price: item.price,
             })),
           },
         },
         include: { items: true },
       });
+
+      for (const item of normalizedItems) {
+        if (item.type !== 'product') {
+          continue;
+        }
+        const product = await tx.product.findUnique({
+          where: { id: item.entityId },
+          select: { id: true, stockQuantity: true },
+        });
+        if (!product) {
+          throw new BadRequestException('Product not found');
+        }
+        if (product.stockQuantity < item.quantity) {
+          throw new BadRequestException(`Insufficient stock for ${item.title}`);
+        }
+        await tx.product.update({
+          where: { id: product.id },
+          data: { stockQuantity: product.stockQuantity - item.quantity },
+        });
+        await tx.inventoryLog.create({
+          data: {
+            productId: product.id,
+            orderId: createdOrder.id,
+            change: -item.quantity,
+            reason: 'SALE',
+          },
+        });
+      }
 
       await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
       return createdOrder;
@@ -127,11 +155,7 @@ export class OrdersService {
     return order;
   }
 
-  async updateStatus(
-    orderId: string,
-    status: 'ACCEPTED' | 'REJECTED' | 'DELIVERING' | 'COMPLETED',
-    actorRole: 'BUSINESS' | 'COURIER',
-  ) {
+  private async applyStatus(orderId: string, nextStatus: OrderStatus, actor: { role: 'PICKER' | 'COURIER' | 'ADMIN'; userId: string }) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       select: { id: true, status: true },
@@ -142,21 +166,16 @@ export class OrdersService {
     }
 
     const currentStatus = order.status;
-    const nextStatus = status as OrderStatus;
-    const allowedByRole: Record<'BUSINESS' | 'COURIER', OrderStatus[]> = {
-      BUSINESS: ['ACCEPTED', 'REJECTED'],
-      COURIER: ['DELIVERING', 'COMPLETED'],
+    const allowedByRole: Record<'PICKER' | 'COURIER' | 'ADMIN', OrderStatus[]> = {
+      PICKER: ['PICKING', 'READY'],
+      COURIER: ['DELIVERING', 'DELIVERED'],
+      ADMIN: ['PICKING', 'READY', 'DELIVERING', 'DELIVERED', 'CANCELLED'],
     };
-    if (!allowedByRole[actorRole].includes(nextStatus)) {
-      throw new BadRequestException(`${actorRole} cannot set status to ${nextStatus}`);
+    if (!allowedByRole[actor.role].includes(nextStatus)) {
+      throw new BadRequestException(`${actor.role} cannot set status to ${nextStatus}`);
     }
     const allowedStatuses = ORDER_STATUS_TRANSITIONS[currentStatus];
-
-    const isInvalidFinalTransition =
-      FINAL_ORDER_STATUSES.includes(currentStatus) && currentStatus !== nextStatus;
-    const isInvalidTransition = !allowedStatuses.includes(nextStatus);
-
-    if (isInvalidFinalTransition || isInvalidTransition) {
+    if (!allowedStatuses.includes(nextStatus)) {
       const message = `Invalid order status transition from ${currentStatus} to ${nextStatus}`;
       console.warn(`[OrdersService] ${message}`, { orderId });
       throw new BadRequestException(message);
@@ -164,12 +183,18 @@ export class OrdersService {
 
     const now = new Date();
     const updateData: Prisma.OrderUpdateInput = { status: nextStatus };
-    if (nextStatus === 'ACCEPTED') {
-      updateData.acceptedAt = now;
+    if (nextStatus === 'PICKING') {
+      updateData.pickingAt = now;
+      updateData.assignedPicker = { connect: { id: actor.userId } };
+    } else if (nextStatus === 'READY') {
+      updateData.readyAt = now;
     } else if (nextStatus === 'DELIVERING') {
       updateData.deliveringAt = now;
-    } else if (nextStatus === 'COMPLETED') {
-      updateData.completedAt = now;
+      updateData.assignedCourier = { connect: { id: actor.userId } };
+    } else if (nextStatus === 'DELIVERED') {
+      updateData.deliveredAt = now;
+    } else if (nextStatus === 'CANCELLED') {
+      updateData.cancelledAt = now;
     }
 
     return this.prisma.order.update({
@@ -178,9 +203,49 @@ export class OrdersService {
     });
   }
 
+  async startPicking(orderId: string, userId: string) {
+    return this.applyStatus(orderId, 'PICKING', { role: 'PICKER', userId });
+  }
+
+  async setReady(orderId: string, userId: string) {
+    return this.applyStatus(orderId, 'READY', { role: 'PICKER', userId });
+  }
+
+  async startDelivery(orderId: string, userId: string) {
+    return this.applyStatus(orderId, 'DELIVERING', { role: 'COURIER', userId });
+  }
+
+  async setDelivered(orderId: string, userId: string) {
+    return this.applyStatus(orderId, 'DELIVERED', { role: 'COURIER', userId });
+  }
+
+  async cancelByAdmin(orderId: string, userId: string) {
+    return this.applyStatus(orderId, 'CANCELLED', { role: 'ADMIN', userId });
+  }
+
+  async setStatusByAdmin(orderId: string, status: OrderStatus, userId: string) {
+    return this.applyStatus(orderId, status, { role: 'ADMIN', userId });
+  }
+
+  listPickerQueue() {
+    return this.prisma.order.findMany({
+      where: { status: { in: ['NEW', 'PICKING'] } },
+      include: { items: { include: { product: true } }, user: true, assignedPicker: true, assignedCourier: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  listCourierQueue() {
+    return this.prisma.order.findMany({
+      where: { status: 'READY' },
+      include: { items: { include: { product: true } }, user: true, assignedPicker: true, assignedCourier: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   listAll() {
     return this.prisma.order.findMany({
-      include: { items: { include: { product: true } }, user: true },
+      include: { items: { include: { product: true } }, user: true, assignedPicker: true, assignedCourier: true },
       orderBy: { createdAt: 'desc' },
     });
   }

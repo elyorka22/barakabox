@@ -65,19 +65,68 @@ export class OrdersController {
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('BUSINESS', 'ADMIN', 'COURIER')
+  @Roles('BUSINESS', 'ADMIN')
   listAll() {
     return this.ordersService.listAll();
   }
 
+  @Get('picker')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PICKER')
+  listPickerOrders() {
+    return this.ordersService.listPickerQueue();
+  }
+
+  @Patch(':orderId/start-picking')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PICKER')
+  startPicking(@CurrentUser() user: { sub: string }, @Param('orderId') orderId: string) {
+    return this.ordersService.startPicking(orderId, user.sub);
+  }
+
+  @Patch(':orderId/ready')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PICKER')
+  ready(@CurrentUser() user: { sub: string }, @Param('orderId') orderId: string) {
+    return this.ordersService.setReady(orderId, user.sub);
+  }
+
+  @Get('courier')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('COURIER')
+  listCourierOrders() {
+    return this.ordersService.listCourierQueue();
+  }
+
+  @Patch(':orderId/start-delivery')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('COURIER')
+  startDelivery(@CurrentUser() user: { sub: string }, @Param('orderId') orderId: string) {
+    return this.ordersService.startDelivery(orderId, user.sub);
+  }
+
+  @Patch(':orderId/delivered')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('COURIER')
+  delivered(@CurrentUser() user: { sub: string }, @Param('orderId') orderId: string) {
+    return this.ordersService.setDelivered(orderId, user.sub);
+  }
+
+  @Patch(':orderId/cancel')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  cancelByAdmin(@CurrentUser() user: { sub: string }, @Param('orderId') orderId: string) {
+    return this.ordersService.cancelByAdmin(orderId, user.sub);
+  }
+
   @Patch(':orderId/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('BUSINESS', 'COURIER')
-  updateStatus(
-    @CurrentUser() user: { role: 'BUSINESS' | 'COURIER' | 'ADMIN' },
+  @Roles('ADMIN')
+  setStatusByAdmin(
+    @CurrentUser() user: { sub: string },
     @Param('orderId') orderId: string,
     @Body() body: UpdateOrderStatusDto,
   ) {
-    return this.ordersService.updateStatus(orderId, body.status, user.role as 'BUSINESS' | 'COURIER');
+    return this.ordersService.setStatusByAdmin(orderId, body.status, user.sub);
   }
 }

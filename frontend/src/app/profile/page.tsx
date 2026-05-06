@@ -10,12 +10,15 @@ type LoginResponse = {
   user: { id: string; email: string; role: string; fullName: string };
 };
 
-function normalizeRole(role?: string): 'user' | 'business' | 'admin' {
-  if (!role) return 'user';
+function normalizeRole(role?: string): 'client' | 'business' | 'admin' | 'courier' | 'picker' {
+  if (!role) return 'client';
   const normalized = role.toLowerCase();
+  if (normalized === 'client') return 'client';
   if (normalized === 'business') return 'business';
   if (normalized === 'admin') return 'admin';
-  return 'user';
+  if (normalized === 'courier') return 'courier';
+  if (normalized === 'picker') return 'picker';
+  return 'client';
 }
 
 export default function ProfilePage() {
@@ -127,6 +130,12 @@ export default function ProfilePage() {
               ) : null}
               {normalizeRole(user.role) === 'admin' ? (
                 <a className="block w-full rounded-2xl bg-purple-50 px-4 py-3 text-sm font-semibold text-purple-700" href="/admin">Admin paneliga o'tish</a>
+              ) : null}
+              {normalizeRole(user.role) === 'courier' ? (
+                <a className="block w-full rounded-2xl bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700" href="/courier">Courier paneliga o'tish</a>
+              ) : null}
+              {normalizeRole(user.role) === 'picker' ? (
+                <a className="block w-full rounded-2xl bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-700" href="/picker">Picker paneliga o'tish</a>
               ) : null}
             </div>
             <button className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700" onClick={logout}>Chiqish</button>

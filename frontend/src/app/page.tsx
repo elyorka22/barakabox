@@ -11,6 +11,8 @@ type Product = {
   name: string;
   price: string;
   categoryId?: string | null;
+  imageUrl?: string | null;
+  imageCardUrl?: string | null;
 };
 type CartResponse = {
   items: Array<{
@@ -176,6 +178,7 @@ export default function Home() {
                 quantity={qtyByProductId(product.id)}
                 loading={loading}
                 href={`/products/${product.id}`}
+                imageUrl={product.imageCardUrl ?? product.imageUrl}
               />
             ))}
           </div>

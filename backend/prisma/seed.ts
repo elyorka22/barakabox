@@ -16,6 +16,7 @@ async function main() {
   const admin = await createUser('admin@barakabox.local', 'Admin', Role.ADMIN);
   const businessUser = await createUser('business@barakabox.local', 'Business Owner', Role.BUSINESS);
   const courier = await createUser('courier@barakabox.local', 'Courier', Role.COURIER);
+  const picker = await createUser('picker@barakabox.local', 'Picker', Role.PICKER);
   const client = await createUser('client@barakabox.local', 'Client User', Role.CLIENT);
 
   const businessProfile = await prisma.businessProfile.upsert({
@@ -48,11 +49,11 @@ async function main() {
   };
 
   const products = [
-    { name: 'Apple', price: 12000, stock: 100, categoryId: categoryMap.fruits },
-    { name: 'Banana', price: 8000, stock: 120, categoryId: categoryMap.fruits },
-    { name: 'Tomato', price: 15000, stock: 80, categoryId: categoryMap.vegetables },
-    { name: 'Potato', price: 9000, stock: 150, categoryId: categoryMap.vegetables },
-    { name: 'Milk 1L', price: 21000, stock: 60, categoryId: categoryMap.dairy },
+    { name: 'Apple', price: 12000, stockQuantity: 100, categoryId: categoryMap.fruits },
+    { name: 'Banana', price: 8000, stockQuantity: 120, categoryId: categoryMap.fruits },
+    { name: 'Tomato', price: 15000, stockQuantity: 80, categoryId: categoryMap.vegetables },
+    { name: 'Potato', price: 9000, stockQuantity: 150, categoryId: categoryMap.vegetables },
+    { name: 'Milk 1L', price: 21000, stockQuantity: 60, categoryId: categoryMap.dairy },
   ];
 
   await prisma.boxItem.deleteMany();
@@ -66,7 +67,7 @@ async function main() {
         businessId: businessProfile.id,
         name: product.name,
         price: product.price,
-        stock: product.stock,
+        stockQuantity: product.stockQuantity,
         categoryId: product.categoryId,
       },
     });
@@ -143,6 +144,7 @@ async function main() {
     admin: admin.email,
     business: businessUser.email,
     courier: courier.email,
+    picker: picker.email,
     client: client.email,
   });
 }

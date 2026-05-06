@@ -13,6 +13,7 @@ type ProductCardProps = {
   quantity?: number;
   loading?: boolean;
   href?: string;
+  imageUrl?: string | null;
 };
 
 export function ProductCard({
@@ -25,11 +26,16 @@ export function ProductCard({
   quantity = 0,
   loading,
   href,
+  imageUrl,
 }: ProductCardProps) {
   return (
     <article className="rounded-3xl bg-white p-3 shadow-sm">
       <Link href={href ?? '#'} className="block">
-        <div className="h-28 rounded-2xl bg-gradient-to-br from-green-200 to-green-100" />
+        {imageUrl ? (
+          <img src={imageUrl} alt={name} className="h-28 w-full rounded-2xl object-cover" />
+        ) : (
+          <div className="h-28 rounded-2xl bg-gradient-to-br from-green-200 to-green-100" />
+        )}
         <h3 className="mt-3 line-clamp-1 text-sm font-semibold text-[#121212]">{name}</h3>
         <div className="mt-1 flex items-center justify-between">
           <p className="text-base font-bold text-[#121212]">{formatMoneyUz(price)}</p>

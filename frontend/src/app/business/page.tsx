@@ -10,7 +10,8 @@ type Product = {
   name: string;
   description?: string | null;
   price: string;
-  stock: number;
+  stockQuantity: number;
+  unitType: 'kg' | 'piece' | 'pack';
   isActive: boolean;
   category?: { id: string; name: string } | null;
 };
@@ -39,7 +40,7 @@ export default function BusinessPage() {
     try {
       await action();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Request failed');
+      setError(err instanceof Error ? err.message : "So'rov bajarilmadi");
     } finally {
       setLoading(false);
     }
@@ -49,7 +50,7 @@ export default function BusinessPage() {
     await runAction(async () => {
       const data = await api.post<{ accessToken: string }>('/auth/login', { email, password });
       setToken(data.accessToken);
-      setMessage('Logged in');
+      setMessage('Tizimga kirildi');
       await loadMyProducts(data.accessToken);
       await loadMyStats(data.accessToken);
     });
@@ -68,7 +69,7 @@ export default function BusinessPage() {
   const registerBusiness = async () => {
     await runAction(async () => {
       await api.post('/businesses/register', { displayName: 'Baraka Fresh Store' }, token);
-      setMessage('Business profile submitted');
+      setMessage('Biznes profili yuborildi');
     });
   };
 
@@ -76,70 +77,70 @@ export default function BusinessPage() {
     <main className="bb-page">
       <section className="bb-shell space-y-4 text-[#111827]">
       <DesktopNav />
-      <h1 className="text-2xl font-bold">Business</h1>
+      <h1 className="text-2xl font-bold">Biznes</h1>
       <div className="grid gap-2 sm:grid-cols-3">
         <input className="rounded-xl border border-gray-200 p-2" value={email} onChange={(e) => setEmail(e.target.value)} />
         <input className="rounded-xl border border-gray-200 p-2" value={password} onChange={(e) => setPassword(e.target.value)} />
         <button className="bb-btn-secondary" onClick={login} disabled={loading}>
-          {loading ? 'Working...' : 'Login'}
+          {loading ? 'Yuklanmoqda...' : 'Kirish'}
         </button>
       </div>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <button className="bb-btn-secondary" onClick={registerBusiness} disabled={loading || !token}>
-          Register business
+          Biznesni ro'yxatdan o'tkazish
         </button>
         <button className="bb-btn-primary" onClick={() => void runAction(async () => loadMyStats())} disabled={loading || !token}>
-          Load my stats
+          Statistikani yuklash
         </button>
         <button className="bb-btn-secondary" onClick={() => void runAction(async () => loadMyProducts())} disabled={loading || !token}>
-          My products
+          Mahsulotlarim
         </button>
       </div>
       {error ? <p className="text-red-600">{error}</p> : null}
       {stats ? (
         <div className="grid grid-cols-2 gap-2 rounded-2xl bg-white p-3 shadow-sm sm:grid-cols-3">
           <div className="rounded-xl bg-gray-50 p-3">
-            <p className="text-xs text-gray-500">Total products</p>
+            <p className="text-xs text-gray-500">Jami mahsulot</p>
             <p className="text-xl font-bold">{stats.totalProducts}</p>
           </div>
           <div className="rounded-xl bg-gray-50 p-3">
-            <p className="text-xs text-gray-500">Active products</p>
+            <p className="text-xs text-gray-500">Faol mahsulot</p>
             <p className="text-xl font-bold">{stats.activeProducts}</p>
           </div>
           <div className="rounded-xl bg-gray-50 p-3">
-            <p className="text-xs text-gray-500">Total stock</p>
+            <p className="text-xs text-gray-500">Jami qoldiq</p>
             <p className="text-xl font-bold">{stats.totalStock}</p>
           </div>
           <div className="rounded-xl bg-gray-50 p-3">
-            <p className="text-xs text-gray-500">Sold units</p>
+            <p className="text-xs text-gray-500">Sotilgan birlik</p>
             <p className="text-xl font-bold">{stats.soldUnits}</p>
           </div>
           <div className="rounded-xl bg-gray-50 p-3">
-            <p className="text-xs text-gray-500">Completed orders</p>
+            <p className="text-xs text-gray-500">Yetkazilgan buyurtma</p>
             <p className="text-xl font-bold">{stats.completedOrders}</p>
           </div>
           <div className="rounded-xl bg-gray-50 p-3">
-            <p className="text-xs text-gray-500">Revenue</p>
+            <p className="text-xs text-gray-500">Tushum</p>
             <p className="text-xl font-bold">{formatMoneyUz(stats.totalRevenue)}</p>
           </div>
         </div>
       ) : null}
       <div className="space-y-2 rounded-2xl bg-white p-3 shadow-sm">
-        <h2 className="text-lg font-semibold">My products (read-only)</h2>
-        {products.length === 0 ? <p className="text-sm text-gray-500">No products yet.</p> : null}
+        <h2 className="text-lg font-semibold">Mahsulotlar (faqat ko'rish)</h2>
+        {products.length === 0 ? <p className="text-sm text-gray-500">Hozircha mahsulot yo'q.</p> : null}
         {products.map((product) => (
           <div key={product.id} className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 p-3">
             <div>
               <p className="font-semibold">{product.name}</p>
               {product.description ? <p className="text-xs text-gray-500">{product.description}</p> : null}
               <p className="text-xs text-gray-500">
-                {formatMoneyUz(product.price)} · stock {product.stock} · {product.category?.name ?? 'No category'}
+                {formatMoneyUz(product.price)} · qoldiq {product.stockQuantity} {product.unitType} · {product.category?.name ?? "Kategoriya yo'q"}
               </p>
             </div>
           </div>
         ))}
       </div>
-      <pre className="bg-gray-100 p-3 text-xs text-[#374151] overflow-auto">{message}</pre>
+      {message ? <p className="text-sm text-gray-600">{message}</p> : null}
       </section>
       <MobileNav />
     </main>

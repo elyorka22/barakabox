@@ -40,6 +40,12 @@ async function request<T>(
   }
 
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== 'undefined') {
+      authStorage.clearAccessToken();
+      window.alert("Sessiya tugadi. Iltimos qaytadan tizimga kiring.");
+      window.location.href = '/profile';
+      throw new Error("Sessiya tugadi. Iltimos qaytadan tizimga kiring.");
+    }
     let message = t('common.genericError');
     try {
       const payload = (await response.json()) as { message?: string | string[] };

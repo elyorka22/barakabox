@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { authStorage } from '@/lib/api';
 
-const items = [
+const clientItems = [
   { href: '/', label: 'Bosh sahifa' },
   { href: '/client', label: 'Savat' },
   { href: '/profile', label: 'Profil' },
@@ -38,6 +40,21 @@ function Icon({ label, active }: { label: string; active: boolean }) {
 
 export function BottomNav() {
   const pathname = usePathname();
+  const [role, setRole] = useState('CLIENT');
+
+  useEffect(() => {
+    const user = authStorage.getUser();
+    setRole((user?.role ?? 'CLIENT').toUpperCase());
+  }, []);
+
+  const items = useMemo(() => {
+    if (role === 'ADMIN') return [{ href: '/admin', label: 'Admin' }];
+    if (role === 'PICKER') return [{ href: '/picker', label: 'Picker' }];
+    if (role === 'COURIER') return [{ href: '/courier', label: 'Courier' }];
+    if (role === 'BUSINESS') return [{ href: '/business', label: 'Business' }];
+    return clientItems;
+  }, [role]);
+
   return (
     <nav className="bb-mobile-nav">
       {items.map((item) => {

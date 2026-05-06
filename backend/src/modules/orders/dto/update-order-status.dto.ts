@@ -1,6 +1,6 @@
 import { IsIn } from 'class-validator';
 
 export class UpdateOrderStatusDto {
-  @IsIn(['ACCEPTED', 'REJECTED', 'DELIVERING', 'COMPLETED'])
-  status!: 'ACCEPTED' | 'REJECTED' | 'DELIVERING' | 'COMPLETED';
+  @IsIn(['NEW', 'PICKING', 'READY', 'DELIVERING', 'DELIVERED', 'CANCELLED'])
+  status!: 'NEW' | 'PICKING' | 'READY' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED';
 }

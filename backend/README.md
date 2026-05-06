@@ -31,6 +31,16 @@
 $ npm install
 ```
 
+## Prisma migrations
+
+```bash
+# local development (creates and applies migration)
+npx prisma migrate dev
+
+# production (applies committed migrations only)
+npx prisma migrate deploy
+```
+
 ## Compile and run the project
 
 ```bash

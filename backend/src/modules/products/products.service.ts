@@ -1,9 +1,13 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { UploadService } from '../upload/upload.service';
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly uploadService: UploadService,
+  ) {}
 
   private async requireApprovedBusiness(userId: string) {
     const business = await this.prisma.businessProfile.findUnique({
@@ -25,7 +29,20 @@ export class ProductsService {
 
   async createByAdmin(
     businessId: string,
-    data: { name: string; description?: string; price: number; stock: number; categoryId?: string },
+    data: {
+      name: string;
+      description?: string;
+      price: number;
+      stockQuantity: number;
+      unitType: 'kg' | 'piece' | 'pack';
+      categoryId?: string;
+      imageUrl?: string;
+      imageKey?: string;
+      imageCardUrl?: string;
+      imageCardKey?: string;
+      imageThumbUrl?: string;
+      imageThumbKey?: string;
+    },
   ) {
     const business = await this.prisma.businessProfile.findUnique({
       where: { id: businessId },
@@ -34,15 +51,34 @@ export class ProductsService {
       throw new NotFoundException('Approved business not found');
     }
 
-    return this.prisma.product.create({
-      data: {
-        businessId: business.id,
-        name: data.name,
-        description: data.description,
-        price: data.price,
-        stock: data.stock,
-        categoryId: data.categoryId,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const product = await tx.product.create({
+        data: {
+          businessId: business.id,
+          name: data.name,
+          description: data.description,
+          unitType: data.unitType,
+          price: data.price,
+          stockQuantity: data.stockQuantity,
+          categoryId: data.categoryId,
+          imageUrl: data.imageUrl,
+          imageKey: data.imageKey,
+          imageCardUrl: data.imageCardUrl,
+          imageCardKey: data.imageCardKey,
+          imageThumbUrl: data.imageThumbUrl,
+          imageThumbKey: data.imageThumbKey,
+        },
+      });
+      if (data.stockQuantity > 0) {
+        await tx.inventoryLog.create({
+          data: {
+            productId: product.id,
+            change: data.stockQuantity,
+            reason: 'INCOME',
+          },
+        });
+      }
+      return product;
     });
   }
 
@@ -57,7 +93,20 @@ export class ProductsService {
 
   async updateByAdmin(
     productId: string,
-    data: { name?: string; description?: string; price?: number; stock?: number; categoryId?: string },
+    data: {
+      name?: string;
+      description?: string;
+      price?: number;
+      stockQuantity?: number;
+      unitType?: 'kg' | 'piece' | 'pack';
+      categoryId?: string;
+      imageUrl?: string;
+      imageKey?: string;
+      imageCardUrl?: string;
+      imageCardKey?: string;
+      imageThumbUrl?: string;
+      imageThumbKey?: string;
+    },
   ) {
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
@@ -65,15 +114,44 @@ export class ProductsService {
     if (!product) {
       throw new NotFoundException('Product not found');
     }
-    return this.prisma.product.update({
-      where: { id: productId },
-      data: {
-        name: data.name,
-        description: data.description,
-        price: data.price,
-        stock: data.stock,
-        categoryId: data.categoryId,
-      },
+    const cleanupPairs: Array<{ old?: string | null; next?: string | null }> = [
+      { old: product.imageKey, next: data.imageKey },
+      { old: product.imageCardKey, next: data.imageCardKey },
+      { old: product.imageThumbKey, next: data.imageThumbKey },
+    ];
+    for (const pair of cleanupPairs) {
+      if (pair.old && (!pair.next || pair.old !== pair.next)) {
+        await this.uploadService.deleteImage(pair.old);
+      }
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.product.update({
+        where: { id: productId },
+        data: {
+          name: data.name,
+          description: data.description,
+          price: data.price,
+          stockQuantity: data.stockQuantity,
+          unitType: data.unitType,
+          categoryId: data.categoryId,
+          imageUrl: data.imageUrl,
+          imageKey: data.imageKey,
+          imageCardUrl: data.imageCardUrl,
+          imageCardKey: data.imageCardKey,
+          imageThumbUrl: data.imageThumbUrl,
+          imageThumbKey: data.imageThumbKey,
+        },
+      });
+      if (typeof data.stockQuantity === 'number' && data.stockQuantity !== product.stockQuantity) {
+        await tx.inventoryLog.create({
+          data: {
+            productId: product.id,
+            change: data.stockQuantity - product.stockQuantity,
+            reason: 'ADJUSTMENT',
+          },
+        });
+      }
+      return updated;
     });
   }
 
@@ -83,6 +161,11 @@ export class ProductsService {
     });
     if (!product) {
       throw new NotFoundException('Product not found');
+    }
+    for (const key of [product.imageKey, product.imageCardKey, product.imageThumbKey]) {
+      if (key) {
+        await this.uploadService.deleteImage(key);
+      }
     }
     return this.prisma.product.update({
       where: { id: productId },

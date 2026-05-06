@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -26,6 +26,36 @@ export class BusinessesController {
   @Roles('ADMIN')
   approved() {
     return this.businessesService.listApproved();
+  }
+
+  @Get()
+  @Roles('ADMIN')
+  listAll() {
+    return this.businessesService.listAll();
+  }
+
+  @Post()
+  @Roles('ADMIN')
+  createByAdmin(@Body() body: { userId: string; displayName: string; phone?: string }) {
+    return this.businessesService.createByAdmin(body);
+  }
+
+  @Post('inline')
+  @Roles('ADMIN')
+  createInline(@Body() body: { name: string; phone?: string }) {
+    return this.businessesService.createInlineByAdmin(body);
+  }
+
+  @Patch(':businessId')
+  @Roles('ADMIN')
+  updateByAdmin(@Param('businessId') businessId: string, @Body() body: { displayName?: string; phone?: string; isActive?: boolean }) {
+    return this.businessesService.updateByAdmin(businessId, body);
+  }
+
+  @Delete(':businessId')
+  @Roles('ADMIN')
+  removeByAdmin(@Param('businessId') businessId: string) {
+    return this.businessesService.removeByAdmin(businessId);
   }
 
   @Patch(':businessId/approve')
