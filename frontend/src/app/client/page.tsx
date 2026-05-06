@@ -1,7 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { api, authStorage } from '@/lib/api';
+import { formatMoneyUz } from '@/lib/format';
 import { MobileNav } from '@/components/app-nav';
 
 type CartResponse = {
@@ -14,6 +16,7 @@ type CartResponse = {
 };
 
 export default function ClientPage() {
+  const deliveryFee = 15000;
   const [token, setToken] = useState('');
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [error, setError] = useState('');
@@ -31,7 +34,7 @@ export default function ClientPage() {
     try {
       await task();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Request failed');
+      setError(err instanceof Error ? err.message : "So'rov muvaffaqiyatsiz yakunlandi");
     } finally {
       setLoading(false);
     }
@@ -79,25 +82,25 @@ export default function ClientPage() {
 
   return (
     <main className="bb-page">
-      <section className="bb-shell pb-28">
-        <h1 className="text-2xl font-bold text-[#121212]">Cart</h1>
-        <p className="mt-1 text-sm text-gray-500">Review items and checkout.</p>
+      <section className="bb-shell">
+        <h1 className="text-2xl font-bold text-[#121212]">Savat</h1>
+        <p className="mt-1 text-sm text-gray-500">Mahsulotlarni tekshiring va rasmiylashtiring.</p>
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
         <div className="mt-4 space-y-3">
           {!cart || cart.items.length === 0 ? (
             <div className="rounded-3xl bg-white p-5 text-center shadow-sm">
-              <p className="text-sm text-gray-500">Your cart is empty.</p>
+              <p className="text-sm text-gray-500">Savatingiz hozircha bo'sh.</p>
             </div>
           ) : null}
           {cart?.items.map((item) => {
-            const title = item.product ? item.product.name : item.box?.name ?? 'Unknown';
+            const title = item.product ? item.product.name : item.box?.name ?? "Noma'lum";
             const price = Number(item.product?.price ?? item.box?.price ?? 0);
             return (
               <article key={item.id} className="rounded-3xl bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-semibold text-[#121212]">{title}</h3>
-                    <p className="text-xs text-gray-500">${price.toFixed(2)} each</p>
+                    <p className="text-xs text-gray-500">{formatMoneyUz(price)} / dona</p>
                   </div>
                   {item.product ? (
                     <div className="flex items-center gap-2">
@@ -117,14 +120,30 @@ export default function ClientPage() {
             );
           })}
         </div>
-        <div className="fixed inset-x-0 bottom-0 z-20 bg-white p-4 shadow-[0_-8px_20px_rgba(0,0,0,0.08)]" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+        <div
+          className="fixed inset-x-0 z-20 bg-white p-4 shadow-[0_-8px_20px_rgba(0,0,0,0.08)]"
+          style={{
+            bottom: 'calc(var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))',
+          }}
+        >
           <div className="mx-auto w-full">
             <div className="mb-2 flex items-center justify-between text-sm text-gray-600">
-              <span>Subtotal</span>
-              <span className="font-semibold">${cartTotal.toFixed(2)}</span>
+              <span>Oraliq jami</span>
+              <span className="font-semibold">{formatMoneyUz(cartTotal)}</span>
             </div>
-            <button className="w-full rounded-2xl bg-[#16A34A] py-3 text-sm font-semibold text-white disabled:opacity-60" onClick={placeOrder} disabled={loading || cartTotal <= 0}>
-              {loading ? 'Processing...' : 'Checkout'}
+            <div className="mb-2 flex items-center justify-between text-sm text-gray-600">
+              <span>Yetkazib berish narxi</span>
+              <span className="font-semibold">{formatMoneyUz(deliveryFee)}</span>
+            </div>
+            <div className="mb-3 flex items-center justify-between text-sm text-gray-800">
+              <span>Jami</span>
+              <span className="text-lg font-bold">{formatMoneyUz(cartTotal + (cartTotal > 0 ? deliveryFee : 0))}</span>
+            </div>
+            <Link href="/checkout" className={`block w-full rounded-2xl py-3 text-center text-sm font-semibold text-white ${loading || cartTotal <= 0 ? 'pointer-events-none bg-green-300' : 'bg-[#16A34A]'}`}>
+              Rasmiylashtirishga o'tish
+            </Link>
+            <button className="mt-2 w-full rounded-2xl border border-gray-200 py-2 text-xs font-medium text-gray-600 disabled:opacity-60" onClick={placeOrder} disabled={loading || cartTotal <= 0 || !token}>
+              {loading ? 'Jarayon davom etmoqda...' : token ? 'Tezkor buyurtma' : "Tezkor buyurtma (faqat kirganlar uchun)"}
             </button>
           </div>
         </div>

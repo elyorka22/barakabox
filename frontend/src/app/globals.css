@@ -3,6 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --bb-mobile-nav-height: 78px;
 }
 
 @theme inline {
@@ -40,6 +41,7 @@ body {
 
   .bb-shell {
     @apply w-full min-h-[calc(100dvh-1rem)] rounded-none bg-white p-4 shadow-none;
+    padding-bottom: calc(1rem + var(--bb-mobile-nav-height) + env(safe-area-inset-bottom));
     animation: bb-fade-in 220ms ease-out;
   }
 
@@ -85,6 +87,8 @@ body {
     padding-left: max(0.5rem, env(safe-area-inset-left));
     padding-right: max(0.5rem, env(safe-area-inset-right));
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    min-height: var(--bb-mobile-nav-height);
+    touch-action: manipulation;
     animation: bb-slide-up 220ms ease-out;
   }
 

@@ -26,7 +26,10 @@ export class OrdersService {
     private readonly configService: ConfigService,
   ) {}
 
-  async createFromCart(userId: string) {
+  async createFromCart(
+    userId: string,
+    deliveryInfo?: { name?: string; phone?: string; address?: string },
+  ) {
     const cart = await this.cartService.getCart(userId);
     if (!cart || cart.items.length === 0) {
       throw new BadRequestException('Cart is empty');
@@ -85,10 +88,18 @@ export class OrdersService {
     const deliveryFee = subtotal >= threshold ? 0 : deliveryFeeValue;
     const total = subtotal + deliveryFee;
 
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
     const order = await this.prisma.$transaction(async (tx) => {
       const createdOrder = await tx.order.create({
         data: {
           userId,
+          customerName: deliveryInfo?.name?.trim() || user.fullName,
+          customerPhone: deliveryInfo?.phone?.trim() || 'N/A',
+          deliveryAddress: deliveryInfo?.address?.trim() || 'N/A',
           idempotencyKey,
           subtotalAmount: subtotal,
           deliveryFee,

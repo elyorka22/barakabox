@@ -16,6 +16,8 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
+import { CreateOrderDto } from './dto/create-order.dto';
+import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 @Controller('orders')
 export class OrdersController {
@@ -25,15 +27,15 @@ export class OrdersController {
     private readonly jwtService: JwtService,
   ) {}
 
-  private async resolveActorId(authorization?: string, guestId?: string): Promise<string> {
+  private async resolveActor(authorization?: string, guestId?: string): Promise<{ userId: string; isGuest: boolean }> {
     const token = authorization?.startsWith('Bearer ')
       ? authorization.slice(7)
       : undefined;
     if (token) {
       const payload = this.jwtService.verify<{ sub: string }>(token, {
-        secret: process.env.JWT_ACCESS_SECRET ?? 'access-secret',
+        secret: process.env.JWT_ACCESS_SECRET!,
       });
-      return payload.sub;
+      return { userId: payload.sub, isGuest: false };
     }
 
     if (!guestId) {
@@ -41,16 +43,24 @@ export class OrdersController {
     }
 
     const guestUser = await this.usersService.ensureGuestUser(guestId);
-    return guestUser.id;
+    return { userId: guestUser.id, isGuest: true };
   }
 
   @Post()
   async create(
     @Headers('authorization') authorization?: string,
     @Headers('x-guest-id') guestId?: string,
+    @Body() body?: CreateOrderDto,
   ) {
-    const actorId = await this.resolveActorId(authorization, guestId);
-    return this.ordersService.createFromCart(actorId);
+    const actor = await this.resolveActor(authorization, guestId);
+    if (actor.isGuest && (!body?.name || !body?.phone || !body?.address)) {
+      throw new BadRequestException('Guest checkout requires name, phone and address');
+    }
+    return this.ordersService.createFromCart(actor.userId, {
+      name: body?.name,
+      phone: body?.phone,
+      address: body?.address,
+    });
   }
 
   @Get()
@@ -66,7 +76,7 @@ export class OrdersController {
   updateStatus(
     @CurrentUser() user: { role: 'BUSINESS' | 'COURIER' | 'ADMIN' },
     @Param('orderId') orderId: string,
-    @Body() body: { status: 'ACCEPTED' | 'REJECTED' | 'DELIVERING' | 'COMPLETED' },
+    @Body() body: UpdateOrderStatusDto,
   ) {
     return this.ordersService.updateStatus(orderId, body.status, user.role as 'BUSINESS' | 'COURIER');
   }

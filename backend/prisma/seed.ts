@@ -24,12 +24,35 @@ async function main() {
     create: { userId: businessUser.id, displayName: 'Baraka Fresh Store', status: 'APPROVED' },
   });
 
+  const categories = [
+    { name: 'All', slug: 'all', imageUrl: '/categories/all.svg' },
+    { name: 'Fruits', slug: 'fruits', imageUrl: '/categories/fruits.svg' },
+    { name: 'Vegetables', slug: 'vegetables', imageUrl: '/categories/vegetables.svg' },
+    { name: 'Dairy', slug: 'dairy', imageUrl: '/categories/dairy.svg' },
+    { name: 'Bakery', slug: 'bakery', imageUrl: '/categories/bakery.svg' },
+  ];
+
+  for (const category of categories) {
+    await prisma.category.upsert({
+      where: { slug: category.slug },
+      update: { name: category.name, imageUrl: category.imageUrl, isActive: true },
+      create: category,
+    });
+  }
+
+  const categoryMap = {
+    fruits: (await prisma.category.findUniqueOrThrow({ where: { slug: 'fruits' } })).id,
+    vegetables: (await prisma.category.findUniqueOrThrow({ where: { slug: 'vegetables' } })).id,
+    dairy: (await prisma.category.findUniqueOrThrow({ where: { slug: 'dairy' } })).id,
+    bakery: (await prisma.category.findUniqueOrThrow({ where: { slug: 'bakery' } })).id,
+  };
+
   const products = [
-    { name: 'Apple', price: 1.2, stock: 100 },
-    { name: 'Banana', price: 0.8, stock: 120 },
-    { name: 'Tomato', price: 1.5, stock: 80 },
-    { name: 'Potato', price: 0.9, stock: 150 },
-    { name: 'Milk 1L', price: 2.1, stock: 60 },
+    { name: 'Apple', price: 12000, stock: 100, categoryId: categoryMap.fruits },
+    { name: 'Banana', price: 8000, stock: 120, categoryId: categoryMap.fruits },
+    { name: 'Tomato', price: 15000, stock: 80, categoryId: categoryMap.vegetables },
+    { name: 'Potato', price: 9000, stock: 150, categoryId: categoryMap.vegetables },
+    { name: 'Milk 1L', price: 21000, stock: 60, categoryId: categoryMap.dairy },
   ];
 
   await prisma.boxItem.deleteMany();
@@ -44,6 +67,7 @@ async function main() {
         name: product.name,
         price: product.price,
         stock: product.stock,
+        categoryId: product.categoryId,
       },
     });
     createdProducts[product.name] = { id: created.id, price: product.price };
@@ -68,7 +92,7 @@ async function main() {
     {
       name: 'Weekly Box',
       description: 'Fresh essentials for the week',
-      price: Number((weeklyPrice - 2).toFixed(2)),
+      price: weeklyPrice - 2000,
       items: [
         { productName: 'Apple', quantity: 4 },
         { productName: 'Banana', quantity: 6 },
@@ -79,7 +103,7 @@ async function main() {
     {
       name: 'Family Box',
       description: 'Bigger bundle for family needs',
-      price: Number((familyPrice - 3.5).toFixed(2)),
+      price: familyPrice - 3500,
       items: [
         { productName: 'Apple', quantity: 8 },
         { productName: 'Banana', quantity: 8 },
@@ -90,7 +114,7 @@ async function main() {
     {
       name: 'Plov Box',
       description: 'Ingredients for a great plov dinner',
-      price: Number((plovPrice - 1.5).toFixed(2)),
+      price: plovPrice - 1500,
       items: [
         { productName: 'Tomato', quantity: 2 },
         { productName: 'Potato', quantity: 6 },

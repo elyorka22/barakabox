@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { api, authStorage } from '@/lib/api';
+import { formatMoneyUz } from '@/lib/format';
 import { DesktopNav, MobileNav } from '@/components/app-nav';
 
 type Order = { id: string; status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'DELIVERING' | 'COMPLETED'; totalAmount: string };
@@ -43,7 +44,7 @@ export default function CourierPage() {
             <li key={order.id} className="rounded-xl border border-gray-200 p-3">
               <p className="font-semibold">#{order.id.slice(0, 8)}</p>
               <p className="bb-secondary">Status: {order.status}</p>
-              <p className="bb-secondary">Total: ${order.totalAmount}</p>
+              <p className="bb-secondary">Total: {formatMoneyUz(order.totalAmount)}</p>
               <div className="mt-2 flex gap-2">
                 <button className="bb-btn-secondary" onClick={() => updateStatus(order.id, 'DELIVERING')}>
                   Mark delivering

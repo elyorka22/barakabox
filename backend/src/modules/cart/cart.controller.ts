@@ -17,7 +17,7 @@ export class CartController {
       : undefined;
     if (token) {
       const payload = this.jwtService.verify<{ sub: string }>(token, {
-        secret: process.env.JWT_ACCESS_SECRET ?? 'access-secret',
+        secret: process.env.JWT_ACCESS_SECRET!,
       });
       return payload.sub;
     }

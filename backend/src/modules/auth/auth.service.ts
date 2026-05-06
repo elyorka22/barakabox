@@ -47,7 +47,7 @@ export class AuthService {
 
   async refresh(refreshToken: string) {
     const payload = this.jwtService.verify<{ sub: string }>(refreshToken, {
-      secret: process.env.JWT_REFRESH_SECRET ?? 'refresh-secret',
+      secret: process.env.JWT_REFRESH_SECRET!,
     });
 
     const user = await this.usersService.findById(payload.sub);
@@ -66,11 +66,11 @@ export class AuthService {
   private async issueTokens(user: User) {
     const payload = { sub: user.id, role: user.role, email: user.email };
     const accessToken = await this.jwtService.signAsync(payload, {
-      secret: process.env.JWT_ACCESS_SECRET ?? 'access-secret',
+      secret: process.env.JWT_ACCESS_SECRET!,
       expiresIn: '15m',
     });
     const refreshToken = await this.jwtService.signAsync(payload, {
-      secret: process.env.JWT_REFRESH_SECRET ?? 'refresh-secret',
+      secret: process.env.JWT_REFRESH_SECRET!,
       expiresIn: '7d',
     });
 

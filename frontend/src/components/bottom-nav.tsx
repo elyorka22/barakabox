@@ -4,14 +4,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const items = [
-  { href: '/', label: 'Home' },
-  { href: '/client', label: 'Cart' },
-  { href: '/profile', label: 'Profile' },
+  { href: '/', label: 'Bosh sahifa' },
+  { href: '/client', label: 'Savat' },
+  { href: '/profile', label: 'Profil' },
 ];
 
 function Icon({ label, active }: { label: string; active: boolean }) {
   const className = `h-5 w-5 ${active ? 'text-[#16A34A]' : 'text-gray-500'}`;
-  if (label === 'Home') {
+  if (label === 'Bosh sahifa') {
     return (
       <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M3 11.5 12 4l9 7.5" />
@@ -19,7 +19,7 @@ function Icon({ label, active }: { label: string; active: boolean }) {
       </svg>
     );
   }
-  if (label === 'Cart') {
+  if (label === 'Savat') {
     return (
       <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M4 6h2l2 10h9l2-7H7" />

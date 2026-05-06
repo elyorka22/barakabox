@@ -22,9 +22,21 @@ export class BusinessesController {
     return this.businessesService.listPending();
   }
 
+  @Get('approved')
+  @Roles('ADMIN')
+  approved() {
+    return this.businessesService.listApproved();
+  }
+
   @Patch(':businessId/approve')
   @Roles('ADMIN')
   approve(@Param('businessId') businessId: string) {
     return this.businessesService.approve(businessId);
+  }
+
+  @Get('my-stats')
+  @Roles('BUSINESS')
+  myStats(@CurrentUser() user: { sub: string }) {
+    return this.businessesService.getMyStats(user.sub);
   }
 }

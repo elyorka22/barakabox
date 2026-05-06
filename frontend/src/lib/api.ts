@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import { t } from './i18n';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api';
 const ACCESS_TOKEN_KEY = 'barakabox_access_token';
@@ -14,19 +15,32 @@ async function request<T>(
   token?: string,
   includeGuest = false,
 ): Promise<T> {
+  if (
+    typeof window !== 'undefined' &&
+    process.env.NODE_ENV === 'production' &&
+    (API_BASE_URL.includes('localhost') || API_BASE_URL.includes('127.0.0.1'))
+  ) {
+    throw new Error('Production API URL localhost bo‘lishi mumkin emas');
+  }
+
   const guestId = includeGuest ? guestStorage.getGuestId() : '';
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(guestId ? { 'x-guest-id': guestId } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(guestId ? { 'x-guest-id': guestId } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch {
+    throw new Error(`${t('common.networkError')}. ${t('common.retry')}`);
+  }
 
   if (!response.ok) {
-    let message = 'Request failed';
+    let message = t('common.genericError');
     try {
       const payload = (await response.json()) as { message?: string | string[] };
       if (Array.isArray(payload.message)) {
@@ -35,9 +49,9 @@ async function request<T>(
         message = payload.message;
       }
     } catch {
-      message = await response.text();
+      message = t('common.genericError');
     }
-    throw new Error(message || 'Request failed');
+    throw new Error(message || `${t('common.genericError')}. ${t('common.retry')}`);
   }
 
   return response.json() as Promise<T>;
