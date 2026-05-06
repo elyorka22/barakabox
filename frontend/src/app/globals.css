@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: #f3f4f6;
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  min-height: 100dvh;
+  padding-bottom: env(safe-area-inset-bottom);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+}
+
+@layer components {
+  .bb-page {
+    @apply w-full px-3 py-3 sm:px-6 sm:py-6 lg:px-10;
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .bb-shell {
+    @apply mx-auto w-full max-w-7xl rounded-3xl bg-white p-4 shadow-lg sm:rounded-[32px] sm:p-6 lg:p-8;
+    animation: bb-fade-in 220ms ease-out;
+  }
+
+  .bb-card {
+    @apply rounded-[30px] bg-white p-5 shadow-lg;
+  }
+
+  .bb-input {
+    @apply w-full rounded-xl border border-gray-200 p-3 text-sm text-[#111827];
+  }
+
+  .bb-btn-primary {
+    @apply rounded-full bg-[#1caf50] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50;
+  }
+
+  .bb-btn-secondary {
+    @apply rounded-xl border border-gray-200 px-3 py-2 text-sm text-[#374151] disabled:opacity-50;
+  }
+
+  .bb-btn-outline {
+    @apply rounded-full border border-gray-300 px-3 py-1 text-xs text-[#374151] disabled:opacity-50;
+  }
+
+  .bb-muted {
+    color: #4b5563;
+  }
+
+  .bb-secondary {
+    color: #374151;
+  }
+
+  .bb-mobile-nav {
+    @apply sticky bottom-2 mt-5 grid grid-cols-4 rounded-2xl border border-gray-100 bg-white/95 py-2 text-center text-xs shadow-sm backdrop-blur;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    animation: bb-slide-up 220ms ease-out;
+  }
+
+  .bb-desktop-nav {
+    @apply hidden items-center gap-2 rounded-2xl border border-gray-100 bg-white p-2 lg:flex;
+    animation: bb-fade-in 220ms ease-out;
+  }
+}
+
+@keyframes bb-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bb-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
