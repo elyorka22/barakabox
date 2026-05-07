@@ -5,13 +5,11 @@ export type AppEnv = {
   JWT_ACCESS_SECRET: string;
   JWT_REFRESH_SECRET: string;
   CORS_ORIGIN: string;
-  DO_SPACES_ENDPOINT: string;
-  DO_SPACES_REGION: string;
-  DO_SPACES_BUCKET: string;
-  DO_SPACES_KEY: string;
-  DO_SPACES_SECRET: string;
-  DO_SPACES_PUBLIC_BASE_URL: string;
-  DO_SPACES_CDN_URL: string;
+  SPACES_ENDPOINT: string;
+  SPACES_REGION: string;
+  SPACES_BUCKET: string;
+  SPACES_KEY: string;
+  SPACES_SECRET: string;
   ALERT_WEBHOOK_URL: string;
   UPLOAD_ERROR_RATE_THRESHOLD: string;
   TELEGRAM_BOT_TOKEN: string;
@@ -21,7 +19,6 @@ export type AppEnv = {
   UPLOAD_CIRCUIT_HALF_OPEN_MAX_REQUESTS: string;
   UPLOAD_MONTHLY_STORAGE_LIMIT_BYTES: string;
   UPLOAD_BLOCK_ON_COST_LIMIT: string;
-  SPACES_UPLOAD_TIMEOUT_MS: string;
 };
 
 function normalizeHttpsUrl(input: string): string {
@@ -39,19 +36,11 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
   const accessSecret = String(config.JWT_ACCESS_SECRET ?? '');
   const refreshSecret = String(config.JWT_REFRESH_SECRET ?? '');
   const corsOrigin = String(config.CORS_ORIGIN ?? '*');
-  const spacesEndpoint = normalizeHttpsUrl(String(config.DO_SPACES_ENDPOINT ?? config.SPACES_ENDPOINT ?? ''));
-  const spacesRegion = String(config.DO_SPACES_REGION ?? config.SPACES_REGION ?? '');
-  const spacesBucket = String(config.DO_SPACES_BUCKET ?? config.SPACES_BUCKET ?? '');
-  const spacesKey = String(config.DO_SPACES_KEY ?? config.SPACES_KEY ?? '');
-  const spacesSecret = String(config.DO_SPACES_SECRET ?? config.SPACES_SECRET ?? '');
-  const spacesPublicBaseUrl = normalizeHttpsUrl(
-    String(
-      config.DO_SPACES_PUBLIC_BASE_URL ??
-        config.SPACES_PUBLIC_BASE_URL ??
-        (spacesBucket && spacesRegion ? `https://${spacesBucket}.${spacesRegion}.digitaloceanspaces.com` : ''),
-    ),
-  );
-  const spacesCdnUrl = normalizeHttpsUrl(String(config.DO_SPACES_CDN_URL ?? config.SPACES_CDN_URL ?? ''));
+  const spacesEndpoint = normalizeHttpsUrl(String(config.SPACES_ENDPOINT ?? ''));
+  const spacesRegion = String(config.SPACES_REGION ?? '');
+  const spacesBucket = String(config.SPACES_BUCKET ?? '');
+  const spacesKey = String(config.SPACES_KEY ?? '');
+  const spacesSecret = String(config.SPACES_SECRET ?? '');
   const alertWebhookUrl = String(config.ALERT_WEBHOOK_URL ?? '');
   const uploadErrorRateThreshold = String(config.UPLOAD_ERROR_RATE_THRESHOLD ?? '10');
   const telegramBotToken = String(config.TELEGRAM_BOT_TOKEN ?? '');
@@ -61,7 +50,6 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
   const uploadCircuitHalfOpenMaxRequests = String(config.UPLOAD_CIRCUIT_HALF_OPEN_MAX_REQUESTS ?? '1');
   const uploadMonthlyStorageLimitBytes = String(config.UPLOAD_MONTHLY_STORAGE_LIMIT_BYTES ?? '5368709120');
   const uploadBlockOnCostLimit = String(config.UPLOAD_BLOCK_ON_COST_LIMIT ?? 'true');
-  const spacesUploadTimeoutMs = String(config.SPACES_UPLOAD_TIMEOUT_MS ?? '10000');
 
   if (!databaseUrl.startsWith('postgresql://')) {
     throw new Error('DATABASE_URL must be a valid postgresql URL');
@@ -79,34 +67,22 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
     throw new Error('CORS_ORIGIN must not use localhost in production');
   }
   if (!spacesEndpoint) {
-    throw new Error('DO_SPACES_ENDPOINT/SPACES_ENDPOINT is required');
+    throw new Error('SPACES_ENDPOINT is required');
   }
   if (!spacesEndpoint.startsWith('https://')) {
-    throw new Error('DO_SPACES_ENDPOINT/SPACES_ENDPOINT must be a valid URL');
+    throw new Error('SPACES_ENDPOINT must be a valid https URL');
   }
   if (!spacesRegion) {
-    throw new Error('DO_SPACES_REGION/SPACES_REGION is required');
+    throw new Error('SPACES_REGION is required');
   }
   if (!spacesBucket) {
-    throw new Error('DO_SPACES_BUCKET/SPACES_BUCKET is required');
+    throw new Error('SPACES_BUCKET is required');
   }
   if (!spacesKey) {
-    throw new Error('DO_SPACES_KEY/SPACES_KEY is required');
+    throw new Error('SPACES_KEY is required');
   }
   if (!spacesSecret) {
-    throw new Error('DO_SPACES_SECRET/SPACES_SECRET is required');
-  }
-  if (!spacesPublicBaseUrl) {
-    throw new Error('DO_SPACES_PUBLIC_BASE_URL/SPACES_PUBLIC_BASE_URL is required');
-  }
-  if (!spacesPublicBaseUrl.startsWith('https://')) {
-    throw new Error('DO_SPACES_PUBLIC_BASE_URL/SPACES_PUBLIC_BASE_URL must be a valid URL');
-  }
-  if (spacesCdnUrl && !spacesCdnUrl.startsWith('https://')) {
-    throw new Error('DO_SPACES_CDN_URL/SPACES_CDN_URL must be a valid https URL when provided');
-  }
-  if (!/^\d+$/.test(spacesUploadTimeoutMs) || Number(spacesUploadTimeoutMs) < 1000) {
-    throw new Error('SPACES_UPLOAD_TIMEOUT_MS must be a number >= 1000');
+    throw new Error('SPACES_SECRET is required');
   }
   if (alertWebhookUrl && !alertWebhookUrl.startsWith('https://')) {
     throw new Error('ALERT_WEBHOOK_URL must be a valid https URL when provided');
@@ -119,13 +95,11 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
     JWT_ACCESS_SECRET: accessSecret,
     JWT_REFRESH_SECRET: refreshSecret,
     CORS_ORIGIN: corsOrigin,
-    DO_SPACES_ENDPOINT: spacesEndpoint,
-    DO_SPACES_REGION: spacesRegion,
-    DO_SPACES_BUCKET: spacesBucket,
-    DO_SPACES_KEY: spacesKey,
-    DO_SPACES_SECRET: spacesSecret,
-    DO_SPACES_PUBLIC_BASE_URL: spacesPublicBaseUrl,
-    DO_SPACES_CDN_URL: spacesCdnUrl,
+    SPACES_ENDPOINT: spacesEndpoint,
+    SPACES_REGION: spacesRegion,
+    SPACES_BUCKET: spacesBucket,
+    SPACES_KEY: spacesKey,
+    SPACES_SECRET: spacesSecret,
     ALERT_WEBHOOK_URL: alertWebhookUrl,
     UPLOAD_ERROR_RATE_THRESHOLD: uploadErrorRateThreshold,
     TELEGRAM_BOT_TOKEN: telegramBotToken,
@@ -135,6 +109,5 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
     UPLOAD_CIRCUIT_HALF_OPEN_MAX_REQUESTS: uploadCircuitHalfOpenMaxRequests,
     UPLOAD_MONTHLY_STORAGE_LIMIT_BYTES: uploadMonthlyStorageLimitBytes,
     UPLOAD_BLOCK_ON_COST_LIMIT: uploadBlockOnCostLimit,
-    SPACES_UPLOAD_TIMEOUT_MS: spacesUploadTimeoutMs,
   };
 }

@@ -25,6 +25,11 @@ services:
       DELIVERY_FEE: 3000
       FREE_DELIVERY_THRESHOLD: 30000
       ORDER_IDEMPOTENCY_WINDOW_SECONDS: 120
+      SPACES_ENDPOINT: ${SPACES_ENDPOINT:?SPACES_ENDPOINT is required}
+      SPACES_REGION: ${SPACES_REGION:?SPACES_REGION is required}
+      SPACES_BUCKET: ${SPACES_BUCKET:?SPACES_BUCKET is required}
+      SPACES_KEY: ${SPACES_KEY:?SPACES_KEY is required}
+      SPACES_SECRET: ${SPACES_SECRET:?SPACES_SECRET is required}
     depends_on:
       postgres:
         condition: service_healthy

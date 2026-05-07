@@ -20,14 +20,14 @@ export class SpacesService {
   private readonly uploadTimeoutMs: number;
 
   constructor(private readonly configService: ConfigService) {
-    const endpoint = this.normalizeUrl(this.getEnvOrThrow('DO_SPACES_ENDPOINT', 'SPACES_ENDPOINT'));
-    const region = this.getEnvOrThrow('DO_SPACES_REGION', 'SPACES_REGION');
-    const accessKeyId = this.getEnvOrThrow('DO_SPACES_KEY', 'SPACES_KEY');
-    const secretAccessKey = this.getEnvOrThrow('DO_SPACES_SECRET', 'SPACES_SECRET');
-    this.bucket = this.getEnvOrThrow('DO_SPACES_BUCKET', 'SPACES_BUCKET');
-    this.publicBaseUrl = this.normalizeUrl(this.getEnvOrThrow('DO_SPACES_PUBLIC_BASE_URL', 'SPACES_PUBLIC_BASE_URL'));
-    this.cdnUrl = this.normalizeUrl(this.getEnv('DO_SPACES_CDN_URL', 'SPACES_CDN_URL') ?? '');
-    this.uploadTimeoutMs = Number(this.configService.get<string>('SPACES_UPLOAD_TIMEOUT_MS') ?? '10000');
+    const endpoint = this.normalizeUrl(this.getEnvOrThrow('SPACES_ENDPOINT'));
+    const region = this.getEnvOrThrow('SPACES_REGION');
+    const accessKeyId = this.getEnvOrThrow('SPACES_KEY');
+    const secretAccessKey = this.getEnvOrThrow('SPACES_SECRET');
+    this.bucket = this.getEnvOrThrow('SPACES_BUCKET');
+    this.publicBaseUrl = `https://${this.bucket}.${region}.digitaloceanspaces.com`;
+    this.cdnUrl = '';
+    this.uploadTimeoutMs = 10_000;
 
     this.logger.log(
       JSON.stringify({
@@ -50,17 +50,10 @@ export class SpacesService {
     });
   }
 
-  private getEnv(primary: string, fallback: string): string | undefined {
-    const a = this.configService.get<string>(primary);
-    if (a && a.trim()) return a.trim();
-    const b = this.configService.get<string>(fallback);
-    return b?.trim();
-  }
-
-  private getEnvOrThrow(primary: string, fallback: string): string {
-    const value = this.getEnv(primary, fallback);
+  private getEnvOrThrow(key: string): string {
+    const value = this.configService.get<string>(key)?.trim();
     if (!value) {
-      throw new Error(`${primary}/${fallback} is required`);
+      throw new Error(`${key} is required`);
     }
     return value;
   }

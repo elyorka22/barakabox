@@ -9,11 +9,11 @@ async function bootstrap() {
   logger.log(
     JSON.stringify({
       event: 'spaces_env_bootstrap',
-      endpoint: process.env.SPACES_ENDPOINT ?? process.env.DO_SPACES_ENDPOINT ?? null,
-      region: process.env.SPACES_REGION ?? process.env.DO_SPACES_REGION ?? null,
-      bucket: process.env.SPACES_BUCKET ?? process.env.DO_SPACES_BUCKET ?? null,
-      hasSpacesKey: Boolean(process.env.SPACES_KEY ?? process.env.DO_SPACES_KEY),
-      hasSpacesSecret: Boolean(process.env.SPACES_SECRET ?? process.env.DO_SPACES_SECRET),
+      endpoint: process.env.SPACES_ENDPOINT ?? null,
+      region: process.env.SPACES_REGION ?? null,
+      bucket: process.env.SPACES_BUCKET ?? null,
+      hasSpacesKey: Boolean(process.env.SPACES_KEY),
+      hasSpacesSecret: Boolean(process.env.SPACES_SECRET),
     }),
   );
   app.enableCors({
