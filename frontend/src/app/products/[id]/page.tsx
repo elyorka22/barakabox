@@ -14,6 +14,7 @@ export default function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -22,6 +23,10 @@ export default function ProductDetailPage() {
     };
     void load();
   }, [params.id]);
+
+  useEffect(() => {
+    setImageLoaded(false);
+  }, [product?.imageUrl]);
 
   const total = useMemo(() => (product ? Number(product.price) * quantity : 0), [product, quantity]);
 
@@ -41,7 +46,18 @@ export default function ProductDetailPage() {
       <section className="bb-shell">
         <Link href="/" className="text-sm text-gray-500">Orqaga</Link>
         {product?.imageUrl ? (
-          <img src={product.imageUrl} alt={product.name} className="mt-3 h-56 w-full rounded-3xl object-cover" />
+          <div className="relative mt-3 h-56 w-full overflow-hidden rounded-3xl">
+            {!imageLoaded ? <div className="bb-skeleton absolute inset-0" /> : null}
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              loading="lazy"
+              decoding="async"
+              className="h-56 w-full object-cover"
+              onLoad={() => setImageLoaded(true)}
+              onError={() => setImageLoaded(true)}
+            />
+          </div>
         ) : (
           <div className="mt-3 h-56 rounded-3xl bg-gradient-to-br from-green-200 to-green-100" />
         )}

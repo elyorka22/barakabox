@@ -96,6 +96,52 @@ export class UploadController {
     }
   }
 
+  @Post('image')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_, file, callback) => {
+        const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!allowed.includes(file.mimetype)) {
+          return callback(new BadRequestException('Faqat jpg/jpeg/png/webp formatlari qabul qilinadi'), false);
+        }
+        callback(null, true);
+      },
+    }),
+  )
+  async uploadImage(@CurrentUser() user: { sub: string }, @UploadedFile() file?: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('Rasm fayli yuborilmadi');
+    }
+    const detected = await fileTypeFromBuffer(file.buffer);
+    const allowed = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    if (!detected || !allowed.has(detected.mime)) {
+      throw new BadRequestException("Noto'g'ri fayl turi. Faqat jpg/png/webp mumkin");
+    }
+    try {
+      const uploaded = await this.uploadService.uploadImageForForm(file);
+      await this.uploadService.logAudit({
+        userId: user.sub,
+        action: 'LEGACY_UPLOAD',
+        objectKey: uploaded.key,
+      });
+      return {
+        success: true,
+        url: uploaded.url,
+        key: uploaded.key,
+      };
+    } catch (error) {
+      this.logger.error(
+        JSON.stringify({
+          event: 'upload_image_failed',
+          error: error instanceof Error ? error.message : 'unknown',
+        }),
+      );
+      throw new InternalServerErrorException("Rasmni yuklashda xatolik yuz berdi");
+    }
+  }
+
   @Post('presign')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   async presign(@CurrentUser() user: { sub: string }, @Body() body: PresignUploadDto) {

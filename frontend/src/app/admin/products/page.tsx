@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, authStorage } from '@/lib/api';
 import { formatMoneyUz } from '@/lib/format';
+import { ImageUploader } from '@/components/admin/image-uploader';
 
 type Product = {
   id: string;
@@ -15,6 +16,7 @@ type Product = {
   category?: { id: string; name: string } | null;
   imageThumbUrl?: string | null;
   imageUrl?: string | null;
+  imageKey?: string | null;
 };
 
 type Business = { id: string; displayName: string };
@@ -36,7 +38,10 @@ export default function AdminProductsPage() {
     unitType: 'piece' as Product['unitType'],
     businessId: '',
     categoryId: '',
+    imageUrl: '',
+    imageKey: '',
   });
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -88,6 +93,8 @@ export default function AdminProductsPage() {
       stockQuantity: Number(form.stockQuantity),
       unitType: form.unitType,
       categoryId: form.categoryId || undefined,
+      imageUrl: form.imageUrl || undefined,
+      imageKey: form.imageKey || undefined,
     };
     if (!payload.businessId || !payload.name || payload.price <= 0) return;
     if (form.id) {
@@ -95,7 +102,15 @@ export default function AdminProductsPage() {
     } else {
       await api.post('/products', payload, token);
     }
-    setForm((prev) => ({ ...prev, id: '', name: '', price: '1000', stockQuantity: '0' }));
+    setForm((prev) => ({
+      ...prev,
+      id: '',
+      name: '',
+      price: '1000',
+      stockQuantity: '0',
+      imageUrl: '',
+      imageKey: '',
+    }));
     await load();
   };
 
@@ -108,6 +123,8 @@ export default function AdminProductsPage() {
       unitType: item.unitType,
       businessId: item.businessId,
       categoryId: item.category?.id ?? '',
+      imageUrl: item.imageUrl ?? '',
+      imageKey: item.imageKey ?? '',
     });
   };
 
@@ -166,7 +183,13 @@ export default function AdminProductsPage() {
               </option>
             ))}
           </select>
-          <button className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white" onClick={() => void save()}>
+          <ImageUploader
+            valueUrl={form.imageUrl}
+            valueKey={form.imageKey}
+            onChange={({ url, key }) => setForm((prev) => ({ ...prev, imageUrl: url, imageKey: key }))}
+            onUploadingChange={setUploadingImage}
+          />
+          <button className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50" onClick={() => void save()} disabled={uploadingImage}>
             {form.id ? 'Yangilash' : 'Yaratish'}
           </button>
         </div>
@@ -179,9 +202,15 @@ export default function AdminProductsPage() {
             <div key={item.id} className="rounded-xl border border-slate-100 p-3">
               <div className="flex items-center gap-2">
                 {item.imageThumbUrl || item.imageUrl ? (
-                  <img src={item.imageThumbUrl ?? item.imageUrl ?? ''} alt={item.name} className="h-12 w-12 rounded-lg object-cover" />
+                  <img
+                    src={item.imageThumbUrl ?? item.imageUrl ?? ''}
+                    alt={item.name}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-12 w-12 rounded-lg object-cover"
+                  />
                 ) : (
-                  <div className="h-12 w-12 rounded-lg bg-slate-100" />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-[10px] text-slate-500">No image</div>
                 )}
                 <div>
                   <p className="font-semibold">{item.name}</p>

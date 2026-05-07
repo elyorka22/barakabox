@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { formatMoneyUz } from '@/lib/format';
 
 type ProductCardProps = {
@@ -28,11 +29,23 @@ export function ProductCard({
   href,
   imageUrl,
 }: ProductCardProps) {
+  const [loaded, setLoaded] = useState(false);
   return (
     <article className="rounded-3xl bg-white p-3 shadow-sm">
       <Link href={href ?? '#'} className="block">
         {imageUrl ? (
-          <img src={imageUrl} alt={name} className="h-28 w-full rounded-2xl object-cover" />
+          <div className="relative h-28 w-full overflow-hidden rounded-2xl">
+            {!loaded ? <div className="bb-skeleton absolute inset-0" /> : null}
+            <img
+              src={imageUrl}
+              alt={name}
+              loading="lazy"
+              decoding="async"
+              className="h-28 w-full object-cover"
+              onLoad={() => setLoaded(true)}
+              onError={() => setLoaded(true)}
+            />
+          </div>
         ) : (
           <div className="h-28 rounded-2xl bg-gradient-to-br from-green-200 to-green-100" />
         )}

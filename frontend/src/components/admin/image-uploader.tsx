@@ -1,0 +1,139 @@
+'use client';
+
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { authStorage } from '@/lib/api';
+
+type Props = {
+  valueUrl: string;
+  valueKey: string;
+  onChange: (next: { url: string; key: string }) => void;
+  onUploadingChange?: (uploading: boolean) => void;
+};
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+export function ImageUploader({ valueUrl, valueKey, onChange, onUploadingChange }: Props) {
+  const [previewUrl, setPreviewUrl] = useState(valueUrl);
+  const [error, setError] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const progressTimerRef = useRef<number | null>(null);
+
+  const apiBase = useMemo(() => process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api', []);
+
+  useEffect(() => {
+    setPreviewUrl(valueUrl);
+  }, [valueUrl]);
+
+  useEffect(() => {
+    onUploadingChange?.(uploading);
+  }, [uploading, onUploadingChange]);
+
+  const clearProgressTimer = () => {
+    if (progressTimerRef.current !== null) {
+      window.clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
+  };
+
+  const upload = async (file: File) => {
+    setError('');
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      setError("Faqat jpg/jpeg/png/webp yuklash mumkin");
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setError('Rasm hajmi 5MB dan oshmasligi kerak');
+      return;
+    }
+
+    setPreviewUrl(URL.createObjectURL(file));
+    setUploading(true);
+    setProgress(10);
+    clearProgressTimer();
+    progressTimerRef.current = window.setInterval(() => {
+      setProgress((prev) => (prev < 90 ? prev + 10 : prev));
+    }, 250);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const token = authStorage.getAccessToken();
+      const response = await fetch(`${apiBase}/upload/image`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: formData,
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { message?: string | string[] } | null;
+        const message = Array.isArray(payload?.message) ? payload?.message.join(', ') : payload?.message;
+        throw new Error(message || "Rasmni yuklab bo'lmadi");
+      }
+      const payload = (await response.json()) as { success: boolean; url: string; key: string };
+      setProgress(100);
+      onChange({ url: payload.url, key: payload.key });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Rasmni yuklashda xatolik");
+    } finally {
+      clearProgressTimer();
+      setUploading(false);
+    }
+  };
+
+  const remove = () => {
+    setError('');
+    setPreviewUrl('');
+    setProgress(0);
+    onChange({ url: '', key: '' });
+  };
+
+  return (
+    <div className="space-y-2 rounded-xl border border-dashed border-slate-300 p-3">
+      <label className="block text-xs text-slate-500">Rasm (jpg/jpeg/png/webp, max 5MB)</label>
+      <div
+        className="rounded-xl border border-slate-200 bg-slate-50 p-3"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          const file = e.dataTransfer.files?.[0];
+          if (!file) return;
+          void upload(file);
+        }}
+      >
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          capture="environment"
+          disabled={uploading}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            void upload(file);
+          }}
+        />
+        {previewUrl ? (
+          <img src={previewUrl} alt="Preview" loading="lazy" className="mt-3 h-28 w-28 rounded-lg object-cover" />
+        ) : (
+          <div className="mt-3 flex h-28 w-28 items-center justify-center rounded-lg bg-slate-200 text-xs text-slate-500">No image</div>
+        )}
+        {uploading ? (
+          <div className="mt-3">
+            <p className="text-xs text-slate-600">Yuklanmoqda... {progress}%</p>
+            <div className="mt-1 h-2 w-full rounded bg-slate-200">
+              <div className="h-2 rounded bg-emerald-500 transition-all" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+        ) : null}
+      </div>
+      <div className="flex items-center gap-2">
+        <button type="button" className="rounded-lg border border-slate-300 px-2 py-1 text-xs" onClick={remove} disabled={uploading}>
+          Olib tashlash
+        </button>
+        {valueKey ? <p className="text-[11px] text-slate-500">key: {valueKey}</p> : null}
+      </div>
+      {error ? <p className="text-xs text-rose-600">{error}</p> : null}
+    </div>
+  );
+}

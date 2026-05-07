@@ -138,6 +138,19 @@ export class UploadService {
     return uploaded;
   }
 
+  async uploadImageForForm(file: Express.Multer.File) {
+    const id = randomUUID();
+    const ts = Date.now();
+    const extension = file.mimetype === 'image/png' ? 'png' : file.mimetype === 'image/webp' ? 'webp' : 'jpg';
+    const key = `products/temp/${ts}-${id}.${extension}`;
+    return this.spacesService.uploadBuffer({
+      key,
+      buffer: file.buffer,
+      contentType: file.mimetype,
+      cacheControl: 'public, max-age=31536000, immutable',
+    });
+  }
+
   async createPresignedUpload(
     key: string,
     contentType: string,
