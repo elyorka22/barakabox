@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
@@ -6,6 +6,8 @@ import { Role, User } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
@@ -46,21 +48,84 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string) {
-    const payload = this.jwtService.verify<{ sub: string }>(refreshToken, {
-      secret: process.env.JWT_REFRESH_SECRET!,
-    });
+    let payload: { sub: string };
+    try {
+      payload = this.jwtService.verify<{ sub: string }>(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET!,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown';
+      this.logger.warn(
+        JSON.stringify({
+          event: 'refresh_failed',
+          reason: message.includes('expired') ? 'token_expired' : 'invalid_token',
+          error: message,
+        }),
+      );
+      throw new UnauthorizedException('Refresh token yaroqsiz yoki muddati tugagan');
+    }
 
     const user = await this.usersService.findById(payload.sub);
     if (!user || !user.refreshToken) {
+      this.logger.warn(
+        JSON.stringify({
+          event: 'refresh_failed',
+          reason: 'token_not_found_in_db',
+          userId: payload.sub,
+        }),
+      );
       throw new UnauthorizedException('Invalid refresh token');
     }
 
     const refreshTokenMatches = await bcrypt.compare(refreshToken, user.refreshToken);
     if (!refreshTokenMatches) {
+      this.logger.warn(
+        JSON.stringify({
+          event: 'refresh_failed',
+          reason: 'token_hash_mismatch',
+          userId: user.id,
+        }),
+      );
       throw new UnauthorizedException('Invalid refresh token');
     }
 
+    this.logger.log(
+      JSON.stringify({
+        event: 'token_refreshed',
+        userId: user.id,
+      }),
+    );
     return this.issueTokens(user);
+  }
+
+  async logout(refreshToken: string) {
+    try {
+      const payload = this.jwtService.verify<{ sub: string }>(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET!,
+      });
+      const user = await this.usersService.findById(payload.sub);
+      if (user?.refreshToken) {
+        const matches = await bcrypt.compare(refreshToken, user.refreshToken);
+        if (matches) {
+          await this.usersService.updateRefreshToken(user.id, null);
+          this.logger.log(
+            JSON.stringify({
+              event: 'logout',
+              userId: user.id,
+            }),
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.warn(
+        JSON.stringify({
+          event: 'logout',
+          result: 'token_invalid_or_expired',
+          error: error instanceof Error ? error.message : 'unknown',
+        }),
+      );
+    }
+    return { success: true };
   }
 
   private async issueTokens(user: User) {
@@ -71,11 +136,17 @@ export class AuthService {
     });
     const refreshToken = await this.jwtService.signAsync(payload, {
       secret: process.env.JWT_REFRESH_SECRET!,
-      expiresIn: '7d',
+      expiresIn: '30d',
     });
 
     const refreshTokenHash = await bcrypt.hash(refreshToken, 10);
     await this.usersService.updateRefreshToken(user.id, refreshTokenHash);
+    this.logger.log(
+      JSON.stringify({
+        event: 'token_issued',
+        userId: user.id,
+      }),
+    );
 
     return {
       accessToken,

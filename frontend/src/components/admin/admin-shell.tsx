@@ -22,8 +22,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   );
 
   const logout = () => {
-    authStorage.clearAccessToken();
-    router.replace('/profile');
+    void authStorage.logout().finally(() => {
+      router.replace('/profile');
+    });
   };
 
   return (

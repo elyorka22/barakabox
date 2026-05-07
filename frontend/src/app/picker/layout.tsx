@@ -1,18 +1,37 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { authStorage } from '@/lib/api';
+import { authEvents, authStorage } from '@/lib/api';
 
 export default function PickerLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const user = authStorage.getUser();
-    if ((user?.role ?? '').toUpperCase() !== 'PICKER') {
-      router.replace('/profile');
-    }
+    const validate = async () => {
+      await authStorage.restoreSession();
+      const user = authStorage.getUser();
+      if ((user?.role ?? '').toUpperCase() !== 'PICKER') {
+        router.replace('/profile');
+        return;
+      }
+      setReady(true);
+    };
+    void validate();
+    const listener = () => {
+      void validate();
+    };
+    window.addEventListener(authEvents.changedEventName, listener);
+    window.addEventListener('storage', listener);
+    return () => {
+      window.removeEventListener(authEvents.changedEventName, listener);
+      window.removeEventListener('storage', listener);
+    };
   }, [router]);
+
+  if (!ready) return null;
 
   return (
     <div className="min-h-screen bg-[#F7F7F7]">

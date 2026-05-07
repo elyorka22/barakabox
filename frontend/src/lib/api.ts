@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 import { t } from './i18n';
+import { showToast } from './toast';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api';
-const ACCESS_TOKEN_KEY = 'barakabox_access_token';
 const REFRESH_TOKEN_KEY = 'barakabox_refresh_token';
 const USER_KEY = 'barakabox_user';
 const GUEST_ID_KEY = 'barakabox_guest_id';
@@ -12,6 +12,8 @@ type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 type StoredUser = { id: string; email: string; role: string; fullName: string };
 
 let refreshInFlight: Promise<string | null> | null = null;
+let accessTokenMemory = '';
+let redirectingForAuth = false;
 
 function notifyAuthChanged() {
   if (typeof window !== 'undefined') {
@@ -50,6 +52,20 @@ async function refreshAccessToken(): Promise<string | null> {
   })();
 
   return refreshInFlight;
+}
+
+function handleSessionExpired() {
+  authStorage.clearAccessToken();
+  if (typeof window === 'undefined') return;
+  if (redirectingForAuth) return;
+  redirectingForAuth = true;
+  showToast({ type: 'error', message: 'Sessiya tugadi. Iltimos qaytadan tizimga kiring.' });
+  if (!window.location.pathname.startsWith('/profile')) {
+    window.location.href = '/profile';
+  }
+  window.setTimeout(() => {
+    redirectingForAuth = false;
+  }, 1200);
 }
 
 async function request<T>(
@@ -103,11 +119,7 @@ async function request<T>(
           return request<T>(path, method, body, refreshedToken, includeGuest, true);
         }
       }
-
-      authStorage.clearAccessToken();
-      notifyAuthChanged();
-      window.alert("Sessiya tugadi. Iltimos qaytadan tizimga kiring.");
-      window.location.href = '/profile';
+      handleSessionExpired();
       throw new Error("Sessiya tugadi. Iltimos qaytadan tizimga kiring.");
     }
     let message = t('common.genericError');
@@ -140,18 +152,15 @@ export const api = {
 
 export const authStorage = {
   setAccessToken(token: string) {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(ACCESS_TOKEN_KEY, token);
-      notifyAuthChanged();
-    }
+    accessTokenMemory = token;
+    notifyAuthChanged();
   },
   getAccessToken() {
-    if (typeof window === 'undefined') return '';
-    return window.localStorage.getItem(ACCESS_TOKEN_KEY) ?? '';
+    return accessTokenMemory;
   },
   clearAccessToken() {
+    accessTokenMemory = '';
     if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(ACCESS_TOKEN_KEY);
       window.localStorage.removeItem(REFRESH_TOKEN_KEY);
       window.localStorage.removeItem(USER_KEY);
       notifyAuthChanged();
@@ -177,6 +186,32 @@ export const authStorage = {
     if (typeof window === 'undefined') return null;
     const value = window.localStorage.getItem(USER_KEY);
     return value ? (JSON.parse(value) as { id: string; email: string; role: string; fullName: string }) : null;
+  },
+  async restoreSession() {
+    if (accessTokenMemory) return true;
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) return false;
+    const refreshed = await refreshAccessToken();
+    if (!refreshed) {
+      this.clearAccessToken();
+      return false;
+    }
+    return true;
+  },
+  async logout() {
+    const refreshToken = this.getRefreshToken();
+    if (refreshToken) {
+      try {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+      } catch {
+        // local logout still required even if API is unreachable
+      }
+    }
+    this.clearAccessToken();
   },
 };
 

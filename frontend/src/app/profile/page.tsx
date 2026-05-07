@@ -108,8 +108,9 @@ export default function ProfilePage() {
   };
 
   const logout = () => {
-    authStorage.clearAccessToken();
-    setUser(null);
+    void authStorage.logout().finally(() => {
+      setUser(null);
+    });
   };
 
   return (

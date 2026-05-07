@@ -2,12 +2,15 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
+  private readonly logger = new Logger(JwtAuthGuard.name);
+
   constructor(private readonly jwtService: JwtService) {}
 
   canActivate(context: ExecutionContext): boolean {
@@ -28,7 +31,15 @@ export class JwtAuthGuard implements CanActivate {
       }
       request.user = payload;
       return true;
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown';
+      this.logger.warn(
+        JSON.stringify({
+          event: 'token_validation_failed',
+          reason: message.includes('expired') ? 'token_expired' : 'invalid_token',
+          error: message,
+        }),
+      );
       throw new UnauthorizedException('Invalid token');
     }
   }
