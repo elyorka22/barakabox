@@ -69,13 +69,19 @@ async function request<T>(
   }
 
   const guestId = includeGuest ? guestStorage.getGuestId() : '';
+  const effectiveToken =
+    token && token.trim()
+      ? token
+      : typeof window !== 'undefined'
+      ? authStorage.getAccessToken()
+      : '';
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {}),
         ...(guestId ? { 'x-guest-id': guestId } : {}),
       },
       body: body ? JSON.stringify(body) : undefined,

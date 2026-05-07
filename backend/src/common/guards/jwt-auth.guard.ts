@@ -20,7 +20,12 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     try {
-      const payload = this.jwtService.verify(token);
+      const payload = this.jwtService.verify<{ sub?: string; role?: string; email?: string }>(token, {
+        secret: process.env.JWT_ACCESS_SECRET!,
+      });
+      if (!payload?.sub || !payload?.role) {
+        throw new UnauthorizedException('Invalid token payload');
+      }
       request.user = payload;
       return true;
     } catch {
