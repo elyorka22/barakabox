@@ -2,8 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
-import { authEvents, authStorage } from '@/lib/api';
+import { useMemo } from 'react';
 
 const baseItems = [
   { href: '/', label: 'Bosh sahifa' },
@@ -40,42 +39,8 @@ function Icon({ label, active }: { label: string; active: boolean }) {
 
 export function BottomNav() {
   const pathname = usePathname();
-  const [role, setRole] = useState('CLIENT');
 
-  const syncRole = () => {
-    const user = authStorage.getUser();
-    setRole((user?.role ?? 'CLIENT').toUpperCase());
-  };
-
-  useEffect(() => {
-    syncRole();
-  }, [pathname]);
-
-  useEffect(() => {
-    const onChanged = () => syncRole();
-    window.addEventListener(authEvents.changedEventName, onChanged);
-    window.addEventListener('storage', onChanged);
-    return () => {
-      window.removeEventListener(authEvents.changedEventName, onChanged);
-      window.removeEventListener('storage', onChanged);
-    };
-  }, []);
-
-  const items = useMemo(() => {
-    const roleEntry =
-      role === 'ADMIN'
-        ? { href: '/admin', label: 'Admin' }
-        : role === 'PICKER'
-        ? { href: '/picker', label: 'Picker' }
-        : role === 'COURIER'
-        ? { href: '/courier', label: 'Courier' }
-        : role === 'BUSINESS'
-        ? { href: '/business', label: 'Business' }
-        : null;
-
-    if (!roleEntry) return baseItems;
-    return [...baseItems, roleEntry];
-  }, [role]);
+  const items = useMemo(() => baseItems, []);
 
   return (
     <nav className="bb-mobile-nav">
