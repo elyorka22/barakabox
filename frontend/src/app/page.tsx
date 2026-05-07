@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { api, authStorage, guestStorage } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
 import { Header } from '@/components/header';
@@ -21,22 +22,15 @@ type CartResponse = {
     product?: { id: string } | null;
   }>;
 };
-type Category = { id: string; name: string; slug: string; imageUrl: string };
-const categoryLabels: Record<string, string> = {
-  all: 'Barchasi',
-  fruits: 'Mevalar',
-  vegetables: 'Sabzavotlar',
-  dairy: 'Sut mahsulotlari',
-  bakery: 'Nonvoyxona',
-};
+type Category = { id: string; name: string; slug: string; imageUrl?: string | null; productCount: number };
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [cart, setCart] = useState<CartResponse | null>(null);
-  const [activeCategory, setActiveCategory] = useState('all');
   const [loading, setLoading] = useState(false);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState(false);
   const [error, setError] = useState('');
   const token = authStorage.getAccessToken();
 
@@ -48,11 +42,14 @@ export default function Home() {
   }, []);
 
   const loadCategories = async () => {
+    setLoadingCategories(true);
     try {
       const data = await api.get<Category[]>('/categories');
       setCategories(data);
     } catch {
       setCategories([]);
+    } finally {
+      setLoadingCategories(false);
     }
   };
 
@@ -74,11 +71,6 @@ export default function Home() {
       setCart(null);
     }
   };
-
-  const filteredProducts =
-    activeCategory === 'all'
-      ? products
-      : products.filter((product) => product.categoryId === activeCategory);
 
   const addProduct = async (productId: string) => {
     setLoading(true);
@@ -124,28 +116,29 @@ export default function Home() {
           <p className="mt-1 text-sm text-white/90">Tez yetkazib berish va eng yaxshi kundalik narxlar.</p>
         </div>
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-          <button
-            onClick={() => setActiveCategory('all')}
-            className={`flex min-w-[76px] shrink-0 flex-col items-center gap-1 rounded-2xl p-2 ${activeCategory === 'all' ? 'bg-green-50' : 'bg-white'}`}
-          >
-            <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-[#F3F4F6]">
-              <img src="/categories/all.svg" alt="All categories" className="h-8 w-8" />
-            </div>
-            <span className={`text-xs font-medium ${activeCategory === 'all' ? 'text-[#16A34A]' : 'text-gray-600'}`}>Barchasi</span>
-          </button>
-          {categories.filter((category) => category.slug !== 'all').map((category) => (
-            <button
+          {loadingCategories
+            ? Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex min-w-[76px] shrink-0 flex-col items-center gap-1 rounded-2xl bg-white p-2">
+                  <div className="bb-skeleton h-12 w-12 rounded-full" />
+                  <div className="bb-skeleton h-3 w-12" />
+                </div>
+              ))
+            : null}
+          {categories.map((category) => (
+            <Link
               key={category.id}
-              onClick={() => setActiveCategory(category.id)}
-              className={`flex min-w-[76px] shrink-0 flex-col items-center gap-1 rounded-2xl p-2 ${activeCategory === category.id ? 'bg-green-50' : 'bg-white'}`}
+              href={`/categories/${category.slug}`}
+              className="flex min-w-[84px] shrink-0 flex-col items-center gap-1 rounded-2xl bg-white p-2"
             >
-              <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-[#F3F4F6]">
-                <img src={category.imageUrl} alt={category.name} className="h-8 w-8" />
+              <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#F3F4F6]">
+                {category.imageUrl ? (
+                  <img src={category.imageUrl} alt={category.name} className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-[10px] text-slate-500">No image</span>
+                )}
               </div>
-              <span className={`text-xs font-medium ${activeCategory === category.id ? 'text-[#16A34A]' : 'text-gray-600'}`}>
-                {categoryLabels[category.slug] ?? category.name}
-              </span>
-            </button>
+              <span className="line-clamp-2 text-center text-xs font-medium text-gray-600">{category.name}</span>
+            </Link>
           ))}
         </div>
         <div className="mt-6 flex items-center justify-between">
@@ -166,7 +159,7 @@ export default function Home() {
         ) : null}
         {!loadingProducts ? (
           <div className="mt-4 grid grid-cols-2 gap-3 pb-24">
-            {filteredProducts.map((product) => (
+            {products.map((product) => (
               <ProductCard
                 key={product.id}
                 id={product.id}

@@ -185,16 +185,19 @@ model FailedUploadJob {
 }
 
 model Category {
-  id        String    @id @default(cuid())
-  name      String
-  slug      String    @unique
-  imageUrl  String
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  products  Product[]
+  id         String    @id @default(cuid())
+  name       String
+  slug       String    @unique
+  imageUrl   String?
+  sortOrder  Int       @default(0)
+  isFeatured Boolean   @default(true)
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  products   Product[]
 
   @@index([isActive])
+  @@index([sortOrder])
 }
 
 model Box {
