@@ -3,16 +3,26 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { authStorage } from '@/lib/api';
+import { authEvents, authStorage } from '@/lib/api';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const user = authStorage.getUser();
-    if ((user?.role ?? '').toUpperCase() !== 'ADMIN') {
-      router.replace('/profile');
-    }
+    const validateAdmin = () => {
+      const user = authStorage.getUser();
+      const token = authStorage.getAccessToken();
+      if (!token || (user?.role ?? '').toUpperCase() !== 'ADMIN') {
+        router.replace('/profile');
+      }
+    };
+    validateAdmin();
+    window.addEventListener(authEvents.changedEventName, validateAdmin);
+    window.addEventListener('storage', validateAdmin);
+    return () => {
+      window.removeEventListener(authEvents.changedEventName, validateAdmin);
+      window.removeEventListener('storage', validateAdmin);
+    };
   }, [router]);
 
   return (

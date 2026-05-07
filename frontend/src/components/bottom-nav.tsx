@@ -3,9 +3,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { authStorage } from '@/lib/api';
+import { authEvents, authStorage } from '@/lib/api';
 
-const clientItems = [
+const baseItems = [
   { href: '/', label: 'Bosh sahifa' },
   { href: '/client', label: 'Savat' },
   { href: '/profile', label: 'Profil' },
@@ -42,17 +42,39 @@ export function BottomNav() {
   const pathname = usePathname();
   const [role, setRole] = useState('CLIENT');
 
-  useEffect(() => {
+  const syncRole = () => {
     const user = authStorage.getUser();
     setRole((user?.role ?? 'CLIENT').toUpperCase());
+  };
+
+  useEffect(() => {
+    syncRole();
+  }, [pathname]);
+
+  useEffect(() => {
+    const onChanged = () => syncRole();
+    window.addEventListener(authEvents.changedEventName, onChanged);
+    window.addEventListener('storage', onChanged);
+    return () => {
+      window.removeEventListener(authEvents.changedEventName, onChanged);
+      window.removeEventListener('storage', onChanged);
+    };
   }, []);
 
   const items = useMemo(() => {
-    if (role === 'ADMIN') return [{ href: '/admin', label: 'Admin' }];
-    if (role === 'PICKER') return [{ href: '/picker', label: 'Picker' }];
-    if (role === 'COURIER') return [{ href: '/courier', label: 'Courier' }];
-    if (role === 'BUSINESS') return [{ href: '/business', label: 'Business' }];
-    return clientItems;
+    const roleEntry =
+      role === 'ADMIN'
+        ? { href: '/admin', label: 'Admin' }
+        : role === 'PICKER'
+        ? { href: '/picker', label: 'Picker' }
+        : role === 'COURIER'
+        ? { href: '/courier', label: 'Courier' }
+        : role === 'BUSINESS'
+        ? { href: '/business', label: 'Business' }
+        : null;
+
+    if (!roleEntry) return baseItems;
+    return [...baseItems, roleEntry];
   }, [role]);
 
   return (

@@ -7,6 +7,7 @@ import { MobileNav } from '@/components/app-nav';
 
 type LoginResponse = {
   accessToken: string;
+  refreshToken: string;
   user: { id: string; email: string; role: string; fullName: string };
 };
 
@@ -78,6 +79,7 @@ export default function ProfilePage() {
       if (mode === 'login') {
         const data = await api.post<LoginResponse>('/auth/login', { email: email.trim(), password });
         authStorage.setAccessToken(data.accessToken);
+        authStorage.setRefreshToken(data.refreshToken);
         authStorage.setUser(data.user);
         setUser(data.user);
       } else {
@@ -88,6 +90,7 @@ export default function ProfilePage() {
         });
         const data = await api.post<LoginResponse>('/auth/login', { email: email.trim(), password });
         authStorage.setAccessToken(data.accessToken);
+        authStorage.setRefreshToken(data.refreshToken);
         authStorage.setUser(data.user);
         setUser(data.user);
       }

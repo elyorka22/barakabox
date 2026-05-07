@@ -3,10 +3,54 @@ import { t } from './i18n';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api';
 const ACCESS_TOKEN_KEY = 'barakabox_access_token';
+const REFRESH_TOKEN_KEY = 'barakabox_refresh_token';
 const USER_KEY = 'barakabox_user';
 const GUEST_ID_KEY = 'barakabox_guest_id';
+const AUTH_CHANGED_EVENT = 'barakabox_auth_changed';
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
+type StoredUser = { id: string; email: string; role: string; fullName: string };
+
+let refreshInFlight: Promise<string | null> | null = null;
+
+function notifyAuthChanged() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
+  }
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = authStorage.getRefreshToken();
+  if (!refreshToken) return null;
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!response.ok) return null;
+      const payload = (await response.json()) as {
+        accessToken: string;
+        refreshToken: string;
+        user: StoredUser;
+      };
+      authStorage.setAccessToken(payload.accessToken);
+      authStorage.setRefreshToken(payload.refreshToken);
+      authStorage.setUser(payload.user);
+      notifyAuthChanged();
+      return payload.accessToken;
+    } catch {
+      return null;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
+}
 
 async function request<T>(
   path: string,
@@ -14,6 +58,7 @@ async function request<T>(
   body?: unknown,
   token?: string,
   includeGuest = false,
+  isRetry = false,
 ): Promise<T> {
   if (
     typeof window !== 'undefined' &&
@@ -41,7 +86,20 @@ async function request<T>(
 
   if (!response.ok) {
     if (response.status === 401 && typeof window !== 'undefined') {
+      const canTryRefresh =
+        !isRetry &&
+        !path.startsWith('/auth/login') &&
+        !path.startsWith('/auth/register') &&
+        !path.startsWith('/auth/refresh');
+      if (canTryRefresh) {
+        const refreshedToken = await refreshAccessToken();
+        if (refreshedToken) {
+          return request<T>(path, method, body, refreshedToken, includeGuest, true);
+        }
+      }
+
       authStorage.clearAccessToken();
+      notifyAuthChanged();
       window.alert("Sessiya tugadi. Iltimos qaytadan tizimga kiring.");
       window.location.href = '/profile';
       throw new Error("Sessiya tugadi. Iltimos qaytadan tizimga kiring.");
@@ -78,6 +136,7 @@ export const authStorage = {
   setAccessToken(token: string) {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(ACCESS_TOKEN_KEY, token);
+      notifyAuthChanged();
     }
   },
   getAccessToken() {
@@ -87,12 +146,25 @@ export const authStorage = {
   clearAccessToken() {
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(ACCESS_TOKEN_KEY);
+      window.localStorage.removeItem(REFRESH_TOKEN_KEY);
       window.localStorage.removeItem(USER_KEY);
+      notifyAuthChanged();
     }
+  },
+  setRefreshToken(token: string) {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(REFRESH_TOKEN_KEY, token);
+      notifyAuthChanged();
+    }
+  },
+  getRefreshToken() {
+    if (typeof window === 'undefined') return '';
+    return window.localStorage.getItem(REFRESH_TOKEN_KEY) ?? '';
   },
   setUser(user: { id: string; email: string; role: string; fullName: string }) {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(USER_KEY, JSON.stringify(user));
+      notifyAuthChanged();
     }
   },
   getUser(): { id: string; email: string; role: string; fullName: string } | null {
@@ -100,6 +172,10 @@ export const authStorage = {
     const value = window.localStorage.getItem(USER_KEY);
     return value ? (JSON.parse(value) as { id: string; email: string; role: string; fullName: string }) : null;
   },
+};
+
+export const authEvents = {
+  changedEventName: AUTH_CHANGED_EVENT,
 };
 
 export const guestStorage = {
