@@ -1,4 +1,52 @@
-import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsArray, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+
+class ProductVariantDto {
+  @IsString()
+  @IsNotEmpty()
+  title!: string;
+
+  @IsOptional()
+  @IsString()
+  flavor?: string;
+
+  @IsOptional()
+  @IsString()
+  size?: string;
+
+  @IsOptional()
+  @IsString()
+  sku?: string;
+
+  @IsOptional()
+  @IsString()
+  barcode?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsInt()
+  @Min(1)
+  price!: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  discountPrice?: number;
+
+  @IsInt()
+  @Min(0)
+  stock!: number;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
+}
 
 export class CreateProductDto {
   @IsString()
@@ -51,4 +99,10 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   imageThumbKey?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductVariantDto)
+  variants?: ProductVariantDto[];
 }

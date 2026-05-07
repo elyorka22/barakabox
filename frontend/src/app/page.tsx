@@ -14,12 +14,22 @@ type Product = {
   categoryId?: string | null;
   imageUrl?: string | null;
   imageCardUrl?: string | null;
+  variants?: Array<{
+    id: string;
+    title: string;
+    flavor?: string | null;
+    size?: string | null;
+    price: number;
+    stock: number;
+    imageUrl?: string | null;
+  }>;
 };
 type CartResponse = {
   items: Array<{
     id: string;
     quantity: number;
     product?: { id: string } | null;
+    variant?: { id: string } | null;
   }>;
 };
 type Category = { id: string; name: string; slug: string; imageUrl?: string | null; productCount: number };
@@ -72,11 +82,11 @@ export default function Home() {
     }
   };
 
-  const addProduct = async (productId: string) => {
+  const addProduct = async (variantId: string, productId: string) => {
     setLoading(true);
     setError('');
     try {
-      await api.post('/cart/items', { productId, quantity: 1 }, token);
+      await api.post('/cart/items', { productId, variantId, quantity: 1 }, token);
       await loadCart();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Mahsulotni savatga qo'shib bo'lmadi");
@@ -85,11 +95,11 @@ export default function Home() {
     }
   };
 
-  const changeProductQty = async (productId: string, delta: number) => {
+  const changeProductQty = async (variantId: string, productId: string, delta: number) => {
     setLoading(true);
     setError('');
     try {
-      await api.post('/cart/items', { productId, quantity: delta }, token);
+      await api.post('/cart/items', { productId, variantId, quantity: delta }, token);
       await loadCart();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xatolik yuz berdi");
@@ -98,8 +108,7 @@ export default function Home() {
     }
   };
 
-  const qtyByProductId = (productId: string) =>
-    cart?.items.find((item) => item.product?.id === productId)?.quantity ?? 0;
+  const qtyByProductId = (productId: string) => cart?.items.find((item) => item.product?.id === productId)?.quantity ?? 0;
 
   return (
     <main className="bb-page">
@@ -166,8 +175,12 @@ export default function Home() {
                 name={product.name}
                 price={product.price}
                 onAdd={addProduct}
-                onIncrease={(id) => void changeProductQty(id, 1)}
-                onDecrease={(id) => void changeProductQty(id, -1)}
+                variants={product.variants?.map((variant) => ({
+                  ...variant,
+                  imageUrl: variant.imageUrl ?? product.imageCardUrl ?? product.imageUrl,
+                }))}
+                onIncrease={(variantId, productId) => void changeProductQty(variantId, productId, 1)}
+                onDecrease={(variantId, productId) => void changeProductQty(variantId, productId, -1)}
                 quantity={qtyByProductId(product.id)}
                 loading={loading}
                 href={`/products/${product.id}`}

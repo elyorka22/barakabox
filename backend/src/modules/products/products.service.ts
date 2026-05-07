@@ -22,8 +22,55 @@ export class ProductsService {
   list() {
     return this.prisma.product.findMany({
       where: { isActive: true, business: { status: 'APPROVED' } },
-      include: { business: true, category: true },
+      include: {
+        business: true,
+        category: true,
+        variants: {
+          where: { isActive: true },
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+        },
+      },
       orderBy: { createdAt: 'desc' },
+    }).then((products) =>
+      products.map((product) => ({
+        ...product,
+        price: product.variants[0]?.price ?? product.price,
+        imageUrl: product.variants[0]?.imageUrl ?? product.imageUrl,
+      })),
+    );
+  }
+
+  async search(term: string, page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+    const where = {
+      isActive: true,
+      OR: [
+        { name: { contains: term, mode: 'insensitive' as const } },
+        {
+          variants: {
+            some: {
+              OR: [
+                { title: { contains: term, mode: 'insensitive' as const } },
+                { flavor: { contains: term, mode: 'insensitive' as const } },
+                { sku: { contains: term, mode: 'insensitive' as const } },
+                { barcode: { contains: term, mode: 'insensitive' as const } },
+              ],
+            },
+          },
+        },
+      ],
+    };
+    return this.prisma.product.findMany({
+      where,
+      skip,
+      take: limit,
+      include: {
+        category: true,
+        variants: {
+          where: { isActive: true },
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+        },
+      },
     });
   }
 
@@ -42,6 +89,19 @@ export class ProductsService {
       imageCardKey?: string;
       imageThumbUrl?: string;
       imageThumbKey?: string;
+      variants?: Array<{
+        title: string;
+        flavor?: string;
+        size?: string;
+        sku?: string;
+        barcode?: string;
+        description?: string;
+        price: number;
+        discountPrice?: number;
+        stock: number;
+        imageUrl?: string;
+        sortOrder?: number;
+      }>;
     },
   ) {
     const business = await this.prisma.businessProfile.findUnique({
@@ -67,6 +127,33 @@ export class ProductsService {
           imageCardKey: data.imageCardKey,
           imageThumbUrl: data.imageThumbUrl,
           imageThumbKey: data.imageThumbKey,
+          variants: {
+            create: (data.variants?.length
+              ? data.variants
+              : [
+                  {
+                    title: data.name,
+                    description: data.description,
+                    price: data.price,
+                    stock: data.stockQuantity,
+                    imageUrl: data.imageUrl,
+                    sortOrder: 0,
+                  },
+                ]
+            ).map((variant, idx) => ({
+              title: variant.title,
+              flavor: variant.flavor,
+              size: variant.size,
+              sku: variant.sku,
+              barcode: variant.barcode,
+              description: variant.description,
+              price: variant.price,
+              discountPrice: variant.discountPrice,
+              stock: variant.stock,
+              imageUrl: variant.imageUrl,
+              sortOrder: variant.sortOrder ?? idx,
+            })),
+          },
         },
       });
       if (data.stockQuantity > 0) {
@@ -86,7 +173,13 @@ export class ProductsService {
     const business = await this.requireApprovedBusiness(userId);
     return this.prisma.product.findMany({
       where: { businessId: business.id },
-      include: { category: true },
+      include: {
+        category: true,
+        variants: {
+          where: { isActive: true },
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -106,6 +199,20 @@ export class ProductsService {
       imageCardKey?: string;
       imageThumbUrl?: string;
       imageThumbKey?: string;
+      variants?: Array<{
+        id?: string;
+        title: string;
+        flavor?: string;
+        size?: string;
+        sku?: string;
+        barcode?: string;
+        description?: string;
+        price: number;
+        discountPrice?: number;
+        stock: number;
+        imageUrl?: string;
+        sortOrder?: number;
+      }>;
     },
   ) {
     const product = await this.prisma.product.findUnique({
@@ -125,6 +232,57 @@ export class ProductsService {
       }
     }
     return this.prisma.$transaction(async (tx) => {
+      if (data.variants) {
+        const incomingIds = data.variants.map((variant) => variant.id).filter(Boolean) as string[];
+        await tx.productVariant.updateMany({
+          where: {
+            productId,
+            ...(incomingIds.length ? { id: { notIn: incomingIds } } : {}),
+          },
+          data: { isActive: false },
+        });
+        for (let i = 0; i < data.variants.length; i += 1) {
+          const variant = data.variants[i];
+          if (variant.id) {
+            await tx.productVariant.update({
+              where: { id: variant.id },
+              data: {
+                title: variant.title,
+                flavor: variant.flavor,
+                size: variant.size,
+                sku: variant.sku,
+                barcode: variant.barcode,
+                description: variant.description,
+                price: variant.price,
+                discountPrice: variant.discountPrice,
+                stock: variant.stock,
+                imageUrl: variant.imageUrl,
+                sortOrder: variant.sortOrder ?? i,
+                isActive: true,
+              },
+            });
+          } else {
+            await tx.productVariant.create({
+              data: {
+                productId,
+                title: variant.title,
+                flavor: variant.flavor,
+                size: variant.size,
+                sku: variant.sku,
+                barcode: variant.barcode,
+                description: variant.description,
+                price: variant.price,
+                discountPrice: variant.discountPrice,
+                stock: variant.stock,
+                imageUrl: variant.imageUrl,
+                sortOrder: variant.sortOrder ?? i,
+                isActive: true,
+              },
+            });
+          }
+        }
+      }
+
       const updated = await tx.product.update({
         where: { id: productId },
         data: {

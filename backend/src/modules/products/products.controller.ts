@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -12,7 +12,10 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get()
-  list() {
+  list(@Query('q') q?: string, @Query('page') page?: string, @Query('limit') limit?: string) {
+    if (q?.trim()) {
+      return this.productsService.search(q.trim(), Number(page || 1), Number(limit || 20));
+    }
     return this.productsService.list();
   }
 

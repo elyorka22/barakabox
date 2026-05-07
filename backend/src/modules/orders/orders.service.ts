@@ -36,11 +36,28 @@ export class OrdersService {
     }
 
     const normalizedItems = cart.items.map((item) => {
+      if (item.variant) {
+        return {
+          type: 'variant' as const,
+          entityId: item.variant.id,
+          productId: item.variant.productId,
+          title: item.variant.title || item.product?.name || 'Variant',
+          flavor: item.variant.flavor ?? null,
+          size: item.variant.size ?? null,
+          sku: item.variant.sku ?? null,
+          price: Number(item.variant.discountPrice ?? item.variant.price),
+          quantity: item.quantity,
+        };
+      }
       if (item.product) {
         return {
           type: 'product' as const,
           entityId: item.product.id,
+          productId: item.product.id,
           title: item.product.name,
+          flavor: null,
+          size: null,
+          sku: null,
           price: Number(item.product.price),
           quantity: item.quantity,
         };
@@ -107,8 +124,13 @@ export class OrdersService {
           items: {
             create: normalizedItems.map((item) => ({
               productId: item.type === 'product' ? item.entityId : null,
+              variantId: item.type === 'variant' ? item.entityId : null,
               boxId: item.type === 'box' ? item.entityId : null,
               title: item.title,
+              variantSnapshotTitle: item.type === 'variant' ? item.title : null,
+              variantSnapshotFlavor: item.type === 'variant' ? item.flavor : null,
+              variantSnapshotSize: item.type === 'variant' ? item.size : null,
+              variantSnapshotSku: item.type === 'variant' ? item.sku : null,
               quantity: item.quantity,
               price: item.price,
             })),
@@ -118,26 +140,44 @@ export class OrdersService {
       });
 
       for (const item of normalizedItems) {
-        if (item.type !== 'product') {
+        if (item.type !== 'product' && item.type !== 'variant') {
           continue;
         }
-        const product = await tx.product.findUnique({
-          where: { id: item.entityId },
-          select: { id: true, stockQuantity: true },
-        });
-        if (!product) {
-          throw new BadRequestException('Product not found');
+        const productId = item.productId;
+        if (item.type === 'variant') {
+          const variant = await tx.productVariant.findUnique({
+            where: { id: item.entityId },
+            select: { id: true, stock: true, isActive: true },
+          });
+          if (!variant || !variant.isActive) {
+            throw new BadRequestException('Variant not found');
+          }
+          if (variant.stock < item.quantity) {
+            throw new BadRequestException(`Insufficient stock for ${item.title}`);
+          }
+          await tx.productVariant.update({
+            where: { id: variant.id },
+            data: { stock: variant.stock - item.quantity },
+          });
+        } else {
+          const product = await tx.product.findUnique({
+            where: { id: item.entityId },
+            select: { id: true, stockQuantity: true },
+          });
+          if (!product) {
+            throw new BadRequestException('Product not found');
+          }
+          if (product.stockQuantity < item.quantity) {
+            throw new BadRequestException(`Insufficient stock for ${item.title}`);
+          }
+          await tx.product.update({
+            where: { id: product.id },
+            data: { stockQuantity: product.stockQuantity - item.quantity },
+          });
         }
-        if (product.stockQuantity < item.quantity) {
-          throw new BadRequestException(`Insufficient stock for ${item.title}`);
-        }
-        await tx.product.update({
-          where: { id: product.id },
-          data: { stockQuantity: product.stockQuantity - item.quantity },
-        });
         await tx.inventoryLog.create({
           data: {
-            productId: product.id,
+            productId,
             orderId: createdOrder.id,
             change: -item.quantity,
             reason: 'SALE',
@@ -230,7 +270,7 @@ export class OrdersService {
   listPickerQueue() {
     return this.prisma.order.findMany({
       where: { status: { in: ['NEW', 'PICKING'] } },
-      include: { items: { include: { product: true } }, user: true, assignedPicker: true, assignedCourier: true },
+      include: { items: { include: { product: true, variant: true } }, user: true, assignedPicker: true, assignedCourier: true },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -238,14 +278,14 @@ export class OrdersService {
   listCourierQueue() {
     return this.prisma.order.findMany({
       where: { status: 'READY' },
-      include: { items: { include: { product: true } }, user: true, assignedPicker: true, assignedCourier: true },
+      include: { items: { include: { product: true, variant: true } }, user: true, assignedPicker: true, assignedCourier: true },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   listAll() {
     return this.prisma.order.findMany({
-      include: { items: { include: { product: true } }, user: true, assignedPicker: true, assignedCourier: true },
+      include: { items: { include: { product: true, variant: true } }, user: true, assignedPicker: true, assignedCourier: true },
       orderBy: { createdAt: 'desc' },
     });
   }

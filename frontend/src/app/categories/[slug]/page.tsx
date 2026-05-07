@@ -13,6 +13,15 @@ type Product = {
   price: number;
   imageUrl?: string | null;
   imageCardUrl?: string | null;
+  variants?: Array<{
+    id: string;
+    title: string;
+    flavor?: string | null;
+    size?: string | null;
+    price: number;
+    stock: number;
+    imageUrl?: string | null;
+  }>;
 };
 
 type CategoryProductsResponse = {
@@ -22,7 +31,7 @@ type CategoryProductsResponse = {
 };
 
 type CartResponse = {
-  items: Array<{ quantity: number; product?: { id: string } | null }>;
+  items: Array<{ quantity: number; product?: { id: string } | null; variant?: { id: string } | null }>;
 };
 
 export default function CategoryProductsPage() {
@@ -69,10 +78,10 @@ export default function CategoryProductsPage() {
     [cart],
   );
 
-  const addToCart = async (productId: string, quantity = 1) => {
+  const addToCart = async (variantId: string, productId: string, quantity = 1) => {
     setAdding(true);
     try {
-      await api.post('/cart/items', { productId, quantity }, token);
+      await api.post('/cart/items', { productId, variantId, quantity }, token);
       await loadCart();
     } finally {
       setAdding(false);
@@ -105,9 +114,13 @@ export default function CategoryProductsPage() {
                   id={item.id}
                   name={item.name}
                   price={String(item.price)}
-                  onAdd={(id) => void addToCart(id, 1)}
-                  onIncrease={(id) => void addToCart(id, 1)}
-                  onDecrease={(id) => void addToCart(id, -1)}
+                  onAdd={(variantId, productId) => void addToCart(variantId, productId, 1)}
+                  variants={item.variants?.map((variant) => ({
+                    ...variant,
+                    imageUrl: variant.imageUrl ?? item.imageCardUrl ?? item.imageUrl,
+                  }))}
+                  onIncrease={(variantId, productId) => void addToCart(variantId, productId, 1)}
+                  onDecrease={(variantId, productId) => void addToCart(variantId, productId, -1)}
                   quantity={qtyByProductId(item.id)}
                   loading={adding}
                   href={`/products/${item.id}`}

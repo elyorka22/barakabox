@@ -94,6 +94,9 @@ export class CartController {
     @Headers('x-guest-id') guestId: string | undefined,
     @Body() body: AddCartItemDto,
   ) {
+    if (!body.productId && !body.variantId) {
+      throw new BadRequestException('productId yoki variantId yuborilishi shart');
+    }
     this.logger.log(
       JSON.stringify({
         event: 'cart_item_add_requested',
@@ -105,7 +108,7 @@ export class CartController {
     try {
       const actorId = await this.resolveActorId(authorization, guestId);
       this.logger.log(JSON.stringify({ event: 'cart_item_add_actor_resolved', actorId, guestId }));
-      return this.cartService.addItem(actorId, body.productId, body.quantity);
+      return this.cartService.addItem(actorId, body.productId, body.variantId, body.quantity);
     } catch (error) {
       this.logger.error(
         JSON.stringify({
@@ -158,6 +161,9 @@ export class CartController {
     @Headers('x-guest-id') guestId: string | undefined,
     @Body() body: RemoveCartItemDto,
   ) {
+    if (!body.productId && !body.variantId) {
+      throw new BadRequestException('productId yoki variantId yuborilishi shart');
+    }
     this.logger.log(
       JSON.stringify({
         event: 'cart_item_remove_requested',
@@ -169,7 +175,7 @@ export class CartController {
     try {
       const actorId = await this.resolveActorId(authorization, guestId);
       this.logger.log(JSON.stringify({ event: 'cart_item_remove_actor_resolved', actorId, guestId }));
-      return this.cartService.removeItem(actorId, body.productId);
+      return this.cartService.removeItem(actorId, body.productId, body.variantId);
     } catch (error) {
       this.logger.error(
         JSON.stringify({

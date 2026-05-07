@@ -4,13 +4,24 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { formatMoneyUz } from '@/lib/format';
 
+type Variant = {
+  id: string;
+  title: string;
+  flavor?: string | null;
+  size?: string | null;
+  price: string | number;
+  stock?: number;
+  imageUrl?: string | null;
+};
+
 type ProductCardProps = {
   id: string;
   name: string;
   price: string;
-  onAdd: (id: string) => void;
-  onIncrease?: (id: string) => void;
-  onDecrease?: (id: string) => void;
+  variants?: Variant[];
+  onAdd: (variantId: string, productId: string) => void;
+  onIncrease?: (variantId: string, productId: string) => void;
+  onDecrease?: (variantId: string, productId: string) => void;
   quantity?: number;
   loading?: boolean;
   href?: string;
@@ -28,30 +39,68 @@ export function ProductCard({
   loading,
   href,
   imageUrl,
+  variants = [],
 }: ProductCardProps) {
   const [loaded, setLoaded] = useState(false);
+  const [activeVariantIndex, setActiveVariantIndex] = useState(0);
+  const effectiveVariants =
+    variants.length > 0
+      ? variants
+      : [{ id: `${id}-default`, title: name, price, imageUrl, stock: 9999 }];
+  const activeVariant = effectiveVariants[Math.min(activeVariantIndex, effectiveVariants.length - 1)];
+
   return (
     <article className="rounded-3xl bg-white p-3 shadow-sm">
       <Link href={href ?? '#'} className="block">
-        {imageUrl ? (
+        {effectiveVariants.length > 0 ? (
           <div className="relative h-28 w-full overflow-hidden rounded-2xl">
             {!loaded ? <div className="bb-skeleton absolute inset-0" /> : null}
-            <img
-              src={imageUrl}
-              alt={name}
-              loading="lazy"
-              decoding="async"
-              className="h-28 w-full object-cover"
-              onLoad={() => setLoaded(true)}
-              onError={() => setLoaded(true)}
-            />
+            <div
+              className="flex h-28 w-full snap-x snap-mandatory overflow-x-auto scroll-smooth"
+              onScroll={(event) => {
+                const target = event.currentTarget;
+                const index = Math.round(target.scrollLeft / target.clientWidth);
+                setActiveVariantIndex(Math.max(0, Math.min(index, effectiveVariants.length - 1)));
+              }}
+            >
+              {effectiveVariants.map((variant) => (
+                <div key={variant.id} className="h-28 min-w-full snap-center">
+                  {variant.imageUrl ? (
+                    <img
+                      src={variant.imageUrl}
+                      alt={variant.title}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-28 w-full object-cover"
+                      onLoad={() => setLoaded(true)}
+                      onError={() => setLoaded(true)}
+                    />
+                  ) : (
+                    <div className="h-28 rounded-2xl bg-gradient-to-br from-green-200 to-green-100" />
+                  )}
+                </div>
+              ))}
+            </div>
+            {effectiveVariants.length > 1 ? (
+              <div className="absolute bottom-1 left-0 right-0 flex justify-center gap-1">
+                {effectiveVariants.map((variant, idx) => (
+                  <span
+                    key={variant.id}
+                    className={`h-1.5 w-1.5 rounded-full ${idx === activeVariantIndex ? 'bg-white' : 'bg-white/50'}`}
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="h-28 rounded-2xl bg-gradient-to-br from-green-200 to-green-100" />
         )}
-        <h3 className="mt-3 line-clamp-1 text-sm font-semibold text-[#121212]">{name}</h3>
+        <h3 className="mt-3 line-clamp-1 text-sm font-semibold text-[#121212]">{activeVariant.title || name}</h3>
+        <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">
+          {[activeVariant.flavor, activeVariant.size].filter(Boolean).join(' • ') || 'Variant'}
+        </p>
         <div className="mt-1 flex items-center justify-between">
-          <p className="text-base font-bold text-[#121212]">{formatMoneyUz(price)}</p>
+          <p className="text-base font-bold text-[#121212]">{formatMoneyUz(activeVariant.price)}</p>
           <span className="text-xs text-gray-500">⭐ 4.8</span>
         </div>
       </Link>
@@ -60,7 +109,7 @@ export function ProductCard({
         {quantity > 0 ? (
           <div className="flex items-center gap-2 rounded-xl bg-[#F3F4F6] p-1">
             <button
-              onClick={() => onDecrease?.(id)}
+              onClick={() => onDecrease?.(activeVariant.id, id)}
               disabled={loading}
               className="h-7 w-7 rounded-lg bg-white text-sm font-bold text-gray-700 disabled:opacity-50"
             >
@@ -68,7 +117,7 @@ export function ProductCard({
             </button>
             <span className="w-5 text-center text-xs font-semibold text-[#121212]">{quantity}</span>
             <button
-              onClick={() => onIncrease?.(id)}
+              onClick={() => onIncrease?.(activeVariant.id, id)}
               disabled={loading}
               className="h-7 w-7 rounded-lg bg-[#16A34A] text-sm font-bold text-white disabled:opacity-50"
             >
@@ -76,7 +125,11 @@ export function ProductCard({
             </button>
           </div>
         ) : (
-          <button onClick={() => onAdd(id)} disabled={loading} className="rounded-xl bg-[#16A34A] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">
+          <button
+            onClick={() => onAdd(activeVariant.id, id)}
+            disabled={loading || (activeVariant.stock ?? 0) <= 0}
+            className="rounded-xl bg-[#16A34A] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+          >
             {loading ? "Qo'shilmoqda..." : "Qo'shish"}
           </button>
         )}

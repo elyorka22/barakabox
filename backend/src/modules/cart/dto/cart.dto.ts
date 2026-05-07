@@ -1,9 +1,14 @@
 import { IsInt, IsNotEmpty, IsString, Min, NotEquals } from 'class-validator';
+import { IsOptional } from 'class-validator';
 
 export class AddCartItemDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  productId!: string;
+  productId?: string;
+
+  @IsOptional()
+  @IsString()
+  variantId?: string;
 
   @IsInt()
   @NotEquals(0, { message: 'quantity cannot be zero' })
@@ -21,9 +26,13 @@ export class AddCartBoxDto {
 }
 
 export class RemoveCartItemDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  productId!: string;
+  productId?: string;
+
+  @IsOptional()
+  @IsString()
+  variantId?: string;
 }
 
 export class RemoveCartBoxDto {

@@ -17,6 +17,15 @@ type Product = {
   imageThumbUrl?: string | null;
   imageUrl?: string | null;
   imageKey?: string | null;
+  variants?: Array<{
+    id?: string;
+    title: string;
+    flavor?: string | null;
+    size?: string | null;
+    price: number;
+    stock: number;
+    imageUrl?: string | null;
+  }>;
 };
 
 type Business = { id: string; displayName: string };
@@ -40,6 +49,9 @@ export default function AdminProductsPage() {
     categoryId: '',
     imageUrl: '',
     imageKey: '',
+    variants: [
+      { id: '', title: '', flavor: '', size: '', price: '1000', stock: '0', imageUrl: '' },
+    ],
   });
   const [uploadingImage, setUploadingImage] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -95,6 +107,16 @@ export default function AdminProductsPage() {
       categoryId: form.categoryId || undefined,
       imageUrl: form.imageUrl || undefined,
       imageKey: form.imageKey || undefined,
+      variants: form.variants.map((variant, idx) => ({
+        ...(variant.id ? { id: variant.id } : {}),
+        title: variant.title.trim() || `${form.name.trim()} Variant ${idx + 1}`,
+        flavor: variant.flavor.trim() || undefined,
+        size: variant.size.trim() || undefined,
+        price: Number(variant.price),
+        stock: Number(variant.stock),
+        imageUrl: variant.imageUrl.trim() || undefined,
+        sortOrder: idx,
+      })),
     };
     if (!payload.businessId || !payload.name || payload.price <= 0) return;
     if (form.id) {
@@ -110,6 +132,7 @@ export default function AdminProductsPage() {
       stockQuantity: '0',
       imageUrl: '',
       imageKey: '',
+      variants: [{ id: '', title: '', flavor: '', size: '', price: '1000', stock: '0', imageUrl: '' }],
     }));
     await load();
   };
@@ -125,6 +148,16 @@ export default function AdminProductsPage() {
       categoryId: item.category?.id ?? '',
       imageUrl: item.imageUrl ?? '',
       imageKey: item.imageKey ?? '',
+      variants:
+        item.variants?.map((variant) => ({
+          id: variant.id ?? '',
+          title: variant.title ?? '',
+          flavor: variant.flavor ?? '',
+          size: variant.size ?? '',
+          price: String(variant.price ?? 0),
+          stock: String(variant.stock ?? 0),
+          imageUrl: variant.imageUrl ?? '',
+        })) ?? [{ id: '', title: '', flavor: '', size: '', price: String(item.price), stock: String(item.stockQuantity), imageUrl: item.imageUrl ?? '' }],
     });
   };
 
@@ -227,6 +260,123 @@ export default function AdminProductsPage() {
               onChange={({ url, key }) => setForm((prev) => ({ ...prev, imageUrl: url, imageKey: key }))}
               onUploadingChange={setUploadingImage}
             />
+          </div>
+          <div className="min-w-0 max-w-full sm:col-span-2 lg:col-span-3">
+            <p className="mb-2 text-xs font-semibold text-slate-700">Variantlar</p>
+            <div className="space-y-2">
+              {form.variants.map((variant, idx) => (
+                <div key={`${variant.id || 'new'}-${idx}`} className="rounded-xl border border-slate-200 p-2">
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    <input
+                      className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                      placeholder="Variant title"
+                      value={variant.title}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          variants: prev.variants.map((item, itemIdx) =>
+                            itemIdx === idx ? { ...item, title: e.target.value } : item,
+                          ),
+                        }))
+                      }
+                    />
+                    <input
+                      className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                      placeholder="Flavor"
+                      value={variant.flavor}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          variants: prev.variants.map((item, itemIdx) =>
+                            itemIdx === idx ? { ...item, flavor: e.target.value } : item,
+                          ),
+                        }))
+                      }
+                    />
+                    <input
+                      className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                      placeholder="Size"
+                      value={variant.size}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          variants: prev.variants.map((item, itemIdx) =>
+                            itemIdx === idx ? { ...item, size: e.target.value } : item,
+                          ),
+                        }))
+                      }
+                    />
+                    <input
+                      className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                      type="number"
+                      placeholder="Price"
+                      value={variant.price}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          variants: prev.variants.map((item, itemIdx) =>
+                            itemIdx === idx ? { ...item, price: e.target.value } : item,
+                          ),
+                        }))
+                      }
+                    />
+                    <input
+                      className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                      type="number"
+                      placeholder="Stock"
+                      value={variant.stock}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          variants: prev.variants.map((item, itemIdx) =>
+                            itemIdx === idx ? { ...item, stock: e.target.value } : item,
+                          ),
+                        }))
+                      }
+                    />
+                    <input
+                      className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                      placeholder="Variant image URL"
+                      value={variant.imageUrl}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          variants: prev.variants.map((item, itemIdx) =>
+                            itemIdx === idx ? { ...item, imageUrl: e.target.value } : item,
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      type="button"
+                      className="rounded-lg border border-rose-300 px-2 py-1 text-xs text-rose-700"
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          variants: prev.variants.length > 1 ? prev.variants.filter((_, itemIdx) => itemIdx !== idx) : prev.variants,
+                        }))
+                      }
+                    >
+                      Olib tashlash
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                onClick={() =>
+                  setForm((prev) => ({
+                    ...prev,
+                    variants: [...prev.variants, { id: '', title: '', flavor: '', size: '', price: '1000', stock: '0', imageUrl: '' }],
+                  }))
+                }
+              >
+                + Variant qo'shish
+              </button>
+            </div>
           </div>
           <button
             className="w-full min-w-0 max-w-full rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"

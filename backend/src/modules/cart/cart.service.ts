@@ -72,26 +72,48 @@ export class CartService {
       const cart = await this.getOrCreateCart(userId);
       return this.prisma.cart.findUnique({
         where: { id: cart.id },
-        include: { items: { include: { product: true, box: { include: { items: { include: { product: true } } } } } } },
+        include: {
+          items: {
+            include: {
+              product: true,
+              variant: true,
+              box: { include: { items: { include: { product: true } } } },
+            },
+          },
+        },
       });
     } catch (error) {
       this.handlePrismaError(error, { action: 'getCart', userId });
     }
   }
 
-  async addItem(userId: string, productId: string, quantity: number) {
+  async addItem(userId: string, productId: string | undefined, variantId: string | undefined, quantity: number) {
     if (quantity === 0) {
       throw new BadRequestException('Quantity cannot be zero');
     }
+    if (!productId && !variantId) {
+      throw new BadRequestException('productId yoki variantId yuborilishi shart');
+    }
     try {
       const cart = await this.getOrCreateCart(userId);
-      const product = await this.prisma.product.findUnique({ where: { id: productId } });
-      if (!product || !product.isActive) {
-        throw new NotFoundException('Product not found');
+      const variant = variantId
+        ? await this.prisma.productVariant.findUnique({
+            where: { id: variantId },
+            include: { product: true },
+          })
+        : null;
+      const resolvedProductId = variant?.productId ?? productId;
+      const product = await this.prisma.product.findUnique({ where: { id: resolvedProductId } });
+      if (!product || !product.isActive || (variant && !variant.isActive)) {
+        throw new NotFoundException('Product/variant not found');
       }
-      const existing = await this.prisma.cartItem.findUnique({
-        where: { cartId_productId: { cartId: cart.id, productId } },
-      });
+      const existing = variantId
+        ? await this.prisma.cartItem.findUnique({
+            where: { cartId_variantId: { cartId: cart.id, variantId } },
+          })
+        : await this.prisma.cartItem.findUnique({
+            where: { cartId_productId: { cartId: cart.id, productId: resolvedProductId! } },
+          });
       if (!existing && quantity < 0) {
         throw new NotFoundException('Cart item not found');
       }
@@ -107,7 +129,12 @@ export class CartService {
         }
       } else {
         await this.prisma.cartItem.create({
-          data: { cartId: cart.id, productId, quantity },
+          data: {
+            cartId: cart.id,
+            productId: resolvedProductId,
+            variantId: variantId ?? null,
+            quantity,
+          },
         });
       }
       return this.getCart(userId);
@@ -115,7 +142,7 @@ export class CartService {
       if (error instanceof BadRequestException || error instanceof NotFoundException) {
         throw error;
       }
-      this.handlePrismaError(error, { action: 'addItem', userId, productId, quantity });
+      this.handlePrismaError(error, { action: 'addItem', userId, productId, variantId, quantity });
     }
   }
 
@@ -143,18 +170,24 @@ export class CartService {
     }
   }
 
-  async removeItem(userId: string, productId: string) {
+  async removeItem(userId: string, productId?: string, variantId?: string) {
     try {
       const cart = await this.getOrCreateCart(userId);
-      const existing = await this.prisma.cartItem.findUnique({
-        where: { cartId_productId: { cartId: cart.id, productId } },
-      });
+      const existing = variantId
+        ? await this.prisma.cartItem.findUnique({
+            where: { cartId_variantId: { cartId: cart.id, variantId } },
+          })
+        : productId
+        ? await this.prisma.cartItem.findUnique({
+            where: { cartId_productId: { cartId: cart.id, productId } },
+          })
+        : null;
       if (!existing) throw new NotFoundException('Cart item not found');
       await this.prisma.cartItem.delete({ where: { id: existing.id } });
       return this.getCart(userId);
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      this.handlePrismaError(error, { action: 'removeItem', userId, productId });
+      this.handlePrismaError(error, { action: 'removeItem', userId, productId, variantId });
     }
   }
 
