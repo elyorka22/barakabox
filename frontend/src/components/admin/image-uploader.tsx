@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { ImagePlus, Upload } from 'lucide-react';
 import { authStorage } from '@/lib/api';
 
 type Props = {
@@ -90,10 +91,13 @@ export function ImageUploader({ valueUrl, valueKey, onChange, onUploadingChange 
   };
 
   return (
-    <div className="space-y-2 rounded-xl border border-dashed border-slate-300 p-3">
-      <label className="block text-xs text-slate-500">Rasm (jpg/jpeg/png/webp, max 5MB)</label>
+    <div className="w-full min-w-0 max-w-full space-y-2 rounded-xl border border-dashed border-slate-300 p-3">
+      <label htmlFor="product-image-upload" className="block text-xs font-medium text-slate-700">
+        Mahsulot rasmi
+      </label>
+      <p className="text-[11px] text-slate-500">JPG, PNG yoki WEBP. Maksimum 5MB</p>
       <div
-        className="rounded-xl border border-slate-200 bg-slate-50 p-3"
+        className="w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-3"
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault();
@@ -102,10 +106,19 @@ export function ImageUploader({ valueUrl, valueKey, onChange, onUploadingChange 
           void upload(file);
         }}
       >
+        <label
+          htmlFor="product-image-upload"
+          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+        >
+          <Upload className="h-4 w-4" />
+          Rasm tanlash
+        </label>
         <input
+          id="product-image-upload"
           type="file"
           accept="image/jpeg,image/png,image/webp"
-          capture="environment"
+          aria-label="Mahsulot rasmini tanlash"
+          className="sr-only"
           disabled={uploading}
           onChange={(e) => {
             const file = e.target.files?.[0];
@@ -113,11 +126,20 @@ export function ImageUploader({ valueUrl, valueKey, onChange, onUploadingChange 
             void upload(file);
           }}
         />
-        {previewUrl ? (
-          <img src={previewUrl} alt="Preview" loading="lazy" className="mt-3 h-28 w-28 rounded-lg object-cover" />
-        ) : (
-          <div className="mt-3 flex h-28 w-28 items-center justify-center rounded-lg bg-slate-200 text-xs text-slate-500">No image</div>
-        )}
+        <div className="mt-3 flex justify-center">
+          {previewUrl ? (
+            <img
+              src={previewUrl}
+              alt="Preview"
+              loading="lazy"
+              className="h-24 w-24 max-w-full rounded-lg object-cover sm:h-28 sm:w-28"
+            />
+          ) : (
+            <div className="flex h-24 w-24 max-w-full items-center justify-center rounded-lg bg-slate-200 text-xs text-slate-500 sm:h-28 sm:w-28">
+              <ImagePlus className="h-4 w-4" />
+            </div>
+          )}
+        </div>
         {uploading ? (
           <div className="mt-3">
             <p className="text-xs text-slate-600">Yuklanmoqda... {progress}%</p>
@@ -127,13 +149,18 @@ export function ImageUploader({ valueUrl, valueKey, onChange, onUploadingChange 
           </div>
         ) : null}
       </div>
-      <div className="flex items-center gap-2">
-        <button type="button" className="rounded-lg border border-slate-300 px-2 py-1 text-xs" onClick={remove} disabled={uploading}>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className="rounded-lg border border-slate-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:opacity-50"
+          onClick={remove}
+          disabled={uploading}
+        >
           Olib tashlash
         </button>
-        {valueKey ? <p className="text-[11px] text-slate-500">key: {valueKey}</p> : null}
+        {valueKey ? <p className="min-w-0 max-w-full truncate text-[11px] text-slate-500">Fayl: {valueKey.split('/').pop()}</p> : null}
       </div>
-      {error ? <p className="text-xs text-rose-600">{error}</p> : null}
+      {error ? <p className="text-xs text-rose-600" role="alert">{error}</p> : null}
     </div>
   );
 }

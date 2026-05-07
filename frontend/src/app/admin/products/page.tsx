@@ -134,73 +134,116 @@ export default function AdminProductsPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="min-w-0 max-w-full space-y-4 overflow-x-hidden">
+      <div className="w-full min-w-0 max-w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
         <h2 className="text-lg font-semibold">Product management</h2>
         <p className="text-sm text-slate-500">Create/edit/delete, category filter, stock status va pagination.</p>
-        <div className="mt-3 grid gap-2 md:grid-cols-4">
-          <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Qidirish..." value={search} onChange={(e) => setSearch(e.target.value)} />
-          <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+        <div className="mt-3 grid min-w-0 max-w-full gap-2 md:grid-cols-4">
+          <input
+            className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            placeholder="Mahsulot qidirish..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <div className="min-w-0 max-w-full">
+            <select className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
             <option value="ALL">Barcha kategoriyalar</option>
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.name}
               </option>
             ))}
-          </select>
-          <button className="rounded-xl border border-slate-200 px-3 py-2 text-sm" onClick={() => setPage((p) => Math.max(1, p - 1))}>
+            </select>
+            <p className="mt-1 text-[11px] text-slate-500">Mahsulot kategoriyasini tanlang</p>
+          </div>
+          <button className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" onClick={() => setPage((p) => Math.max(1, p - 1))}>
             Previous
           </button>
-          <button className="rounded-xl border border-slate-200 px-3 py-2 text-sm" onClick={() => setPage((p) => p + 1)}>
+          <button className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" onClick={() => setPage((p) => p + 1)}>
             Next
           </button>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="w-full min-w-0 max-w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
         <h3 className="text-sm font-semibold">{form.id ? 'Mahsulotni tahrirlash' : 'Yangi mahsulot'}</h3>
-        <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Nomi" value={form.name} onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))} />
-          <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" type="number" value={form.price} onChange={(e) => setForm((prev) => ({ ...prev, price: e.target.value }))} />
-          <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" type="number" value={form.stockQuantity} onChange={(e) => setForm((prev) => ({ ...prev, stockQuantity: e.target.value }))} />
-          <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={form.businessId} onChange={(e) => setForm((prev) => ({ ...prev, businessId: e.target.value }))}>
+        <div className="mt-2 grid min-w-0 max-w-full gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="min-w-0 max-w-full">
+            <label className="mb-1 block text-xs font-medium text-slate-700">Mahsulot nomi</label>
+            <input
+              className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              placeholder="Masalan: Tvorog Bomazza"
+              value={form.name}
+              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+            />
+          </div>
+          <div className="min-w-0 max-w-full">
+            <label className="mb-1 block text-xs font-medium text-slate-700">Narx</label>
+            <input
+              className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              type="number"
+              placeholder="Masalan: 18000"
+              value={form.price}
+              onChange={(e) => setForm((prev) => ({ ...prev, price: e.target.value }))}
+            />
+          </div>
+          <div className="min-w-0 max-w-full">
+            <label className="mb-1 block text-xs font-medium text-slate-700">Qoldiq</label>
+            <input
+              className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              type="number"
+              placeholder="Masalan: 25"
+              value={form.stockQuantity}
+              onChange={(e) => setForm((prev) => ({ ...prev, stockQuantity: e.target.value }))}
+            />
+          </div>
+          <select className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" value={form.businessId} onChange={(e) => setForm((prev) => ({ ...prev, businessId: e.target.value }))}>
             {businesses.map((business) => (
               <option key={business.id} value={business.id}>
                 {business.displayName}
               </option>
             ))}
           </select>
-          <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={form.unitType} onChange={(e) => setForm((prev) => ({ ...prev, unitType: e.target.value as Product['unitType'] }))}>
+          <select className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" value={form.unitType} onChange={(e) => setForm((prev) => ({ ...prev, unitType: e.target.value as Product['unitType'] }))}>
             <option value="piece">piece</option>
             <option value="kg">kg</option>
             <option value="pack">pack</option>
           </select>
-          <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={form.categoryId} onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value }))}>
-            <option value="">Kategoriya yo'q</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
-          <ImageUploader
-            valueUrl={form.imageUrl}
-            valueKey={form.imageKey}
-            onChange={({ url, key }) => setForm((prev) => ({ ...prev, imageUrl: url, imageKey: key }))}
-            onUploadingChange={setUploadingImage}
-          />
-          <button className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50" onClick={() => void save()} disabled={uploadingImage}>
+          <div className="min-w-0 max-w-full">
+            <select className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" value={form.categoryId} onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value }))}>
+              <option value="">Kategoriya yo'q</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-slate-500">Mahsulot kategoriyasini tanlang</p>
+          </div>
+          <div className="min-w-0 max-w-full sm:col-span-2 lg:col-span-3">
+            <ImageUploader
+              valueUrl={form.imageUrl}
+              valueKey={form.imageKey}
+              onChange={({ url, key }) => setForm((prev) => ({ ...prev, imageUrl: url, imageKey: key }))}
+              onUploadingChange={setUploadingImage}
+            />
+          </div>
+          <button
+            className="w-full min-w-0 max-w-full rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+            onClick={() => void save()}
+            disabled={uploadingImage}
+          >
             {form.id ? 'Yangilash' : 'Yaratish'}
           </button>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="w-full min-w-0 max-w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
         {loading ? <div className="bb-skeleton h-64 w-full" /> : null}
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid min-w-0 max-w-full gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {visible.map((item) => (
-            <div key={item.id} className="rounded-xl border border-slate-100 p-3">
-              <div className="flex items-center gap-2">
+            <div key={item.id} className="min-w-0 max-w-full rounded-xl border border-slate-100 p-3">
+              <div className="flex min-w-0 max-w-full items-center gap-2">
                 {item.imageThumbUrl || item.imageUrl ? (
                   <img
                     src={item.imageThumbUrl ?? item.imageUrl ?? ''}
@@ -212,20 +255,20 @@ export default function AdminProductsPage() {
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-[10px] text-slate-500">No image</div>
                 )}
-                <div>
-                  <p className="font-semibold">{item.name}</p>
-                  <p className="text-xs text-slate-500">{item.category?.name ?? "Kategoriya yo'q"}</p>
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">{item.name}</p>
+                  <p className="truncate text-xs text-slate-500">{item.category?.name ?? "Kategoriya yo'q"}</p>
                 </div>
               </div>
               <p className="mt-2 text-sm">{formatMoneyUz(item.price)}</p>
               <p className={`text-xs ${item.stockQuantity > 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                 {item.stockQuantity > 0 ? `In stock: ${item.stockQuantity}` : 'Out of stock'}
               </p>
-              <div className="mt-2 flex gap-2">
-                <button className="rounded-lg border border-slate-300 px-2 py-1 text-xs" onClick={() => edit(item)}>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button className="rounded-lg border border-slate-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" onClick={() => edit(item)}>
                   Edit
                 </button>
-                <button className="rounded-lg border border-rose-300 px-2 py-1 text-xs text-rose-700" onClick={() => void remove(item.id)}>
+                <button className="rounded-lg border border-rose-300 px-2 py-1 text-xs text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300" onClick={() => void remove(item.id)}>
                   Delete
                 </button>
               </div>

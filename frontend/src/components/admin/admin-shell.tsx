@@ -27,7 +27,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#F4F6FB] text-[#111827]">
+    <div className="min-h-screen max-w-full overflow-x-hidden bg-[#F4F6FB] text-[#111827]">
       <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:hidden">
         <div className="flex items-center justify-between">
           <button
@@ -42,9 +42,17 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </div>
       </div>
 
-      <div className="mx-auto flex w-full max-w-[1440px]">
+      <div className="mx-auto flex w-full max-w-[1440px] min-w-0">
+        {mobileOpen ? (
+          <button
+            type="button"
+            aria-label="Sidebarni yopish"
+            className="fixed inset-0 z-30 bg-black/30 md:hidden"
+            onClick={() => setMobileOpen(false)}
+          />
+        ) : null}
         <aside
-          className={`fixed inset-y-0 left-0 z-40 w-72 border-r border-slate-200 bg-[#0F172A] px-3 py-4 text-slate-100 transition-transform duration-300 md:sticky md:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 z-40 w-[85vw] max-w-72 border-r border-slate-200 bg-[#0F172A] px-3 py-4 text-slate-100 transition-transform duration-300 md:sticky md:w-72 md:translate-x-0 ${
             mobileOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
@@ -99,7 +107,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               </span>
             </div>
           </header>
-          <main className="min-h-[calc(100vh-4rem)] p-4 md:p-6">{children}</main>
+          <main className="min-h-[calc(100vh-4rem)] min-w-0 max-w-full overflow-x-hidden p-3 pb-6 sm:p-4 md:p-6">{children}</main>
         </div>
       </div>
     </div>
