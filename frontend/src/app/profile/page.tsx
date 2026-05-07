@@ -22,9 +22,14 @@ function normalizeRole(role?: string): 'client' | 'business' | 'admin' | 'courie
 }
 
 export default function ProfilePage() {
-  const [email, setEmail] = useState('client@barakabox.local');
-  const [password, setPassword] = useState('password123');
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<'name' | 'email' | 'password' | 'confirmPassword', string>>>({});
+  const [touched, setTouched] = useState<Partial<Record<'name' | 'email' | 'password' | 'confirmPassword', boolean>>>({});
   const [user, setUser] = useState<LoginResponse['user'] | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -32,16 +37,68 @@ export default function ProfilePage() {
     setUser(authStorage.getUser() as LoginResponse['user'] | null);
   }, []);
 
-  const login = async () => {
-    setLoading(true);
+  const validate = () => {
+    const next: Partial<Record<'name' | 'email' | 'password' | 'confirmPassword', string>> = {};
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (mode === 'register') {
+      if (!name.trim()) next.name = 'Ismni kiriting';
+    }
+    if (!email.trim()) {
+      next.email = 'Emailni kiriting';
+    } else if (!emailRegex.test(email.trim())) {
+      next.email = 'To‘g‘ri email kiriting';
+    }
+    if (!password) {
+      next.password = 'Parolni kiriting';
+    } else if (password.length < 6) {
+      next.password = 'Parol kamida 6 belgidan iborat bo‘lishi kerak';
+    }
+    if (mode === 'register') {
+      if (!confirmPassword) {
+        next.confirmPassword = 'Parolni tasdiqlang';
+      } else if (confirmPassword !== password) {
+        next.confirmPassword = 'Parollar mos kelmadi';
+      }
+    }
+    setFieldErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const handleBlur = (field: 'name' | 'email' | 'password' | 'confirmPassword') => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
+
+  const handleSubmit = async () => {
     setError('');
+    setTouched({ name: true, email: true, password: true, confirmPassword: true });
+    if (!validate()) return;
+
+    setLoading(true);
     try {
-      const data = await api.post<LoginResponse>('/auth/login', { email, password });
-      authStorage.setAccessToken(data.accessToken);
-      authStorage.setUser(data.user);
-      setUser(data.user);
+      if (mode === 'login') {
+        const data = await api.post<LoginResponse>('/auth/login', { email: email.trim(), password });
+        authStorage.setAccessToken(data.accessToken);
+        authStorage.setUser(data.user);
+        setUser(data.user);
+      } else {
+        await api.post('/auth/register', {
+          email: email.trim(),
+          fullName: name.trim(),
+          password,
+        });
+        const data = await api.post<LoginResponse>('/auth/login', { email: email.trim(), password });
+        authStorage.setAccessToken(data.accessToken);
+        authStorage.setUser(data.user);
+        setUser(data.user);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Kirish amalga oshmadi");
+      setError(
+        err instanceof Error
+          ? err.message
+          : mode === 'login'
+          ? 'Kirish amalga oshmadi'
+          : "Ro‘yxatdan o‘tish amalga oshmadi",
+      );
     } finally {
       setLoading(false);
     }
@@ -60,24 +117,125 @@ export default function ProfilePage() {
           <button className="h-10 w-10 rounded-xl bg-[#F3F4F6] text-gray-600">⚙️</button>
         </div>
         {!user ? (
-          <div className="mt-4 space-y-4">
+            <div className="mt-4 space-y-4">
             <div className="rounded-3xl bg-white p-4 shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F3F4F6] text-2xl">👤</div>
                 <div>
-                  <p className="text-sm font-semibold text-[#121212]">Siz mehmon sifatida ko'rmoqdasiz</p>
-                  <p className="text-xs text-gray-500">Buyurtmalarni saqlash va tarixni ko'rish uchun kiring</p>
+                  <p className="text-sm font-semibold text-[#121212]">
+                    {mode === 'login' ? "Hisobingizga kiring" : "Yangi akkaunt yarating"}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Buyurtmalar tarixini ko‘rish va tezkor rasmiylashtirish uchun {mode === 'login' ? 'akkauntingizga kiring' : 'ro‘yxatdan o‘ting'}
+                  </p>
                 </div>
               </div>
-              <div className="mt-4 space-y-2">
-                <input className="bb-input rounded-2xl border-none bg-[#F9FAFB]" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-                <input className="bb-input rounded-2xl border-none bg-[#F9FAFB]" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
-                <button className="w-full rounded-2xl bg-[#16A34A] py-3 text-sm font-semibold text-white" onClick={login} disabled={loading}>
-                  {loading ? 'Kirilmoqda...' : "Kirish / Ro'yxatdan o'tish"}
+              <div className="mt-4 space-y-3">
+                <div className="inline-flex rounded-2xl bg-[#F3F4F6] p-1 text-xs font-medium">
+                  <button
+                    type="button"
+                    className={`flex-1 rounded-2xl px-3 py-1 ${mode === 'login' ? 'bg-white text-[#16A34A] shadow-sm' : 'text-gray-500'}`}
+                    onClick={() => {
+                      setMode('login');
+                      setError('');
+                    }}
+                  >
+                    Kirish
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex-1 rounded-2xl px-3 py-1 ${mode === 'register' ? 'bg-white text-[#16A34A] shadow-sm' : 'text-gray-500'}`}
+                    onClick={() => {
+                      setMode('register');
+                      setError('');
+                    }}
+                  >
+                    Ro‘yxatdan o‘tish
+                  </button>
+                </div>
+                {mode === 'register' ? (
+                  <div className="space-y-1">
+                    <input
+                      className="bb-input rounded-2xl border-none bg-[#F9FAFB]"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      onBlur={() => handleBlur('name')}
+                      placeholder="Ism va familiya"
+                    />
+                    {touched.name && fieldErrors.name ? (
+                      <p className="text-xs text-red-600">{fieldErrors.name}</p>
+                    ) : null}
+                  </div>
+                ) : null}
+                <div className="space-y-1">
+                  <input
+                    className="bb-input rounded-2xl border-none bg-[#F9FAFB]"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onBlur={() => handleBlur('email')}
+                    placeholder="Email"
+                  />
+                  {touched.email && fieldErrors.email ? (
+                    <p className="text-xs text-red-600">{fieldErrors.email}</p>
+                  ) : null}
+                </div>
+                <div className="space-y-1">
+                  <input
+                    className="bb-input rounded-2xl border-none bg-[#F9FAFB]"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onBlur={() => handleBlur('password')}
+                    placeholder="Parol"
+                  />
+                  {touched.password && fieldErrors.password ? (
+                    <p className="text-xs text-red-600">{fieldErrors.password}</p>
+                  ) : null}
+                </div>
+                {mode === 'register' ? (
+                  <div className="space-y-1">
+                    <input
+                      className="bb-input rounded-2xl border-none bg-[#F9FAFB]"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onBlur={() => handleBlur('confirmPassword')}
+                      placeholder="Parolni tasdiqlang"
+                    />
+                    {touched.confirmPassword && fieldErrors.confirmPassword ? (
+                      <p className="text-xs text-red-600">{fieldErrors.confirmPassword}</p>
+                    ) : null}
+                  </div>
+                ) : null}
+                <button
+                  className="w-full rounded-2xl bg-[#16A34A] py-3 text-sm font-semibold text-white disabled:opacity-60"
+                  onClick={handleSubmit}
+                  disabled={loading}
+                >
+                  {loading ? 'Yuborilmoqda...' : mode === 'login' ? 'Kirish' : "Ro‘yxatdan o‘tish"}
                 </button>
-                <Link href="/" className="block w-full rounded-2xl border border-gray-200 py-3 text-center text-sm font-medium text-gray-600">
+                <Link
+                  href="/"
+                  className="block w-full rounded-2xl border border-gray-200 py-3 text-center text-sm font-medium text-gray-600"
+                >
                   Mehmon sifatida davom etish
                 </Link>
+                <p className="pt-1 text-center text-xs text-gray-500">
+                  {mode === 'login'
+                    ? "Hisobingiz yo‘qmi? "
+                    : "Akkauntingiz bormi? "}
+                  <button
+                    type="button"
+                    className="font-semibold text-[#16A34A]"
+                    onClick={() => {
+                      setMode(mode === 'login' ? 'register' : 'login');
+                      setError('');
+                    }}
+                  >
+                    {mode === 'login' ? "Ro‘yxatdan o‘ting" : 'Kirish'}
+                  </button>
+                </p>
               </div>
               {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
             </div>
