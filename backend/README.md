@@ -54,6 +54,57 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
+## DigitalOcean Spaces image upload
+
+Backend supports production image uploads to DigitalOcean Spaces (S3-compatible) with:
+- max file size: 5MB
+- allowed types: `jpeg`, `png`, `webp`
+- unique keys: `products/{productId}/{timestamp}-{uuid}.{ext}`
+- public URL returned and persisted to product record
+
+### Example: direct upload (`POST /upload`)
+
+```bash
+curl -X POST "http://localhost:4000/upload?productId=cm123abc" \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -F "file=@/path/to/image.jpg"
+```
+
+Response:
+
+```json
+{
+  "key": "products/cm123abc/1746629999123-b3d5dce4-6a1f-4c2f-bf4b-f9ad5b1f4a8f.jpg",
+  "url": "https://barakabox-assets.nyc3.cdn.digitaloceanspaces.com/products/cm123abc/1746629999123-b3d5dce4-6a1f-4c2f-bf4b-f9ad5b1f4a8f.jpg",
+  "uploadUrl": null,
+  "headers": {}
+}
+```
+
+### Example: presigned flow (`POST /upload/presign` -> `POST /upload/finalize`)
+
+```bash
+curl -X POST "http://localhost:4000/upload/presign" \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "productId":"cm123abc",
+    "magicBase64":"iVBORw0KGgoAAAANSUhEUgAAAAUA",
+    "mainSize":123456,
+    "cardSize":45678,
+    "thumbSize":12345
+  }'
+```
+
+Then upload to presigned URLs and finalize:
+
+```bash
+curl -X POST "http://localhost:4000/upload/finalize" \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"sessionId":"cm_session_id"}'
+```
+
 ## Run tests
 
 ```bash

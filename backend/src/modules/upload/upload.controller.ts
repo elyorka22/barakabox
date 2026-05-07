@@ -5,6 +5,8 @@ import {
   Delete,
   Get,
   Header,
+  InternalServerErrorException,
+  Logger,
   Param,
   Post,
   Req,
@@ -20,20 +22,14 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { UploadService } from './upload.service';
 import { Throttle } from '@nestjs/throttler';
 import { fileTypeFromBuffer } from 'file-type';
-
-type PresignBody = {
-  productId: string;
-  magicBase64: string;
-  mainSize: number;
-  cardSize: number;
-  thumbSize: number;
-};
-type FinalizeBody = { sessionId: string };
+import { FinalizeUploadDto, PresignUploadDto } from './dto/upload.dto';
 
 @Controller('upload')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN')
 export class UploadController {
+  private readonly logger = new Logger(UploadController.name);
+
   constructor(private readonly uploadService: UploadService) {}
 
   @Post()
@@ -63,17 +59,32 @@ export class UploadController {
       throw new BadRequestException('Rasm fayli yuborilmadi');
     }
     try {
-      const keys = this.uploadService.buildKeys(productId.trim());
-      const upload = await this.uploadService.createPresignedUpload(keys.main.key, 'image/jpeg');
+      const uploaded = await this.uploadService.uploadProductImage(productId.trim(), file);
+      this.logger.log(
+        JSON.stringify({
+          event: 'upload_legacy_success',
+          productId: productId.trim(),
+          key: uploaded.key,
+          size: file.size,
+          mime: file.mimetype,
+        }),
+      );
       return {
-        key: keys.main.key,
-        url: keys.main.publicUrl,
-        uploadUrl: upload.uploadUrl,
-        headers: upload.headers,
+        key: uploaded.key,
+        url: uploaded.url,
+        uploadUrl: null,
+        headers: {},
       };
-    } catch {
+    } catch (error) {
       await this.uploadService.recordUploadError();
-      throw new BadRequestException("Rasmni yuklashga tayyorlab bo'lmadi");
+      this.logger.error(
+        JSON.stringify({
+          event: 'upload_legacy_failed',
+          productId: productId.trim(),
+          error: error instanceof Error ? error.message : 'unknown',
+        }),
+      );
+      throw new InternalServerErrorException("Rasmni Spaces'ga yuklashda xatolik yuz berdi");
     } finally {
       if (productId?.trim()) {
         await this.uploadService.logAudit({
@@ -87,7 +98,7 @@ export class UploadController {
 
   @Post('presign')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  async presign(@CurrentUser() user: { sub: string }, @Body() body: PresignBody) {
+  async presign(@CurrentUser() user: { sub: string }, @Body() body: PresignUploadDto) {
     const { productId, magicBase64, mainSize, cardSize, thumbSize } = body;
     if (!productId?.trim()) {
       throw new BadRequestException('productId yuborilishi shart');
@@ -149,7 +160,7 @@ export class UploadController {
 
   @Post('finalize')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  async finalize(@CurrentUser() user: { sub: string }, @Body() body: FinalizeBody) {
+  async finalize(@CurrentUser() user: { sub: string }, @Body() body: FinalizeUploadDto) {
     if (!body?.sessionId) {
       throw new BadRequestException('sessionId yuborilishi shart');
     }

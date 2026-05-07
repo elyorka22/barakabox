@@ -21,6 +21,7 @@ export type AppEnv = {
   UPLOAD_CIRCUIT_HALF_OPEN_MAX_REQUESTS: string;
   UPLOAD_MONTHLY_STORAGE_LIMIT_BYTES: string;
   UPLOAD_BLOCK_ON_COST_LIMIT: string;
+  SPACES_UPLOAD_TIMEOUT_MS: string;
 };
 
 export function validateEnv(config: Record<string, unknown>): AppEnv {
@@ -30,13 +31,17 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
   const accessSecret = String(config.JWT_ACCESS_SECRET ?? '');
   const refreshSecret = String(config.JWT_REFRESH_SECRET ?? '');
   const corsOrigin = String(config.CORS_ORIGIN ?? '*');
-  const spacesEndpoint = String(config.DO_SPACES_ENDPOINT ?? '');
-  const spacesRegion = String(config.DO_SPACES_REGION ?? '');
-  const spacesBucket = String(config.DO_SPACES_BUCKET ?? '');
-  const spacesKey = String(config.DO_SPACES_KEY ?? '');
-  const spacesSecret = String(config.DO_SPACES_SECRET ?? '');
-  const spacesPublicBaseUrl = String(config.DO_SPACES_PUBLIC_BASE_URL ?? '');
-  const spacesCdnUrl = String(config.DO_SPACES_CDN_URL ?? '');
+  const spacesEndpoint = String(config.DO_SPACES_ENDPOINT ?? config.SPACES_ENDPOINT ?? '');
+  const spacesRegion = String(config.DO_SPACES_REGION ?? config.SPACES_REGION ?? '');
+  const spacesBucket = String(config.DO_SPACES_BUCKET ?? config.SPACES_BUCKET ?? '');
+  const spacesKey = String(config.DO_SPACES_KEY ?? config.SPACES_KEY ?? '');
+  const spacesSecret = String(config.DO_SPACES_SECRET ?? config.SPACES_SECRET ?? '');
+  const spacesPublicBaseUrl = String(
+    config.DO_SPACES_PUBLIC_BASE_URL ??
+      config.SPACES_PUBLIC_BASE_URL ??
+      (spacesBucket && spacesRegion ? `https://${spacesBucket}.${spacesRegion}.digitaloceanspaces.com` : ''),
+  );
+  const spacesCdnUrl = String(config.DO_SPACES_CDN_URL ?? config.SPACES_CDN_URL ?? '');
   const alertWebhookUrl = String(config.ALERT_WEBHOOK_URL ?? '');
   const uploadErrorRateThreshold = String(config.UPLOAD_ERROR_RATE_THRESHOLD ?? '10');
   const telegramBotToken = String(config.TELEGRAM_BOT_TOKEN ?? '');
@@ -46,6 +51,7 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
   const uploadCircuitHalfOpenMaxRequests = String(config.UPLOAD_CIRCUIT_HALF_OPEN_MAX_REQUESTS ?? '1');
   const uploadMonthlyStorageLimitBytes = String(config.UPLOAD_MONTHLY_STORAGE_LIMIT_BYTES ?? '5368709120');
   const uploadBlockOnCostLimit = String(config.UPLOAD_BLOCK_ON_COST_LIMIT ?? 'true');
+  const spacesUploadTimeoutMs = String(config.SPACES_UPLOAD_TIMEOUT_MS ?? '10000');
 
   if (!databaseUrl.startsWith('postgresql://')) {
     throw new Error('DATABASE_URL must be a valid postgresql URL');
@@ -63,25 +69,28 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
     throw new Error('CORS_ORIGIN must not use localhost in production');
   }
   if (!spacesEndpoint.startsWith('https://')) {
-    throw new Error('DO_SPACES_ENDPOINT must be a valid https URL');
+    throw new Error('DO_SPACES_ENDPOINT/SPACES_ENDPOINT must be a valid https URL');
   }
   if (!spacesRegion) {
-    throw new Error('DO_SPACES_REGION is required');
+    throw new Error('DO_SPACES_REGION/SPACES_REGION is required');
   }
   if (!spacesBucket) {
-    throw new Error('DO_SPACES_BUCKET is required');
+    throw new Error('DO_SPACES_BUCKET/SPACES_BUCKET is required');
   }
   if (!spacesKey) {
-    throw new Error('DO_SPACES_KEY is required');
+    throw new Error('DO_SPACES_KEY/SPACES_KEY is required');
   }
   if (!spacesSecret) {
-    throw new Error('DO_SPACES_SECRET is required');
+    throw new Error('DO_SPACES_SECRET/SPACES_SECRET is required');
   }
   if (!spacesPublicBaseUrl.startsWith('https://')) {
-    throw new Error('DO_SPACES_PUBLIC_BASE_URL must be a valid https URL');
+    throw new Error('DO_SPACES_PUBLIC_BASE_URL/SPACES_PUBLIC_BASE_URL must be a valid https URL');
   }
   if (spacesCdnUrl && !spacesCdnUrl.startsWith('https://')) {
-    throw new Error('DO_SPACES_CDN_URL must be a valid https URL when provided');
+    throw new Error('DO_SPACES_CDN_URL/SPACES_CDN_URL must be a valid https URL when provided');
+  }
+  if (!/^\d+$/.test(spacesUploadTimeoutMs) || Number(spacesUploadTimeoutMs) < 1000) {
+    throw new Error('SPACES_UPLOAD_TIMEOUT_MS must be a number >= 1000');
   }
   if (alertWebhookUrl && !alertWebhookUrl.startsWith('https://')) {
     throw new Error('ALERT_WEBHOOK_URL must be a valid https URL when provided');
@@ -110,5 +119,6 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
     UPLOAD_CIRCUIT_HALF_OPEN_MAX_REQUESTS: uploadCircuitHalfOpenMaxRequests,
     UPLOAD_MONTHLY_STORAGE_LIMIT_BYTES: uploadMonthlyStorageLimitBytes,
     UPLOAD_BLOCK_ON_COST_LIMIT: uploadBlockOnCostLimit,
+    SPACES_UPLOAD_TIMEOUT_MS: spacesUploadTimeoutMs,
   };
 }

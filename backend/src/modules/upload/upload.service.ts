@@ -1,21 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DeleteObjectCommand, HeadBucketCommand, HeadObjectCommand, ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { UploadMetricsService } from './upload-metrics.service';
+import { SpacesService } from './spaces.service';
 
 @Injectable()
 export class UploadService {
   private static readonly RETRY_DELAYS_MS = [200, 400, 800];
   private static readonly MAX_RETRIES = 3;
   private readonly bucket: string;
-  private readonly publicBaseUrl: string;
-  private readonly cdnUrl: string;
-  private readonly client: S3Client;
   private readonly circuitBreakerThreshold: number;
   private readonly circuitBreakerCooldownMs: number;
   private readonly halfOpenMaxRequests: number;
@@ -30,20 +25,9 @@ export class UploadService {
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
     private readonly metrics: UploadMetricsService,
+    private readonly spacesService: SpacesService,
   ) {
-    this.bucket = this.configService.getOrThrow<string>('DO_SPACES_BUCKET');
-    this.publicBaseUrl = this.configService.getOrThrow<string>('DO_SPACES_PUBLIC_BASE_URL').replace(/\/$/, '');
-    this.cdnUrl = this.configService.get<string>('DO_SPACES_CDN_URL')?.replace(/\/$/, '') ?? '';
-
-    this.client = new S3Client({
-      region: this.configService.getOrThrow<string>('DO_SPACES_REGION'),
-      endpoint: this.configService.getOrThrow<string>('DO_SPACES_ENDPOINT'),
-      credentials: {
-        accessKeyId: this.configService.getOrThrow<string>('DO_SPACES_KEY'),
-        secretAccessKey: this.configService.getOrThrow<string>('DO_SPACES_SECRET'),
-      },
-      forcePathStyle: false,
-    });
+    this.bucket = this.spacesService.getBucketName();
     this.circuitBreakerThreshold = Number(
       this.configService.get<string>('UPLOAD_CIRCUIT_BREAKER_THRESHOLD') ?? '5',
     );
@@ -106,25 +90,52 @@ export class UploadService {
     throw lastError instanceof Error ? lastError : new Error('Retry failed');
   }
 
-  private buildPublicUrl(key: string): string {
-    const baseUrl = this.cdnUrl || this.publicBaseUrl;
-    return `${baseUrl}/${key}`;
-  }
-
   buildKeys(productId: string): {
     main: { key: string; publicUrl: string };
     card: { key: string; publicUrl: string };
     thumb: { key: string; publicUrl: string };
   } {
     const id = randomUUID();
-    const mainKey = `products/${productId}/${id}-main.jpg`;
-    const cardKey = `products/${productId}/${id}-card.jpg`;
-    const thumbKey = `products/${productId}/${id}-thumb.jpg`;
+    const ts = Date.now();
+    const mainKey = `products/${productId}/${ts}-${id}-main.jpg`;
+    const cardKey = `products/${productId}/${ts}-${id}-card.jpg`;
+    const thumbKey = `products/${productId}/${ts}-${id}-thumb.jpg`;
     return {
-      main: { key: mainKey, publicUrl: this.buildPublicUrl(mainKey) },
-      card: { key: cardKey, publicUrl: this.buildPublicUrl(cardKey) },
-      thumb: { key: thumbKey, publicUrl: this.buildPublicUrl(thumbKey) },
+      main: { key: mainKey, publicUrl: this.spacesService.buildPublicUrl(mainKey) },
+      card: { key: cardKey, publicUrl: this.spacesService.buildPublicUrl(cardKey) },
+      thumb: { key: thumbKey, publicUrl: this.spacesService.buildPublicUrl(thumbKey) },
     };
+  }
+
+  async uploadProductImage(productId: string, file: Express.Multer.File) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: { id: true, imageKey: true },
+    });
+    if (!product) {
+      throw new Error('Product not found');
+    }
+    const id = randomUUID();
+    const ts = Date.now();
+    const extension = file.mimetype === 'image/png' ? 'png' : file.mimetype === 'image/webp' ? 'webp' : 'jpg';
+    const key = `products/${productId}/${ts}-${id}.${extension}`;
+    const uploaded = await this.spacesService.uploadBuffer({
+      key,
+      buffer: file.buffer,
+      contentType: file.mimetype,
+      cacheControl: 'public, max-age=31536000, immutable',
+    });
+    if (product.imageKey && product.imageKey !== key) {
+      await this.deleteImage(product.imageKey).catch(() => undefined);
+    }
+    await this.prisma.product.update({
+      where: { id: productId },
+      data: {
+        imageUrl: uploaded.url,
+        imageKey: uploaded.key,
+      },
+    });
+    return uploaded;
   }
 
   async createPresignedUpload(
@@ -136,26 +147,10 @@ export class UploadService {
       this.halfOpenInFlight += 1;
     }
     const cacheControl = 'public, max-age=31536000, immutable';
-    const command = new PutObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-      ContentType: contentType,
-      ACL: 'public-read',
-      CacheControl: cacheControl,
-    });
     try {
-      const uploadUrl = await getSignedUrl(this.client, command, {
-        expiresIn: 60,
-        signableHeaders: new Set(['content-type', 'cache-control']),
-      });
+      const upload = await this.spacesService.createPresignedUpload(key, contentType, cacheControl);
       this.markUploadSuccess();
-      return {
-        uploadUrl,
-        headers: {
-          'Content-Type': contentType,
-          'Cache-Control': cacheControl,
-        },
-      };
+      return upload;
     } catch (error) {
       await this.markUploadFailure();
       throw error;
@@ -184,12 +179,7 @@ export class UploadService {
 
   async deleteImage(key: string): Promise<void> {
       await this.withRetry('DELETE', { key }, async () => {
-      await this.client.send(
-        new DeleteObjectCommand({
-          Bucket: this.bucket,
-          Key: key,
-        }),
-      );
+      await this.spacesService.deleteObject(key);
     });
   }
 
@@ -212,13 +202,7 @@ export class UploadService {
 
       let continuationToken: string | undefined;
       do {
-        const listed = await this.client.send(
-          new ListObjectsV2Command({
-            Bucket: this.bucket,
-            Prefix: 'products/',
-            ContinuationToken: continuationToken,
-          }),
-        );
+        const listed = await this.spacesService.listObjects('products/', continuationToken);
         for (const object of listed.Contents ?? []) {
           if (!object.Key) continue;
           if (!knownKeys.has(object.Key)) {
@@ -298,12 +282,7 @@ export class UploadService {
     }
     for (const key of [session.mainKey, session.cardKey, session.thumbKey]) {
       await this.withRetry('FINALIZE', { sessionId, key }, async () => {
-        await this.client.send(
-          new HeadObjectCommand({
-            Bucket: this.bucket,
-            Key: key,
-          }),
-        );
+        await this.spacesService.headObject(key);
       });
     }
 
@@ -442,17 +421,7 @@ export class UploadService {
 
   async checkHealth() {
     try {
-      await this.client.send(
-        new HeadBucketCommand({
-          Bucket: this.bucket,
-        }),
-      );
-      await this.client.send(
-        new ListObjectsV2Command({
-          Bucket: this.bucket,
-          MaxKeys: 1,
-        }),
-      );
+      await this.spacesService.checkBucketHealth();
       return {
         ok: true,
         spacesConnectivity: 'ok',
