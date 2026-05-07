@@ -151,6 +151,10 @@ export class UploadService {
     });
   }
 
+  async runSpacesDebugUpload() {
+    return this.spacesService.testUploadConnectivity();
+  }
+
   async createPresignedUpload(
     key: string,
     contentType: string,

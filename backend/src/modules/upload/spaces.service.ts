@@ -20,14 +20,27 @@ export class SpacesService {
   private readonly uploadTimeoutMs: number;
 
   constructor(private readonly configService: ConfigService) {
-    const endpoint = this.getEnvOrThrow('DO_SPACES_ENDPOINT', 'SPACES_ENDPOINT');
+    const endpoint = this.normalizeUrl(this.getEnvOrThrow('DO_SPACES_ENDPOINT', 'SPACES_ENDPOINT'));
     const region = this.getEnvOrThrow('DO_SPACES_REGION', 'SPACES_REGION');
     const accessKeyId = this.getEnvOrThrow('DO_SPACES_KEY', 'SPACES_KEY');
     const secretAccessKey = this.getEnvOrThrow('DO_SPACES_SECRET', 'SPACES_SECRET');
     this.bucket = this.getEnvOrThrow('DO_SPACES_BUCKET', 'SPACES_BUCKET');
-    this.publicBaseUrl = this.getEnvOrThrow('DO_SPACES_PUBLIC_BASE_URL', 'SPACES_PUBLIC_BASE_URL').replace(/\/$/, '');
-    this.cdnUrl = this.getEnv('DO_SPACES_CDN_URL', 'SPACES_CDN_URL')?.replace(/\/$/, '') ?? '';
+    this.publicBaseUrl = this.normalizeUrl(this.getEnvOrThrow('DO_SPACES_PUBLIC_BASE_URL', 'SPACES_PUBLIC_BASE_URL'));
+    this.cdnUrl = this.normalizeUrl(this.getEnv('DO_SPACES_CDN_URL', 'SPACES_CDN_URL') ?? '');
     this.uploadTimeoutMs = Number(this.configService.get<string>('SPACES_UPLOAD_TIMEOUT_MS') ?? '10000');
+
+    this.logger.log(
+      JSON.stringify({
+        event: 'spaces_config_loaded',
+        endpoint,
+        region,
+        bucket: this.bucket,
+        forcePathStyle: false,
+        hasAccessKey: Boolean(accessKeyId),
+        hasSecret: Boolean(secretAccessKey),
+        timeoutMs: this.uploadTimeoutMs,
+      }),
+    );
 
     this.client = new S3Client({
       region,
@@ -50,6 +63,14 @@ export class SpacesService {
       throw new Error(`${primary}/${fallback} is required`);
     }
     return value;
+  }
+
+  private normalizeUrl(value: string): string {
+    const next = value.trim();
+    if (!next) return '';
+    if (next.startsWith('https://')) return next.replace(/\/$/, '');
+    if (next.startsWith('http://')) return `https://${next.slice('http://'.length)}`.replace(/\/$/, '');
+    return `https://${next}`.replace(/\/$/, '');
   }
 
   private async withTimeout<T>(action: Promise<T>, operation: string): Promise<T> {
@@ -99,25 +120,83 @@ export class SpacesService {
     this.logger.log(
       JSON.stringify({
         event: 'spaces_upload_start',
+        bucket: this.bucket,
         key: params.key,
         contentType: params.contentType,
         size: params.buffer.length,
       }),
     );
-    await this.withTimeout(
-      this.client.send(
-        new PutObjectCommand({
-          Bucket: this.bucket,
-          Key: params.key,
-          Body: params.buffer,
-          ACL: 'public-read',
-          ContentType: params.contentType,
-          CacheControl: cacheControl,
+    try {
+      await this.withTimeout(
+        this.client.send(
+          new PutObjectCommand({
+            Bucket: this.bucket,
+            Key: params.key,
+            Body: params.buffer,
+            ACL: 'public-read',
+            ContentType: params.contentType,
+            CacheControl: cacheControl,
+          }),
+        ),
+        'Spaces upload',
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown';
+      this.logger.error(
+        JSON.stringify({
+          event: 'spaces_upload_error',
+          bucket: this.bucket,
+          key: params.key,
+          error: message,
         }),
-      ),
-      'Spaces upload',
+      );
+      if (message.includes('AccessControlListNotSupported')) {
+        this.logger.warn(
+          JSON.stringify({
+            event: 'spaces_upload_retry_without_acl',
+            key: params.key,
+          }),
+        );
+        await this.withTimeout(
+          this.client.send(
+            new PutObjectCommand({
+              Bucket: this.bucket,
+              Key: params.key,
+              Body: params.buffer,
+              ContentType: params.contentType,
+              CacheControl: cacheControl,
+            }),
+          ),
+          'Spaces upload (no ACL)',
+        );
+      } else {
+        throw error;
+      }
+    }
+    this.logger.log(
+      JSON.stringify({
+        event: 'spaces_upload_success',
+        key: params.key,
+        url: this.buildPublicUrl(params.key),
+      }),
     );
     return { key: params.key, url: this.buildPublicUrl(params.key) };
+  }
+
+  async testUploadConnectivity() {
+    const key = `debug/connectivity-${Date.now()}.txt`;
+    const payload = Buffer.from('spaces-debug-check');
+    await this.uploadBuffer({
+      key,
+      buffer: payload,
+      contentType: 'text/plain',
+      cacheControl: 'no-cache',
+    });
+    return {
+      success: true,
+      key,
+      url: this.buildPublicUrl(key),
+    };
   }
 
   async deleteObject(key: string) {

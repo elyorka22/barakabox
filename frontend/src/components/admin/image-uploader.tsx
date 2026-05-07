@@ -68,9 +68,13 @@ export function ImageUploader({ valueUrl, valueKey, onChange, onUploadingChange 
         body: formData,
       });
       if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { message?: string | string[] } | null;
+        const payload = (await response.json().catch(() => null)) as {
+          message?: string | string[];
+          details?: string;
+        } | null;
         const message = Array.isArray(payload?.message) ? payload?.message.join(', ') : payload?.message;
-        throw new Error(message || "Rasmni yuklab bo'lmadi");
+        const details = payload?.details ? ` (${payload.details})` : '';
+        throw new Error((message || "Rasmni yuklab bo'lmadi") + details);
       }
       const payload = (await response.json()) as { success: boolean; url: string; key: string };
       setProgress(100);

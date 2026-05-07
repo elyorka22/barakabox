@@ -24,6 +24,14 @@ export type AppEnv = {
   SPACES_UPLOAD_TIMEOUT_MS: string;
 };
 
+function normalizeHttpsUrl(input: string): string {
+  const value = input.trim();
+  if (!value) return value;
+  if (value.startsWith('https://')) return value.replace(/\/$/, '');
+  if (value.startsWith('http://')) return `https://${value.slice('http://'.length)}`.replace(/\/$/, '');
+  return `https://${value}`.replace(/\/$/, '');
+}
+
 export function validateEnv(config: Record<string, unknown>): AppEnv {
   const nodeEnv = String(config.NODE_ENV ?? 'development') as AppEnv['NODE_ENV'];
   const port = String(config.PORT ?? '4000');
@@ -31,17 +39,19 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
   const accessSecret = String(config.JWT_ACCESS_SECRET ?? '');
   const refreshSecret = String(config.JWT_REFRESH_SECRET ?? '');
   const corsOrigin = String(config.CORS_ORIGIN ?? '*');
-  const spacesEndpoint = String(config.DO_SPACES_ENDPOINT ?? config.SPACES_ENDPOINT ?? '');
+  const spacesEndpoint = normalizeHttpsUrl(String(config.DO_SPACES_ENDPOINT ?? config.SPACES_ENDPOINT ?? ''));
   const spacesRegion = String(config.DO_SPACES_REGION ?? config.SPACES_REGION ?? '');
   const spacesBucket = String(config.DO_SPACES_BUCKET ?? config.SPACES_BUCKET ?? '');
   const spacesKey = String(config.DO_SPACES_KEY ?? config.SPACES_KEY ?? '');
   const spacesSecret = String(config.DO_SPACES_SECRET ?? config.SPACES_SECRET ?? '');
-  const spacesPublicBaseUrl = String(
-    config.DO_SPACES_PUBLIC_BASE_URL ??
-      config.SPACES_PUBLIC_BASE_URL ??
-      (spacesBucket && spacesRegion ? `https://${spacesBucket}.${spacesRegion}.digitaloceanspaces.com` : ''),
+  const spacesPublicBaseUrl = normalizeHttpsUrl(
+    String(
+      config.DO_SPACES_PUBLIC_BASE_URL ??
+        config.SPACES_PUBLIC_BASE_URL ??
+        (spacesBucket && spacesRegion ? `https://${spacesBucket}.${spacesRegion}.digitaloceanspaces.com` : ''),
+    ),
   );
-  const spacesCdnUrl = String(config.DO_SPACES_CDN_URL ?? config.SPACES_CDN_URL ?? '');
+  const spacesCdnUrl = normalizeHttpsUrl(String(config.DO_SPACES_CDN_URL ?? config.SPACES_CDN_URL ?? ''));
   const alertWebhookUrl = String(config.ALERT_WEBHOOK_URL ?? '');
   const uploadErrorRateThreshold = String(config.UPLOAD_ERROR_RATE_THRESHOLD ?? '10');
   const telegramBotToken = String(config.TELEGRAM_BOT_TOKEN ?? '');
@@ -68,8 +78,11 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
   if (nodeEnv === 'production' && corsOrigin.includes('localhost')) {
     throw new Error('CORS_ORIGIN must not use localhost in production');
   }
+  if (!spacesEndpoint) {
+    throw new Error('DO_SPACES_ENDPOINT/SPACES_ENDPOINT is required');
+  }
   if (!spacesEndpoint.startsWith('https://')) {
-    throw new Error('DO_SPACES_ENDPOINT/SPACES_ENDPOINT must be a valid https URL');
+    throw new Error('DO_SPACES_ENDPOINT/SPACES_ENDPOINT must be a valid URL');
   }
   if (!spacesRegion) {
     throw new Error('DO_SPACES_REGION/SPACES_REGION is required');
@@ -83,8 +96,11 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
   if (!spacesSecret) {
     throw new Error('DO_SPACES_SECRET/SPACES_SECRET is required');
   }
+  if (!spacesPublicBaseUrl) {
+    throw new Error('DO_SPACES_PUBLIC_BASE_URL/SPACES_PUBLIC_BASE_URL is required');
+  }
   if (!spacesPublicBaseUrl.startsWith('https://')) {
-    throw new Error('DO_SPACES_PUBLIC_BASE_URL/SPACES_PUBLIC_BASE_URL must be a valid https URL');
+    throw new Error('DO_SPACES_PUBLIC_BASE_URL/SPACES_PUBLIC_BASE_URL must be a valid URL');
   }
   if (spacesCdnUrl && !spacesCdnUrl.startsWith('https://')) {
     throw new Error('DO_SPACES_CDN_URL/SPACES_CDN_URL must be a valid https URL when provided');

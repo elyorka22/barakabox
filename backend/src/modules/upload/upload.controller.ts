@@ -15,6 +15,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -36,6 +37,7 @@ export class UploadController {
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @UseInterceptors(
     FileInterceptor('file', {
+      storage: memoryStorage(),
       limits: { fileSize: 5 * 1024 * 1024 },
       fileFilter: (_, file, callback) => {
         const allowed = ['image/jpeg', 'image/png', 'image/webp'];
@@ -111,9 +113,25 @@ export class UploadController {
     }),
   )
   async uploadImage(@CurrentUser() user: { sub: string }, @UploadedFile() file?: Express.Multer.File) {
+    this.logger.log(
+      JSON.stringify({
+        event: 'upload_image_request_received',
+        hasFile: Boolean(file),
+      }),
+    );
     if (!file) {
       throw new BadRequestException('Rasm fayli yuborilmadi');
     }
+    this.logger.log(
+      JSON.stringify({
+        event: 'upload_image_file_meta',
+        fieldName: file.fieldname,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        hasBuffer: Boolean(file.buffer?.length),
+      }),
+    );
     const detected = await fileTypeFromBuffer(file.buffer);
     const allowed = new Set(['image/jpeg', 'image/png', 'image/webp']);
     if (!detected || !allowed.has(detected.mime)) {
@@ -121,6 +139,13 @@ export class UploadController {
     }
     try {
       const uploaded = await this.uploadService.uploadImageForForm(file);
+      this.logger.log(
+        JSON.stringify({
+          event: 'upload_image_success',
+          key: uploaded.key,
+          url: uploaded.url,
+        }),
+      );
       await this.uploadService.logAudit({
         userId: user.sub,
         action: 'LEGACY_UPLOAD',
@@ -132,13 +157,45 @@ export class UploadController {
         key: uploaded.key,
       };
     } catch (error) {
+      const details = error instanceof Error ? error.message : 'unknown';
       this.logger.error(
         JSON.stringify({
           event: 'upload_image_failed',
-          error: error instanceof Error ? error.message : 'unknown',
+          error: details,
         }),
       );
-      throw new InternalServerErrorException("Rasmni yuklashda xatolik yuz berdi");
+      throw new InternalServerErrorException({
+        success: false,
+        message: "Rasmni yuklashda xatolik yuz berdi",
+        details,
+      });
+    }
+  }
+
+  @Post('image/debug-test')
+  async debugUpload() {
+    try {
+      const result = await this.uploadService.runSpacesDebugUpload();
+      this.logger.log(
+        JSON.stringify({
+          event: 'upload_debug_success',
+          ...result,
+        }),
+      );
+      return result;
+    } catch (error) {
+      const details = error instanceof Error ? error.message : 'unknown';
+      this.logger.error(
+        JSON.stringify({
+          event: 'upload_debug_failed',
+          details,
+        }),
+      );
+      throw new InternalServerErrorException({
+        success: false,
+        message: 'Spaces debug upload failed',
+        details,
+      });
     }
   }
 
