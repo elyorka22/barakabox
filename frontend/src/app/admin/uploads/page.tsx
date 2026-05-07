@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { api, authStorage } from '@/lib/api';
 
@@ -87,13 +86,12 @@ export default function AdminUploadsPage() {
   };
 
   return (
-    <main className="bb-page">
-      <section className="bb-shell space-y-4">
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Upload Failed Jobs</h1>
-          <Link href="/admin" className="bb-btn-outline">Orqaga</Link>
+          <h1 className="text-lg font-semibold">Upload Failed Jobs</h1>
         </div>
-        <button className="bb-btn-secondary" onClick={() => void loadJobs()} disabled={loading}>
+        <button className="mt-3 rounded-xl border border-slate-200 px-3 py-2 text-sm" onClick={() => void loadJobs()} disabled={loading}>
           {loading ? 'Yuklanmoqda...' : 'Yangilash'}
         </button>
         <div className="space-y-2">
@@ -111,23 +109,23 @@ export default function AdminUploadsPage() {
               <p className="mt-1 text-xs text-gray-600">error: {job.error.slice(0, 120)}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
-                  className="bb-btn-primary"
+                  className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
                   onClick={() => void retryJob(job.id)}
                   disabled={loading || job.retryCount >= 3}
                 >
                   Retry
                 </button>
-                <button className="bb-btn-outline" onClick={() => setPayloadModal(job)} disabled={loading}>
+                <button className="rounded-lg border border-slate-300 px-2 py-1 text-xs" onClick={() => setPayloadModal(job)} disabled={loading}>
                   Payload
                 </button>
-                <button className="bb-btn-outline" onClick={() => void deleteJob(job.id)} disabled={loading}>
+                <button className="rounded-lg border border-slate-300 px-2 py-1 text-xs" onClick={() => void deleteJob(job.id)} disabled={loading}>
                   Delete
                 </button>
               </div>
             </div>
           ))}
         </div>
-      </section>
+      </div>
 
       {payloadModal ? (
         <div className="fixed inset-0 z-50 flex items-end bg-black/40 p-3 sm:items-center sm:justify-center">
@@ -150,6 +148,6 @@ export default function AdminUploadsPage() {
           {toast.message}
         </div>
       ) : null}
-    </main>
+    </div>
   );
 }

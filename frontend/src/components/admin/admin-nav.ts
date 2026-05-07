@@ -1,0 +1,42 @@
+import {
+  Bell,
+  Building2,
+  ChartLine,
+  ClipboardList,
+  LayoutDashboard,
+  Logs,
+  Package,
+  Percent,
+  Settings,
+  ShieldAlert,
+  Tags,
+  UploadCloud,
+  Users,
+  type LucideIcon,
+} from 'lucide-react';
+
+export type AdminNavItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  group: 'Asosiy' | 'Boshqaruv' | 'Monitoring' | 'Tizim';
+};
+
+export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
+  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, group: 'Asosiy' },
+  { href: '/admin/businesses', label: 'Businesses', icon: Building2, group: 'Boshqaruv' },
+  { href: '/admin/products', label: 'Products', icon: Package, group: 'Boshqaruv' },
+  { href: '/admin/orders', label: 'Orders', icon: ClipboardList, group: 'Boshqaruv' },
+  { href: '/admin/users', label: 'Users', icon: Users, group: 'Boshqaruv' },
+  { href: '/admin/categories', label: 'Categories', icon: Tags, group: 'Boshqaruv' },
+  { href: '/admin/coupons', label: 'Coupons', icon: Percent, group: 'Boshqaruv' },
+  { href: '/admin/uploads', label: 'Upload Jobs', icon: UploadCloud, group: 'Monitoring' },
+  { href: '/admin/notifications', label: 'Notifications', icon: Bell, group: 'Monitoring' },
+  { href: '/admin/analytics', label: 'Analytics', icon: ChartLine, group: 'Monitoring' },
+  { href: '/admin/logs', label: 'Logs & Errors', icon: Logs, group: 'Monitoring' },
+  { href: '/admin/settings', label: 'Settings', icon: Settings, group: 'Tizim' },
+];
+
+export const ADMIN_NAV_GROUPS: AdminNavItem['group'][] = ['Asosiy', 'Boshqaruv', 'Monitoring', 'Tizim'];
+
+export const LOGOUT_ITEM = { href: '/profile', label: 'Logout', icon: ShieldAlert };
