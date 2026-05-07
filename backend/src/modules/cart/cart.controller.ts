@@ -1,10 +1,25 @@
-import { BadRequestException, Body, Controller, Delete, Get, Headers, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  HttpException,
+  InternalServerErrorException,
+  Logger,
+  Post,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { CartService } from './cart.service';
 import { UsersService } from '../users/users.service';
+import { AddCartBoxDto, AddCartItemDto, RemoveCartBoxDto, RemoveCartItemDto } from './dto/cart.dto';
 
 @Controller('cart')
 export class CartController {
+  private readonly logger = new Logger(CartController.name);
+
   constructor(
     private readonly cartService: CartService,
     private readonly usersService: UsersService,
@@ -16,10 +31,24 @@ export class CartController {
       ? authorization.slice(7)
       : undefined;
     if (token) {
-      const payload = this.jwtService.verify<{ sub: string }>(token, {
-        secret: process.env.JWT_ACCESS_SECRET!,
-      });
-      return payload.sub;
+      try {
+        const payload = this.jwtService.verify<{ sub: string }>(token, {
+          secret: process.env.JWT_ACCESS_SECRET!,
+        });
+        return payload.sub;
+      } catch (error) {
+        this.logger.warn(
+          JSON.stringify({
+            event: 'cart_auth_token_invalid',
+            guestIdPresent: Boolean(guestId),
+            tokenPrefix: token.slice(0, 10),
+            error: error instanceof Error ? error.message : 'unknown',
+          }),
+        );
+        if (!guestId) {
+          throw new UnauthorizedException("Sessiya tokeni yaroqsiz yoki muddati tugagan");
+        }
+      }
     }
 
     if (!guestId) {
@@ -35,47 +64,155 @@ export class CartController {
     @Headers('authorization') authorization?: string,
     @Headers('x-guest-id') guestId?: string,
   ) {
-    const actorId = await this.resolveActorId(authorization, guestId);
-    return this.cartService.getCart(actorId);
+    this.logger.log(
+      JSON.stringify({
+        event: 'cart_get_requested',
+        hasAuthHeader: Boolean(authorization),
+        guestId,
+      }),
+    );
+    try {
+      const actorId = await this.resolveActorId(authorization, guestId);
+      this.logger.log(JSON.stringify({ event: 'cart_get_actor_resolved', actorId, guestId }));
+      return this.cartService.getCart(actorId);
+    } catch (error) {
+      this.logger.error(
+        JSON.stringify({
+          event: 'cart_get_failed',
+          guestId,
+          error: error instanceof Error ? error.message : 'unknown',
+        }),
+      );
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException("Savatni olishda xatolik yuz berdi");
+    }
   }
 
   @Post('items')
   async addItem(
     @Headers('authorization') authorization: string | undefined,
     @Headers('x-guest-id') guestId: string | undefined,
-    @Body() body: { productId: string; quantity: number },
+    @Body() body: AddCartItemDto,
   ) {
-    const actorId = await this.resolveActorId(authorization, guestId);
-    return this.cartService.addItem(actorId, body.productId, body.quantity);
+    this.logger.log(
+      JSON.stringify({
+        event: 'cart_item_add_requested',
+        payload: body,
+        hasAuthHeader: Boolean(authorization),
+        guestId,
+      }),
+    );
+    try {
+      const actorId = await this.resolveActorId(authorization, guestId);
+      this.logger.log(JSON.stringify({ event: 'cart_item_add_actor_resolved', actorId, guestId }));
+      return this.cartService.addItem(actorId, body.productId, body.quantity);
+    } catch (error) {
+      this.logger.error(
+        JSON.stringify({
+          event: 'cart_item_add_failed',
+          payload: body,
+          guestId,
+          error: error instanceof Error ? error.message : 'unknown',
+        }),
+      );
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException("Mahsulotni savatga qo'shishda xatolik yuz berdi");
+    }
   }
 
   @Post('boxes')
   async addBoxItem(
     @Headers('authorization') authorization: string | undefined,
     @Headers('x-guest-id') guestId: string | undefined,
-    @Body() body: { boxId: string; quantity: number },
+    @Body() body: AddCartBoxDto,
   ) {
-    const actorId = await this.resolveActorId(authorization, guestId);
-    return this.cartService.addBoxItem(actorId, body.boxId, body.quantity);
+    this.logger.log(
+      JSON.stringify({
+        event: 'cart_box_add_requested',
+        payload: body,
+        hasAuthHeader: Boolean(authorization),
+        guestId,
+      }),
+    );
+    try {
+      const actorId = await this.resolveActorId(authorization, guestId);
+      this.logger.log(JSON.stringify({ event: 'cart_box_add_actor_resolved', actorId, guestId }));
+      return this.cartService.addBoxItem(actorId, body.boxId, body.quantity);
+    } catch (error) {
+      this.logger.error(
+        JSON.stringify({
+          event: 'cart_box_add_failed',
+          payload: body,
+          guestId,
+          error: error instanceof Error ? error.message : 'unknown',
+        }),
+      );
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException("Boksni savatga qo'shishda xatolik yuz berdi");
+    }
   }
 
   @Delete('items')
   async removeItem(
     @Headers('authorization') authorization: string | undefined,
     @Headers('x-guest-id') guestId: string | undefined,
-    @Body() body: { productId: string },
+    @Body() body: RemoveCartItemDto,
   ) {
-    const actorId = await this.resolveActorId(authorization, guestId);
-    return this.cartService.removeItem(actorId, body.productId);
+    this.logger.log(
+      JSON.stringify({
+        event: 'cart_item_remove_requested',
+        payload: body,
+        hasAuthHeader: Boolean(authorization),
+        guestId,
+      }),
+    );
+    try {
+      const actorId = await this.resolveActorId(authorization, guestId);
+      this.logger.log(JSON.stringify({ event: 'cart_item_remove_actor_resolved', actorId, guestId }));
+      return this.cartService.removeItem(actorId, body.productId);
+    } catch (error) {
+      this.logger.error(
+        JSON.stringify({
+          event: 'cart_item_remove_failed',
+          payload: body,
+          guestId,
+          error: error instanceof Error ? error.message : 'unknown',
+        }),
+      );
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException("Mahsulotni savatdan o'chirishda xatolik yuz berdi");
+    }
   }
 
   @Delete('boxes')
   async removeBoxItem(
     @Headers('authorization') authorization: string | undefined,
     @Headers('x-guest-id') guestId: string | undefined,
-    @Body() body: { boxId: string },
+    @Body() body: RemoveCartBoxDto,
   ) {
-    const actorId = await this.resolveActorId(authorization, guestId);
-    return this.cartService.removeBoxItem(actorId, body.boxId);
+    this.logger.log(
+      JSON.stringify({
+        event: 'cart_box_remove_requested',
+        payload: body,
+        hasAuthHeader: Boolean(authorization),
+        guestId,
+      }),
+    );
+    try {
+      const actorId = await this.resolveActorId(authorization, guestId);
+      this.logger.log(JSON.stringify({ event: 'cart_box_remove_actor_resolved', actorId, guestId }));
+      return this.cartService.removeBoxItem(actorId, body.boxId);
+    } catch (error) {
+      this.logger.error(
+        JSON.stringify({
+          event: 'cart_box_remove_failed',
+          payload: body,
+          guestId,
+          error: error instanceof Error ? error.message : 'unknown',
+        }),
+      );
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException("Boksni savatdan o'chirishda xatolik yuz berdi");
+    }
   }
 }
