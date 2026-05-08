@@ -6,6 +6,7 @@ import { CategoriesService } from './categories.service';
 import {
   AdminCategoryQueryDto,
   CreateCategoryDto,
+  PublicCategoriesQueryDto,
   PublicCategoryProductsQueryDto,
   UpdateCategoryDto,
   UpdateCategoryStatusDto,
@@ -16,8 +17,8 @@ export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @Get()
-  listPublicCategories() {
-    return this.categoriesService.listPublicCategories();
+  listPublicCategories(@Query() query: PublicCategoriesQueryDto) {
+    return this.categoriesService.listPublicCategories(query);
   }
 
   @Get(':slug/products')

@@ -38,36 +38,48 @@ export default function AdminCategoriesPage() {
     imageUrl: '',
     sortOrder: '0',
     isFeatured: true,
+    isActive: true,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const token = authStorage.getAccessToken();
   const apiBase = useMemo(() => process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api', []);
 
+  const load = async (targetPage: number) => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await api.get<CategoryListResponse>(
+        `/admin/categories?page=${targetPage}&limit=12&search=${encodeURIComponent(search)}`,
+        token,
+      );
+      setCategories(data.items);
+      setPage(data.pagination.page);
+      setTotalPages(data.pagination.totalPages);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Kategoriyalarni yuklab bo'lmadi");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const load = async (targetPage: number) => {
-      setLoading(true);
-      setError('');
-      try {
-        const data = await api.get<CategoryListResponse>(
-          `/admin/categories?page=${targetPage}&limit=12&search=${encodeURIComponent(search)}`,
-          token,
-        );
-        setCategories(data.items);
-        setPage(data.pagination.page);
-        setTotalPages(data.pagination.totalPages);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Kategoriyalarni yuklab bo'lmadi");
-      } finally {
-        setLoading(false);
-      }
-    };
     void load(page);
   }, [page, search, token]);
 
   const resetForm = () => {
-    setForm({ id: '', name: '', imageUrl: '', sortOrder: '0', isFeatured: true });
+    setForm({ id: '', name: '', imageUrl: '', sortOrder: '0', isFeatured: true, isActive: true });
   };
+
+  const slugPreview = useMemo(() => {
+    return form.name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+  }, [form.name]);
 
   const uploadCategoryImage = async (file: File) => {
     if (!token) return;
@@ -111,6 +123,7 @@ export default function AdminCategoriesPage() {
         imageUrl: form.imageUrl.trim() || undefined,
         sortOrder: Number(form.sortOrder || 0),
         isFeatured: form.isFeatured,
+        isActive: form.isActive,
       };
       if (form.id) {
         await api.patch(`/admin/categories/${form.id}`, payload, token);
@@ -121,6 +134,7 @@ export default function AdminCategoriesPage() {
       }
       resetForm();
       setPage(1);
+      await load(1);
     } catch (err) {
       showToast({
         type: 'error',
@@ -138,6 +152,7 @@ export default function AdminCategoriesPage() {
       imageUrl: category.imageUrl ?? '',
       sortOrder: String(category.sortOrder),
       isFeatured: category.isFeatured,
+      isActive: category.isActive,
     });
   };
 
@@ -146,7 +161,7 @@ export default function AdminCategoriesPage() {
     try {
       await api.delete(`/admin/categories/${id}`, {}, token);
       showToast({ type: 'success', message: "Kategoriya o'chirildi" });
-      setCategories((prev) => prev.filter((item) => item.id !== id));
+      await load(page);
     } catch (err) {
       showToast({ type: 'error', message: err instanceof Error ? err.message : "O'chirishda xatolik" });
     }
@@ -168,60 +183,100 @@ export default function AdminCategoriesPage() {
   };
 
   return (
-    <div className="min-w-0 max-w-full space-y-4">
+    <div className="min-w-0 max-w-full space-y-4 overflow-x-hidden">
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-lg font-semibold">Kategoriyalar boshqaruvi</h2>
-        <p className="text-sm text-slate-500">Yaratish, tahrirlash, holat va tartibni boshqarish</p>
+        <h2 className="text-lg font-semibold text-[#111111]">Kategoriyalar boshqaruvi</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Kategoriya yaratish, tahrirlash, rasm yuklash, featured/active holatini boshqarish.
+        </p>
       </div>
+
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h3 className="text-sm font-semibold">{form.id ? 'Kategoriyani tahrirlash' : 'Yangi kategoriya'}</h3>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <input
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            placeholder="Kategoriya nomi"
-            value={form.name}
-            onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-          />
-          <input
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            type="number"
-            placeholder="Sort order"
-            value={form.sortOrder}
-            onChange={(e) => setForm((prev) => ({ ...prev, sortOrder: e.target.value }))}
-          />
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+        <h3 className="text-sm font-semibold text-[#111111]">
+          {form.id ? 'Kategoriyani tahrirlash' : 'Yangi kategoriya'}
+        </h3>
+        <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
+          <div className="min-w-0">
+            <label className="mb-1 block text-xs font-medium text-slate-700">Kategoriya nomi</label>
+            <input
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              placeholder="Masalan: Sabzavotlar"
+              value={form.name}
+              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+            />
+            <p className="mt-1 truncate text-[11px] text-slate-500">Slug: {slugPreview || '—'}</p>
+          </div>
+          <div className="min-w-0">
+            <label className="mb-1 block text-xs font-medium text-slate-700">Sort order</label>
+            <input
+              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              type="number"
+              placeholder="0"
+              value={form.sortOrder}
+              onChange={(e) => setForm((prev) => ({ ...prev, sortOrder: e.target.value }))}
+            />
+          </div>
+          <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700">
             <input
               type="checkbox"
               checked={form.isFeatured}
               onChange={(e) => setForm((prev) => ({ ...prev, isFeatured: e.target.checked }))}
             />
-            Featured kategoriya
+            Featured
           </label>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700">
             <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              disabled={uploading}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                if (file.size > 5 * 1024 * 1024) {
-                  showToast({ type: 'error', message: 'Rasm hajmi 5MB dan oshmasligi kerak' });
-                  return;
-                }
-                void uploadCategoryImage(file);
-              }}
+              type="checkbox"
+              checked={form.isActive}
+              onChange={(e) => setForm((prev) => ({ ...prev, isActive: e.target.checked }))}
             />
-            {uploading ? 'Yuklanmoqda...' : 'Kategoriya rasmi yuklash'}
+            Active
           </label>
         </div>
-        {form.imageUrl ? (
-          <div className="mt-3 flex items-center gap-3 rounded-xl border border-slate-200 p-2">
-            <img src={form.imageUrl} alt="Category preview" className="h-14 w-14 rounded-xl object-cover" />
-            <p className="truncate text-xs text-slate-500">{form.imageUrl}</p>
+
+        <div className="mt-3 min-w-0 rounded-2xl border border-slate-200 p-3">
+          <p className="text-xs font-medium text-slate-700">Kategoriya rasmi</p>
+          <p className="mt-0.5 text-[11px] text-slate-500">JPG, PNG yoki WEBP (max 5MB)</p>
+          <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-slate-100">
+              {form.imageUrl ? (
+                <img src={form.imageUrl} alt="Category preview" className="h-full w-full object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-500">No image</div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1 space-y-2">
+              <input
+                className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-xs file:font-medium file:text-emerald-700"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                disabled={uploading}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (file.size > 5 * 1024 * 1024) {
+                    showToast({ type: 'error', message: 'Rasm hajmi 5MB dan oshmasligi kerak' });
+                    return;
+                  }
+                  void uploadCategoryImage(file);
+                }}
+              />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                  onClick={() => setForm((prev) => ({ ...prev, imageUrl: '' }))}
+                  disabled={!form.imageUrl}
+                >
+                  Rasmni olib tashlash
+                </button>
+                {uploading ? <span className="text-xs text-slate-500">Yuklanmoqda...</span> : null}
+              </div>
+            </div>
           </div>
-        ) : null}
-        <div className="mt-3 flex gap-2">
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-2">
           <button
             className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             onClick={() => void save()}
@@ -234,6 +289,7 @@ export default function AdminCategoriesPage() {
           </button>
         </div>
       </div>
+
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <input
           className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
@@ -244,10 +300,10 @@ export default function AdminCategoriesPage() {
             setSearch(e.target.value);
           }}
         />
-        {loading ? <div className="bb-skeleton h-56 w-full" /> : null}
+        {loading ? <div className="bb-skeleton mt-3 h-56 w-full" /> : null}
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {categories.map((category) => (
-            <div key={category.id} className="rounded-xl border border-slate-100 p-3 shadow-sm">
+            <div key={category.id} className="rounded-2xl border border-slate-100 p-3 shadow-sm">
               <div className="flex items-center gap-3">
                 {category.imageUrl ? (
                   <img src={category.imageUrl} alt={category.name} className="h-12 w-12 rounded-xl object-cover" />
@@ -261,16 +317,22 @@ export default function AdminCategoriesPage() {
                   <p className="truncate text-xs text-slate-500">{category.slug}</p>
                 </div>
               </div>
-              <p className="mt-2 text-xs text-slate-600">Mahsulotlar: {category.productCount}</p>
-              <p className="text-xs text-slate-600">Sort: {category.sortOrder}</p>
-              <span
-                className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-xs ${
-                  category.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700'
-                }`}
-              >
-                {category.isActive === false ? 'INACTIVE' : 'ACTIVE'}
-              </span>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap gap-1">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
+                  Mahsulotlar: {category.productCount}
+                </span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
+                  Sort: {category.sortOrder}
+                </span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[11px] ${
+                    category.isFeatured ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {category.isFeatured ? 'Featured' : 'Default'}
+                </span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
                 <button
                   className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
                   onClick={() => edit(category)}

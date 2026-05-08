@@ -33,6 +33,18 @@ export class PublicCategoryProductsQueryDto {
   limit?: number = 12;
 }
 
+export class PublicCategoriesQueryDto {
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  featured?: boolean;
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  active?: boolean;
+}
+
 export class CreateCategoryDto {
   @IsString()
   @MinLength(2)
@@ -52,6 +64,11 @@ export class CreateCategoryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   isFeatured?: boolean = true;
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  isActive?: boolean = true;
 }
 
 export class UpdateCategoryDto {
@@ -74,6 +91,11 @@ export class UpdateCategoryDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   isFeatured?: boolean;
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class UpdateCategoryStatusDto {

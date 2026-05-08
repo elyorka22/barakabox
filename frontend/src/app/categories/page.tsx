@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Funnel, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, categoryEvents } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
 
 type Category = {
@@ -13,18 +13,10 @@ type Category = {
   slug: string;
   imageUrl?: string | null;
   productCount?: number;
+  isFeatured?: boolean;
+  isActive?: boolean;
+  sortOrder?: number;
 };
-
-const REQUIRED_CATEGORIES = [
-  'Oziq-ovqat',
-  'Qurilish mollari',
-  'Elektronika',
-  'Maishiy texnika',
-  'Elektrik xizmatlari',
-  'Santexnik',
-  'Usta chaqirish',
-  'Boshqalar',
-] as const;
 
 function categoryEmoji(name: string) {
   const normalized = name.toLowerCase();
@@ -47,7 +39,7 @@ export default function CategoriesPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const payload = await api.get<Category[]>('/categories');
+        const payload = await api.get<Category[]>('/categories?active=true');
         setCategories(payload.filter((item) => item.slug !== 'all'));
       } catch {
         setCategories([]);
@@ -56,26 +48,23 @@ export default function CategoriesPage() {
       }
     };
     void load();
+    const onCategoryChanged = () => void load();
+    window.addEventListener(categoryEvents.changedEventName, onCategoryChanged);
+    return () => {
+      window.removeEventListener(categoryEvents.changedEventName, onCategoryChanged);
+    };
   }, []);
 
-  const mergedCategories = useMemo(() => {
-    const byName = new Map(categories.map((item) => [item.name.toLowerCase(), item]));
-    const required = REQUIRED_CATEGORIES.map((name) => {
-      const entry = byName.get(name.toLowerCase());
-      if (entry) return entry;
-      return { id: `fallback-${name}`, name, slug: 'categories', imageUrl: null, productCount: 0 };
-    });
-    const dynamicExtra = categories.filter(
-      (item) => !REQUIRED_CATEGORIES.some((requiredName) => requiredName.toLowerCase() === item.name.toLowerCase()),
-    );
-    return [...required, ...dynamicExtra];
-  }, [categories]);
+  const orderedCategories = useMemo(
+    () => [...categories].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)),
+    [categories],
+  );
 
   const filteredCategories = useMemo(() => {
-    if (!query.trim()) return mergedCategories;
+    if (!query.trim()) return orderedCategories;
     const q = query.trim().toLowerCase();
-    return mergedCategories.filter((item) => item.name.toLowerCase().includes(q));
-  }, [mergedCategories, query]);
+    return orderedCategories.filter((item) => item.name.toLowerCase().includes(q));
+  }, [orderedCategories, query]);
 
   return (
     <main className="bb-page">
@@ -116,7 +105,7 @@ export default function CategoriesPage() {
                   transition={{ duration: 0.2, delay: idx * 0.02 }}
                 >
                   <Link
-                    href={category.slug === 'categories' ? '/categories' : `/categories/${category.slug}`}
+                    href={`/categories/${category.slug}`}
                     className="block rounded-3xl bg-white p-3 shadow-[0_8px_16px_rgba(17,24,39,0.06)]"
                   >
                     <div className="flex h-24 items-center justify-center overflow-hidden rounded-2xl bg-[#F3F4F6]">

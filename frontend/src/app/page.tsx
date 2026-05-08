@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Heart, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { api, authStorage, guestStorage } from '@/lib/api';
+import { api, authStorage, categoryEvents, guestStorage } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
 import { ProductCard } from '@/components/product-card';
 import { formatMoneyUz } from '@/lib/format';
@@ -34,17 +34,16 @@ type CartResponse = {
     variant?: { id: string } | null;
   }>;
 };
-type Category = { id: string; name: string; slug: string; imageUrl?: string | null; productCount: number };
-const HOME_CATEGORY_NAMES = [
-  'Non mahsulotlari',
-  'Sabzavotlar',
-  'Mevalar',
-  "Un-yog'",
-  'Quruq mevalar',
-  'Ichimliklar',
-  'Ovqat uchun',
-  "Xo'jalik buyumlari",
-] as const;
+type Category = {
+  id: string;
+  name: string;
+  slug: string;
+  imageUrl?: string | null;
+  productCount: number;
+  isFeatured?: boolean;
+  isActive?: boolean;
+  sortOrder?: number;
+};
 
 const HERO_SLIDES = [
   {
@@ -88,13 +87,21 @@ export default function Home() {
     void loadCategories();
     void loadProducts();
     void loadCart();
+    const onCategoryChanged = () => void loadCategories();
+    window.addEventListener(categoryEvents.changedEventName, onCategoryChanged);
+    return () => {
+      window.removeEventListener(categoryEvents.changedEventName, onCategoryChanged);
+    };
   }, []);
 
   const loadCategories = async () => {
     setLoadingCategories(true);
     try {
       const data = await api.get<Category[]>('/categories');
-      setCategories(data);
+      const featured = data
+        .filter((category) => category.isFeatured !== false && category.isActive !== false)
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+      setCategories(featured);
     } catch {
       setCategories([]);
     } finally {
@@ -182,14 +189,6 @@ export default function Home() {
   );
   const popularProducts = useMemo(() => renderableProducts.slice(0, 6), [renderableProducts]);
   const recommendedProducts = useMemo(() => renderableProducts.slice(6, 12), [renderableProducts]);
-  const homeCategories = useMemo(() => {
-    const map = new Map(categories.map((category) => [category.name.toLowerCase(), category]));
-    return HOME_CATEGORY_NAMES.map((name) => ({
-      name,
-      entry: map.get(name.toLowerCase()) ?? null,
-    }));
-  }, [categories]);
-
   useEffect(() => {
     const timer = window.setInterval(() => {
       setHeroIndex((prev) => (prev + 1) % HERO_SLIDES.length);
@@ -256,14 +255,13 @@ export default function Home() {
                     <div className="bb-skeleton h-3 w-14" />
                   </div>
                 ))
-              : homeCategories.map((item, idx) => {
-                  const href = item.entry ? `/categories/${item.entry.slug}` : '/categories';
+              : categories.map((item, idx) => {
                   return (
-                    <Link key={`${item.name}-${idx}`} href={href} className="flex flex-col items-center gap-1">
+                    <Link key={`${item.name}-${idx}`} href={`/categories/${item.slug}`} className="flex flex-col items-center gap-1">
                       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-[0_6px_16px_rgba(17,24,39,0.08)]">
-                        {item.entry?.imageUrl ? (
+                        {item.imageUrl ? (
                           <img
-                            src={item.entry.imageUrl}
+                            src={item.imageUrl}
                             alt={item.name}
                             className="h-full w-full rounded-full object-cover"
                           />

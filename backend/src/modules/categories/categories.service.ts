@@ -1,6 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
-import { AdminCategoryQueryDto, CreateCategoryDto, PublicCategoryProductsQueryDto, UpdateCategoryDto } from './dto/category.dto';
+import {
+  AdminCategoryQueryDto,
+  CreateCategoryDto,
+  PublicCategoriesQueryDto,
+  PublicCategoryProductsQueryDto,
+  UpdateCategoryDto,
+} from './dto/category.dto';
 
 @Injectable()
 export class CategoriesService {
@@ -33,15 +39,22 @@ export class CategoriesService {
     throw new BadRequestException('Slug yaratib bo‘lmadi');
   }
 
-  async listPublicCategories() {
+  async listPublicCategories(query: PublicCategoriesQueryDto) {
+    const where = {
+      isActive: query.active ?? true,
+      ...(query.featured ? { isFeatured: true } : {}),
+    };
     const categories = await this.prisma.category.findMany({
-      where: { isActive: true },
+      where,
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
       select: {
         id: true,
         name: true,
         slug: true,
         imageUrl: true,
+        isFeatured: true,
+        isActive: true,
+        sortOrder: true,
         _count: {
           select: {
             products: {
@@ -59,6 +72,9 @@ export class CategoriesService {
       name: category.name,
       slug: category.slug,
       imageUrl: category.imageUrl,
+      isFeatured: category.isFeatured,
+      isActive: category.isActive,
+      sortOrder: category.sortOrder,
       productCount: category._count.products,
     }));
   }
@@ -123,6 +139,7 @@ export class CategoriesService {
         imageUrl: dto.imageUrl || null,
         sortOrder: dto.sortOrder ?? 0,
         isFeatured: dto.isFeatured ?? true,
+        isActive: dto.isActive ?? true,
       },
     });
   }
@@ -141,6 +158,7 @@ export class CategoriesService {
         imageUrl: typeof dto.imageUrl === 'string' ? dto.imageUrl : undefined,
         sortOrder: dto.sortOrder,
         isFeatured: dto.isFeatured,
+        isActive: dto.isActive,
       },
     });
   }
