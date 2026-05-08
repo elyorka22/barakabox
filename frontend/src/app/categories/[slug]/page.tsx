@@ -93,6 +93,17 @@ export default function CategoryProductsPage() {
     }
   };
 
+  const renderableItems = useMemo(
+    () =>
+      (data?.items ?? []).filter(
+        (item) =>
+          Array.isArray(item.variants) &&
+          item.variants.length > 0 &&
+          item.variants.some((variant) => Boolean(variant.id)),
+      ),
+    [data?.items],
+  );
+
   return (
     <main className="bb-page">
       <section className="bb-shell pb-24">
@@ -112,8 +123,8 @@ export default function CategoryProductsPage() {
           </div>
         ) : (
           <div className="mt-4 grid grid-cols-2 gap-3">
-            {data?.items.length ? (
-              data.items.map((item) => (
+            {renderableItems.length ? (
+              renderableItems.map((item) => (
                 <ProductCard
                   key={item.id}
                   id={item.id}
@@ -134,7 +145,7 @@ export default function CategoryProductsPage() {
               ))
             ) : (
               <div className="col-span-2 rounded-2xl border border-slate-200 bg-white p-4 text-center text-sm text-slate-500">
-                Bu kategoriyada hozircha mahsulot yo‘q
+                Mahsulotlar mavjud emas
               </div>
             )}
           </div>

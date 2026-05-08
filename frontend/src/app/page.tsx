@@ -118,6 +118,17 @@ export default function Home() {
     return map;
   }, [cart]);
 
+  const renderableProducts = useMemo(
+    () =>
+      products.filter(
+        (product) =>
+          Array.isArray(product.variants) &&
+          product.variants.length > 0 &&
+          product.variants.some((variant) => Boolean(variant.id)),
+      ),
+    [products],
+  );
+
   return (
     <main className="bb-page">
       <section className="bb-shell">
@@ -176,8 +187,8 @@ export default function Home() {
         ) : null}
         {!loadingProducts ? (
           <div className="mt-4 grid grid-cols-2 gap-3 pb-24">
-            {products.length ? (
-              products.map((product) => (
+            {renderableProducts.length ? (
+              renderableProducts.map((product) => (
                 <ProductCard
                   key={product.id}
                   id={product.id}

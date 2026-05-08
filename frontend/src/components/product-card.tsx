@@ -46,9 +46,7 @@ export function ProductCard({
   const [loaded, setLoaded] = useState(false);
   const [activeVariantIndex, setActiveVariantIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const effectiveVariants = variants.length
-    ? variants
-    : [{ id: `${id}-base`, title: name, description: '', price, stock: 0, imageUrl }];
+  const effectiveVariants = variants;
   const defaultVariant = getDefaultVariant({ variants });
   const variantIdsKey = useMemo(() => effectiveVariants.map((variant) => variant.id).join('|'), [effectiveVariants]);
 
@@ -183,7 +181,7 @@ export function ProductCard({
               if (!activeVariant) return;
               onAdd(activeVariant.id, id);
             }}
-            disabled={!activeVariant || loading || ((activeVariant.stock ?? 0) <= 0 && variants.length > 0)}
+            disabled={!activeVariant || loading || (activeVariant.stock ?? 0) <= 0}
             className="rounded-xl bg-[#16A34A] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
           >
             {loading ? "Qo'shilmoqda..." : "Qo'shish"}
