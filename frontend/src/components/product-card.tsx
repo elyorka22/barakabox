@@ -24,7 +24,7 @@ type ProductCardProps = {
   onDecrease?: (variantId: string, productId: string) => void;
   quantity?: number;
   quantityByVariantId?: Record<string, number>;
-  loading?: boolean;
+  loadingByVariantId?: Record<string, boolean>;
   href?: string;
   imageUrl?: string | null;
 };
@@ -38,7 +38,7 @@ export function ProductCard({
   onDecrease,
   quantity = 0,
   quantityByVariantId,
-  loading,
+  loadingByVariantId,
   href,
   imageUrl,
   variants = [],
@@ -55,6 +55,7 @@ export function ProductCard({
       : null;
 
   const activeQuantity = activeVariant ? quantityByVariantId?.[activeVariant.id] ?? quantity : 0;
+  const activeLoading = activeVariant ? Boolean(loadingByVariantId?.[activeVariant.id]) : false;
   const activeBasePrice = Number(activeVariant?.price ?? price);
   const activeDiscountPrice =
     activeVariant?.discountPrice && activeVariant.discountPrice > 0 && activeVariant.discountPrice < activeBasePrice
@@ -177,7 +178,7 @@ export function ProductCard({
           <div className="flex items-center gap-2 rounded-xl bg-[#F3F4F6] p-1">
             <button
               onClick={() => onDecrease?.(activeVariant.id, id)}
-              disabled={loading}
+              disabled={activeLoading}
               className="h-7 w-7 rounded-lg bg-white text-sm font-bold text-gray-700 disabled:opacity-50"
             >
               -
@@ -185,7 +186,7 @@ export function ProductCard({
             <span className="w-5 text-center text-xs font-semibold text-[#121212]">{activeQuantity}</span>
             <button
               onClick={() => onIncrease?.(activeVariant.id, id)}
-              disabled={loading}
+              disabled={activeLoading}
               className="h-7 w-7 rounded-lg bg-[#16A34A] text-sm font-bold text-white disabled:opacity-50"
             >
               +
@@ -197,10 +198,10 @@ export function ProductCard({
               if (!activeVariant) return;
               onAdd(activeVariant.id, id);
             }}
-            disabled={!activeVariant || loading || (activeVariant.stock ?? 0) <= 0}
+            disabled={!activeVariant || activeLoading || (activeVariant.stock ?? 0) <= 0}
             className="rounded-xl bg-[#16A34A] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
           >
-            {loading ? "Qo'shilmoqda..." : "Qo'shish"}
+            {activeLoading ? "Qo'shilmoqda..." : "Savatga"}
           </button>
         )}
       </div>

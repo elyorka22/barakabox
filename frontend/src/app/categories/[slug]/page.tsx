@@ -39,7 +39,7 @@ export default function CategoryProductsPage() {
   const [data, setData] = useState<CategoryProductsResponse | null>(null);
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [adding, setAdding] = useState(false);
+  const [loadingByVariantId, setLoadingByVariantId] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
   const token = authStorage.getAccessToken();
@@ -85,12 +85,12 @@ export default function CategoryProductsPage() {
   }, [cart]);
 
   const addToCart = async (variantId: string, productId: string, quantity = 1) => {
-    setAdding(true);
+    setLoadingByVariantId((prev) => ({ ...prev, [variantId]: true }));
     try {
       await api.post('/cart/items', { productId, variantId, quantity }, token);
       await loadCart();
     } finally {
-      setAdding(false);
+      setLoadingByVariantId((prev) => ({ ...prev, [variantId]: false }));
     }
   };
 
@@ -139,7 +139,7 @@ export default function CategoryProductsPage() {
                   onIncrease={(variantId, productId) => void addToCart(variantId, productId, 1)}
                   onDecrease={(variantId, productId) => void addToCart(variantId, productId, -1)}
                   quantityByVariantId={quantityByVariantId}
-                  loading={adding}
+                  loadingByVariantId={loadingByVariantId}
                   href={`/products/${item.id}`}
                   imageUrl={item.imageCardUrl ?? item.imageUrl}
                 />

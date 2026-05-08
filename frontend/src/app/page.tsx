@@ -38,7 +38,7 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [cart, setCart] = useState<CartResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loadingByVariantId, setLoadingByVariantId] = useState<Record<string, boolean>>({});
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [error, setError] = useState('');
@@ -83,7 +83,7 @@ export default function Home() {
   };
 
   const addProduct = async (variantId: string, productId: string) => {
-    setLoading(true);
+    setLoadingByVariantId((prev) => ({ ...prev, [variantId]: true }));
     setError('');
     try {
       await api.post('/cart/items', { productId, variantId, quantity: 1 }, token);
@@ -91,12 +91,12 @@ export default function Home() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Mahsulotni savatga qo'shib bo'lmadi");
     } finally {
-      setLoading(false);
+      setLoadingByVariantId((prev) => ({ ...prev, [variantId]: false }));
     }
   };
 
   const changeProductQty = async (variantId: string, productId: string, delta: number) => {
-    setLoading(true);
+    setLoadingByVariantId((prev) => ({ ...prev, [variantId]: true }));
     setError('');
     try {
       await api.post('/cart/items', { productId, variantId, quantity: delta }, token);
@@ -104,7 +104,7 @@ export default function Home() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xatolik yuz berdi");
     } finally {
-      setLoading(false);
+      setLoadingByVariantId((prev) => ({ ...prev, [variantId]: false }));
     }
   };
 
@@ -203,7 +203,7 @@ export default function Home() {
                   onIncrease={(variantId, productId) => void changeProductQty(variantId, productId, 1)}
                   onDecrease={(variantId, productId) => void changeProductQty(variantId, productId, -1)}
                   quantityByVariantId={quantityByVariantId}
-                  loading={loading}
+                  loadingByVariantId={loadingByVariantId}
                   href={`/products/${product.id}`}
                   imageUrl={product.imageCardUrl ?? product.imageUrl}
                 />
