@@ -7,6 +7,7 @@ const REFRESH_TOKEN_KEY = 'barakabox_refresh_token';
 const USER_KEY = 'barakabox_user';
 const GUEST_ID_KEY = 'barakabox_guest_id';
 const AUTH_CHANGED_EVENT = 'barakabox_auth_changed';
+const CART_CHANGED_EVENT = 'barakabox_cart_changed';
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 type StoredUser = { id: string; email: string; role: string; fullName: string };
@@ -18,6 +19,12 @@ let redirectingForAuth = false;
 function notifyAuthChanged() {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
+  }
+}
+
+function notifyCartChanged() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(CART_CHANGED_EVENT));
   }
 }
 
@@ -136,7 +143,12 @@ async function request<T>(
     throw new Error(message || `${t('common.genericError')}. ${t('common.retry')}`);
   }
 
-  return response.json() as Promise<T>;
+  const payload = (await response.json()) as T;
+  const isCartMutation = path.startsWith('/cart') && method !== 'GET';
+  if (isCartMutation) {
+    notifyCartChanged();
+  }
+  return payload;
 }
 
 export const api = {
@@ -217,6 +229,10 @@ export const authStorage = {
 
 export const authEvents = {
   changedEventName: AUTH_CHANGED_EVENT,
+};
+
+export const cartEvents = {
+  changedEventName: CART_CHANGED_EVENT,
 };
 
 export const guestStorage = {

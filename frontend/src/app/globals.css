@@ -90,9 +90,9 @@ body {
   }
 
   .bb-mobile-nav {
-    @apply fixed inset-x-0 bottom-0 z-30 mt-5 grid grid-cols-3 border-t border-gray-200 bg-white/90 py-2 text-center text-xs shadow-lg backdrop-blur-md;
-    padding-left: max(0.5rem, env(safe-area-inset-left));
-    padding-right: max(0.5rem, env(safe-area-inset-right));
+    @apply fixed bottom-0 z-30 mt-5 grid grid-cols-4 gap-1 rounded-t-3xl border border-b-0 border-gray-200/80 bg-white/90 px-2 py-2 text-center text-xs shadow-[0_-8px_24px_rgba(15,23,42,0.12)] backdrop-blur-md;
+    left: max(0.25rem, env(safe-area-inset-left));
+    right: max(0.25rem, env(safe-area-inset-right));
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
     min-height: var(--bb-mobile-nav-height);
     touch-action: manipulation;
@@ -209,5 +209,16 @@ body {
   100% {
     opacity: 0;
     transform: translate(-50%, -50%) scale(22);
+  }
+}
+
+@keyframes bb-badge-pop {
+  0% {
+    transform: scale(0.78);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
   }
 }
