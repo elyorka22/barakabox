@@ -30,6 +30,7 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [variantIndex, setVariantIndex] = useState(0);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -40,6 +41,7 @@ export default function ProductDetailPage() {
   }, [params.id]);
 
   const activeVariant = product?.variants?.[variantIndex] ?? null;
+  const variants = product?.variants ?? [];
 
   useEffect(() => {
     setVariantIndex(0);
@@ -48,6 +50,26 @@ export default function ProductDetailPage() {
   useEffect(() => {
     setImageLoaded(false);
   }, [product?.imageUrl, activeVariant?.id, activeVariant?.imageUrl]);
+
+  const goToVariant = (targetIndex: number) => {
+    if (!variants.length) return;
+    setVariantIndex(Math.max(0, Math.min(targetIndex, variants.length - 1)));
+  };
+
+  const handleTouchEnd = (touchEndX: number) => {
+    if (touchStartX === null || variants.length <= 1) return;
+    const diff = touchStartX - touchEndX;
+    if (Math.abs(diff) < 30) {
+      setTouchStartX(null);
+      return;
+    }
+    if (diff > 0) {
+      goToVariant(variantIndex + 1);
+    } else {
+      goToVariant(variantIndex - 1);
+    }
+    setTouchStartX(null);
+  };
 
   const total = useMemo(
     () => (product ? Number(activeVariant?.price ?? product.price) * quantity : 0),
@@ -74,25 +96,71 @@ export default function ProductDetailPage() {
       <section className="bb-shell">
         <Link href="/" className="text-sm text-gray-500">Orqaga</Link>
         {(activeVariant?.imageUrl ?? product?.imageUrl) ? (
-          <div className="relative mt-3 h-56 w-full overflow-hidden rounded-3xl">
+          <div
+            className="relative mt-3 aspect-[4/3] w-full overflow-hidden rounded-3xl bg-slate-50"
+            onTouchStart={(event) => setTouchStartX(event.changedTouches[0]?.clientX ?? null)}
+            onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
+          >
             {!imageLoaded ? <div className="bb-skeleton absolute inset-0" /> : null}
-            <img
-              src={activeVariant?.imageUrl ?? product?.imageUrl ?? ''}
-              alt={activeVariant?.flavor ?? product?.name ?? 'Product'}
-              loading="lazy"
-              decoding="async"
-              className="h-56 w-full object-cover"
-              onLoad={() => setImageLoaded(true)}
-              onError={() => setImageLoaded(true)}
-            />
+            {variants.length > 0 ? (
+              <div
+                className="flex h-full w-full transition-transform duration-300 ease-out"
+                style={{ transform: `translateX(-${variantIndex * 100}%)` }}
+              >
+                {variants.map((variant) => (
+                  <div key={variant.id} className="h-full min-w-full">
+                    {variant.imageUrl ? (
+                      <img
+                        src={variant.imageUrl}
+                        alt={variant.flavor ?? product?.name ?? 'Product'}
+                        loading="lazy"
+                        decoding="async"
+                        className="h-full w-full object-cover object-center"
+                        onLoad={() => setImageLoaded(true)}
+                        onError={() => setImageLoaded(true)}
+                      />
+                    ) : (
+                      <div className="h-full w-full bg-gradient-to-br from-green-200 to-green-100" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <img
+                src={product?.imageUrl ?? ''}
+                alt={product?.name ?? 'Product'}
+                loading="lazy"
+                decoding="async"
+                className="h-full w-full object-cover object-center"
+                onLoad={() => setImageLoaded(true)}
+                onError={() => setImageLoaded(true)}
+              />
+            )}
+            {variants.length > 1 ? (
+              <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
+                {variants.map((variant, idx) => (
+                  <button
+                    key={variant.id}
+                    type="button"
+                    onClick={() => goToVariant(idx)}
+                    className={`h-1.5 w-1.5 rounded-full ${idx === variantIndex ? 'bg-white' : 'bg-white/55'}`}
+                  >
+                    <span className="sr-only">{`Variant ${idx + 1}`}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : (
-          <div className="mt-3 h-56 rounded-3xl bg-gradient-to-br from-green-200 to-green-100" />
+          <div className="mt-3 aspect-[4/3] rounded-3xl bg-gradient-to-br from-green-200 to-green-100" />
         )}
         <h1 className="mt-4 text-2xl font-bold text-[#121212]">{product?.name ?? 'Mahsulot'}</h1>
         {activeVariant?.flavor ? <p className="mt-1 text-sm font-medium text-slate-700">{activeVariant.flavor}</p> : null}
         <p className="mt-1 text-sm text-gray-500">⭐ 4.8 • Yangi va sifatli mahsulot</p>
         <p className="mt-2 text-2xl font-bold text-[#121212]">{formatMoneyUz(activeVariant?.price ?? product?.price ?? 0)}</p>
+        <p className={`mt-1 text-xs font-medium ${Number(activeVariant?.stock ?? 0) > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+          {Number(activeVariant?.stock ?? 0) > 0 ? `Mavjud: ${activeVariant?.stock} dona` : 'Hozircha mavjud emas'}
+        </p>
         {activeVariant?.description ? (
           <p className="mt-2 text-sm text-gray-500 line-clamp-2">{activeVariant.description}</p>
         ) : null}

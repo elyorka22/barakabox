@@ -88,39 +88,42 @@ export function ProductCard({
   };
 
   return (
-    <article className="rounded-3xl bg-white p-3 shadow-sm">
+    <article className="rounded-3xl bg-white p-2.5 shadow-sm sm:p-3">
       <Link href={href ?? '#'} className="block">
         {activeVariant ? (
           <div
-            className="relative h-28 w-full overflow-hidden rounded-2xl"
+            className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-50"
             onTouchStart={(event) => setTouchStartX(event.changedTouches[0]?.clientX ?? null)}
             onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
           >
             {!loaded ? <div className="bb-skeleton absolute inset-0" /> : null}
             <div
-              className="flex h-28 w-full transition-transform duration-300 ease-out"
+              className="flex h-full w-full transition-transform duration-300 ease-out"
               style={{ transform: `translateX(-${activeVariantIndex * 100}%)` }}
             >
               {effectiveVariants.map((variant) => (
-                <div key={variant.id} className="h-28 min-w-full">
+                <div key={variant.id} className="flex h-full min-w-full items-center justify-center">
                   {variant.imageUrl ? (
                     <img
                       src={variant.imageUrl}
                       alt={variant.flavor || name}
                       loading="lazy"
                       decoding="async"
-                      className="h-28 w-full object-cover"
+                      className="h-full w-full object-cover object-center"
                       onLoad={() => setLoaded(true)}
                       onError={() => setLoaded(true)}
                     />
                   ) : (
-                    <div className="h-28 rounded-2xl bg-gradient-to-br from-green-200 to-green-100" />
+                    <div className="h-full w-full rounded-2xl bg-gradient-to-br from-green-200 to-green-100" />
                   )}
                 </div>
               ))}
             </div>
+            <span className="absolute left-2 top-2 rounded-lg bg-black/55 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm">
+              -10%
+            </span>
             {effectiveVariants.length > 1 ? (
-              <div className="absolute bottom-1 left-0 right-0 flex justify-center gap-1">
+              <div className="absolute bottom-1.5 left-0 right-0 flex justify-center gap-1">
                 {effectiveVariants.map((variant, idx) => (
                   <button
                     type="button"
@@ -141,16 +144,11 @@ export function ProductCard({
         ) : (
           <div className="h-28 rounded-2xl bg-gradient-to-br from-green-200 to-green-100" />
         )}
-        <h3 className="mt-3 line-clamp-1 text-sm font-semibold text-[#121212]">{name}</h3>
-        <p className="mt-0.5 line-clamp-1 text-[11px] font-medium text-slate-700">{activeVariant?.flavor ?? ''}</p>
-        <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">{activeVariant?.description ?? ''}</p>
-        <div className="mt-1 flex items-center justify-between">
-          <p className="text-base font-bold text-[#121212]">{activeVariant ? formatMoneyUz(activeVariant.price) : '—'}</p>
-          <span className="text-xs text-gray-500">{`Qoldiq: ${activeVariant?.stock ?? 0}`}</span>
-        </div>
+        <h3 className="mt-2.5 line-clamp-1 text-[13px] font-semibold text-[#121212]">{name}</h3>
+        <p className="mt-0.5 line-clamp-1 min-h-4 text-[11px] font-medium text-slate-600">{activeVariant?.flavor ?? ''}</p>
+        <p className="mt-1 text-base font-bold text-[#121212]">{activeVariant ? formatMoneyUz(activeVariant.price) : '—'}</p>
       </Link>
-      <div className="mt-2 flex items-center justify-between">
-        <span className="rounded-full bg-green-100 px-2 py-1 text-[10px] font-semibold text-green-700">-10%</span>
+      <div className="mt-2.5 flex items-center justify-end">
         {activeVariant && activeQuantity > 0 ? (
           <div className="flex items-center gap-2 rounded-xl bg-[#F3F4F6] p-1">
             <button
