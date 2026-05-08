@@ -199,7 +199,7 @@ export default function Home() {
   return (
     <main className="bb-page bg-[#F8F8F8]">
       <section className="bb-shell bg-[#F8F8F8]">
-        <div className="bb-header-sticky !top-2 !mx-0 border border-white/70 !bg-[#F8F8F8]/95 !px-0 !py-0">
+        <div className="mb-3 border border-white/70 bg-[#F8F8F8] px-0 py-0">
           <div className="flex items-center gap-2 rounded-2xl bg-white p-2 shadow-[0_4px_14px_rgba(17,24,39,0.06)]">
             <div className="flex flex-1 items-center gap-2 rounded-xl bg-[#F3F4F6] px-3 py-2.5 text-slate-500">
               <Search className="h-4 w-4" />
@@ -215,7 +215,7 @@ export default function Home() {
         </div>
 
         <motion.section
-          className="relative mt-4 overflow-hidden rounded-3xl bg-gradient-to-r from-[#16C25B] to-[#0FA34B] p-5 text-white shadow-[0_10px_24px_rgba(22,194,91,0.25)]"
+          className="relative mt-3 overflow-hidden rounded-3xl bg-gradient-to-r from-[#16C25B] to-[#0FA34B] p-4 text-white shadow-[0_10px_24px_rgba(22,194,91,0.25)]"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
@@ -228,9 +228,9 @@ export default function Home() {
             transition={{ duration: 0.3 }}
             className="space-y-2"
           >
-            <p className="max-w-[72%] text-2xl font-bold leading-7">{HERO_SLIDES[heroIndex]?.title}</p>
-            <p className="max-w-[74%] text-sm text-white/90">{HERO_SLIDES[heroIndex]?.subtitle}</p>
-            <button className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-[#111111]">
+            <p className="max-w-[74%] text-xl font-bold leading-6">{HERO_SLIDES[heroIndex]?.title}</p>
+            <p className="max-w-[76%] text-[13px] text-white/90">{HERO_SLIDES[heroIndex]?.subtitle}</p>
+            <button className="rounded-2xl bg-white px-3.5 py-1.5 text-xs font-semibold text-[#111111]">
               {HERO_SLIDES[heroIndex]?.cta}
             </button>
           </motion.div>
@@ -257,8 +257,12 @@ export default function Home() {
                 ))
               : categories.map((item, idx) => {
                   return (
-                    <Link key={`${item.name}-${idx}`} href={`/categories/${item.slug}`} className="flex flex-col items-center gap-1">
-                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-[0_6px_16px_rgba(17,24,39,0.08)]">
+                    <Link
+                      key={`${item.name}-${idx}`}
+                      href={`/categories/${item.slug}`}
+                      className="flex flex-col items-center gap-1 transition-transform duration-200 hover:scale-[1.03] active:scale-[1.03]"
+                    >
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#22c55e]/70 bg-white shadow-[0_8px_18px_rgba(34,197,94,0.16)]">
                         {item.imageUrl ? (
                           <img
                             src={item.imageUrl}

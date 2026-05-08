@@ -4,12 +4,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Grid2X2, Home, ShoppingCart, User } from 'lucide-react';
+import { Home, LayoutGrid, ShoppingCart, User } from 'lucide-react';
 import { api, authEvents, authStorage, cartEvents } from '@/lib/api';
 
 const baseItems = [
   { href: '/', key: 'home', icon: Home },
-  { href: '/categories', key: 'categories', icon: Grid2X2 },
+  { href: '/categories', key: 'categories', icon: LayoutGrid },
   { href: '/client', key: 'cart', icon: ShoppingCart },
   { href: '/profile', key: 'profile', icon: User },
 ] as const;
@@ -54,7 +54,7 @@ export function BottomNav() {
           <Link
             key={item.href}
             href={item.href}
-            className={`relative flex items-center justify-center rounded-2xl py-2 transition-all duration-200 ${
+            className={`relative flex min-h-12 items-center justify-center rounded-2xl px-2 py-2.5 transition-all duration-200 ${
               active ? 'text-[#16C25B]' : 'text-slate-400'
             }`}
           >
@@ -67,11 +67,11 @@ export function BottomNav() {
               {active ? (
                 <motion.span
                   layoutId="nav-active-bg"
-                  className="absolute inset-[-10px] rounded-2xl bg-emerald-50"
+                  className="absolute inset-[-8px] rounded-2xl bg-emerald-50 shadow-[0_0_0_1px_rgba(34,197,94,0.08),0_6px_14px_rgba(34,197,94,0.2)]"
                   transition={{ type: 'spring', stiffness: 420, damping: 34 }}
                 />
               ) : null}
-              <item.icon className="relative h-6 w-6" strokeWidth={1.9} />
+              <item.icon className={`relative ${active ? 'h-7 w-7' : 'h-6 w-6'}`} strokeWidth={1.9} />
             </motion.div>
             {item.key === 'cart' && cartCount > 0 ? (
               <motion.span
