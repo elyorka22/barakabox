@@ -43,6 +43,8 @@ export default function AdminProductsPage() {
     id: '',
     name: '',
     description: '',
+    price: '1000',
+    stockQuantity: '0',
     unitType: 'piece' as Product['unitType'],
     businessId: '',
     categoryId: '',
@@ -97,6 +99,44 @@ export default function AdminProductsPage() {
     return filtered.slice((page - 1) * pageSize, page * pageSize);
   }, [products, search, categoryFilter, page]);
 
+  const isSingleVariant = form.variants.length === 1;
+
+  const aggregatedPrice = useMemo(() => {
+    if (!form.variants.length) return '0';
+    return String(
+      Math.min(
+        ...form.variants.map((variant) => {
+          const value = Number(variant.price);
+          return Number.isFinite(value) ? value : 0;
+        }),
+      ),
+    );
+  }, [form.variants]);
+
+  const aggregatedStock = useMemo(() => {
+    if (!form.variants.length) return '0';
+    return String(
+      form.variants.reduce((sum, variant) => {
+        const value = Number(variant.stock);
+        return sum + (Number.isFinite(value) ? value : 0);
+      }, 0),
+    );
+  }, [form.variants]);
+
+  useEffect(() => {
+    if (!isSingleVariant) return;
+    const firstVariant = form.variants[0];
+    if (!firstVariant) return;
+    const nextPrice = firstVariant.price || '0';
+    const nextStock = firstVariant.stock || '0';
+    if (form.price === nextPrice && form.stockQuantity === nextStock) return;
+    setForm((prev) => ({
+      ...prev,
+      price: nextPrice,
+      stockQuantity: nextStock,
+    }));
+  }, [isSingleVariant, form.variants, form.price, form.stockQuantity]);
+
   const save = async () => {
     const normalizedVariants = form.variants
       .map((variant, idx) => ({
@@ -119,8 +159,8 @@ export default function AdminProductsPage() {
       businessId: form.businessId,
       name: form.name.trim(),
       description: form.description.trim() || undefined,
-      price: aggregatePrice,
-      stockQuantity: aggregateStock,
+      price: isSingleVariant ? Number(form.price) : aggregatePrice,
+      stockQuantity: isSingleVariant ? Number(form.stockQuantity) : aggregateStock,
       unitType: form.unitType,
       categoryId: form.categoryId || undefined,
       imageUrl: form.imageUrl || undefined,
@@ -138,6 +178,8 @@ export default function AdminProductsPage() {
       id: '',
       name: '',
       description: '',
+      price: '1000',
+      stockQuantity: '0',
       imageUrl: '',
       imageKey: '',
       variants: [{ id: '', title: '', description: '', price: '1000', stock: '0', imageUrl: '' }],
@@ -152,6 +194,8 @@ export default function AdminProductsPage() {
       id: item.id,
       name: item.name,
       description: item.description ?? '',
+      price: String(item.price),
+      stockQuantity: String(item.stockQuantity),
       unitType: item.unitType,
       businessId: item.businessId,
       categoryId: item.category?.id ?? '',
@@ -243,6 +287,54 @@ export default function AdminProductsPage() {
             </select>
           </div>
           <div className="min-w-0 max-w-full">
+            <label className="mb-1 block text-xs font-medium text-slate-700">Narx</label>
+            <input
+              className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              type="number"
+              placeholder="Masalan: 18000"
+              value={isSingleVariant ? form.price : aggregatedPrice}
+              readOnly={!isSingleVariant}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  price: e.target.value,
+                  variants: prev.variants.length
+                    ? prev.variants.map((variant, idx) =>
+                        idx === 0 ? { ...variant, price: e.target.value } : variant,
+                      )
+                    : prev.variants,
+                }))
+              }
+            />
+            {!isSingleVariant ? (
+              <p className="mt-1 text-[11px] text-slate-500">Bir nechta variantda minimal variant narxi ko'rsatiladi.</p>
+            ) : null}
+          </div>
+          <div className="min-w-0 max-w-full">
+            <label className="mb-1 block text-xs font-medium text-slate-700">Qoldiq</label>
+            <input
+              className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              type="number"
+              placeholder="Masalan: 25"
+              value={isSingleVariant ? form.stockQuantity : aggregatedStock}
+              readOnly={!isSingleVariant}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  stockQuantity: e.target.value,
+                  variants: prev.variants.length
+                    ? prev.variants.map((variant, idx) =>
+                        idx === 0 ? { ...variant, stock: e.target.value } : variant,
+                      )
+                    : prev.variants,
+                }))
+              }
+            />
+            {!isSingleVariant ? (
+              <p className="mt-1 text-[11px] text-slate-500">Bir nechta variantda jami qoldiq ko'rsatiladi.</p>
+            ) : null}
+          </div>
+          <div className="min-w-0 max-w-full">
             <select className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" value={form.categoryId} onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value }))}>
               <option value="">Kategoriya yo'q</option>
               {categories.map((category) => (
@@ -324,6 +416,7 @@ export default function AdminProductsPage() {
                       onChange={(e) =>
                         setForm((prev) => ({
                           ...prev,
+                          ...(isSingleVariant && idx === 0 ? { price: e.target.value } : {}),
                           variants: prev.variants.map((item, itemIdx) =>
                             itemIdx === idx ? { ...item, price: e.target.value } : item,
                           ),
@@ -338,6 +431,7 @@ export default function AdminProductsPage() {
                       onChange={(e) =>
                         setForm((prev) => ({
                           ...prev,
+                          ...(isSingleVariant && idx === 0 ? { stockQuantity: e.target.value } : {}),
                           variants: prev.variants.map((item, itemIdx) =>
                             itemIdx === idx ? { ...item, stock: e.target.value } : item,
                           ),
