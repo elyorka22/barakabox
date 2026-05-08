@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { formatMoneyUz } from '@/lib/format';
-import { getDefaultVariant } from '@/lib/default-variant';
 
 type Variant = {
   id: string;
@@ -47,7 +46,6 @@ export function ProductCard({
   const [activeVariantIndex, setActiveVariantIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const effectiveVariants = variants;
-  const defaultVariant = getDefaultVariant({ variants });
   const variantIdsKey = useMemo(() => effectiveVariants.map((variant) => variant.id).join('|'), [effectiveVariants]);
 
   const activeVariant =
@@ -66,13 +64,8 @@ export function ProductCard({
       setActiveVariantIndex(0);
       return;
     }
-    if (!defaultVariant) {
-      setActiveVariantIndex(0);
-      return;
-    }
-    const idx = effectiveVariants.findIndex((v) => v.id === defaultVariant.id);
-    setActiveVariantIndex(idx >= 0 ? idx : 0);
-  }, [variantIdsKey, defaultVariant?.id]);
+    setActiveVariantIndex((prev) => Math.min(prev, effectiveVariants.length - 1));
+  }, [variantIdsKey]);
 
   const goToVariant = (targetIndex: number) => {
     if (!effectiveVariants.length) return;

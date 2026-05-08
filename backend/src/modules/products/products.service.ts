@@ -31,13 +31,7 @@ export class ProductsService {
         },
       },
       orderBy: { createdAt: 'desc' },
-    }).then((products) =>
-      products.map((product) => ({
-        ...product,
-        price: product.variants[0]?.price ?? product.price,
-        imageUrl: product.variants[0]?.imageUrl ?? product.imageUrl,
-      })),
-    );
+    });
   }
 
   async search(term: string, page = 1, limit = 20) {
