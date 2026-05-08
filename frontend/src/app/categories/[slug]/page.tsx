@@ -73,10 +73,16 @@ export default function CategoryProductsPage() {
     void loadCart();
   }, [page, params.slug]);
 
-  const qtyByProductId = useMemo(
-    () => (productId: string) => cart?.items.find((item) => item.product?.id === productId)?.quantity ?? 0,
-    [cart],
-  );
+  const quantityByVariantId = useMemo(() => {
+    const map: Record<string, number> = {};
+    if (!cart) return map;
+    for (const item of cart.items) {
+      if (item.variant?.id) {
+        map[item.variant.id] = (map[item.variant.id] ?? 0) + item.quantity;
+      }
+    }
+    return map;
+  }, [cart]);
 
   const addToCart = async (variantId: string, productId: string, quantity = 1) => {
     setAdding(true);
@@ -121,7 +127,7 @@ export default function CategoryProductsPage() {
                   }))}
                   onIncrease={(variantId, productId) => void addToCart(variantId, productId, 1)}
                   onDecrease={(variantId, productId) => void addToCart(variantId, productId, -1)}
-                  quantity={qtyByProductId(item.id)}
+                  quantityByVariantId={quantityByVariantId}
                   loading={adding}
                   href={`/products/${item.id}`}
                   imageUrl={item.imageCardUrl ?? item.imageUrl}

@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { api, authStorage } from '@/lib/api';
 import { formatMoneyUz } from '@/lib/format';
 import { MobileNav } from '@/components/app-nav';
+import { getDefaultVariant } from '@/lib/default-variant';
 
 type Product = {
   id: string;
@@ -41,11 +42,22 @@ export default function ProductDetailPage() {
     void load();
   }, [params.id]);
 
+  const defaultVariant = getDefaultVariant({ variants: product?.variants });
+  const activeVariant = product?.variants?.[variantIndex] ?? null;
+
+  useEffect(() => {
+    if (!product?.variants?.length) return;
+    if (!defaultVariant) {
+      setVariantIndex(0);
+      return;
+    }
+    const idx = product.variants.findIndex((v) => v.id === defaultVariant.id);
+    setVariantIndex(idx >= 0 ? idx : 0);
+  }, [product?.variants, defaultVariant?.id]);
+
   useEffect(() => {
     setImageLoaded(false);
-  }, [product?.imageUrl, variantIndex]);
-
-  const activeVariant = product?.variants?.[variantIndex] ?? null;
+  }, [product?.imageUrl, activeVariant?.id, activeVariant?.imageUrl]);
 
   const total = useMemo(
     () => (product ? Number(activeVariant?.price ?? product.price) * quantity : 0),
@@ -90,6 +102,9 @@ export default function ProductDetailPage() {
         <h1 className="mt-4 text-2xl font-bold text-[#121212]">{activeVariant?.title ?? product?.name ?? 'Mahsulot'}</h1>
         <p className="mt-1 text-sm text-gray-500">⭐ 4.8 • Yangi va sifatli mahsulot</p>
         <p className="mt-2 text-2xl font-bold text-[#121212]">{formatMoneyUz(activeVariant?.price ?? product?.price ?? 0)}</p>
+        {activeVariant?.description ? (
+          <p className="mt-2 text-sm text-gray-500 line-clamp-2">{activeVariant.description}</p>
+        ) : null}
         {product?.variants?.length ? (
           <div className="mt-3 flex gap-2 overflow-x-auto">
             {product.variants.map((variant, idx) => (

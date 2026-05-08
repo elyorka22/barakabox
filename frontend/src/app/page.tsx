@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api, authStorage, guestStorage } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
@@ -108,7 +108,16 @@ export default function Home() {
     }
   };
 
-  const qtyByProductId = (productId: string) => cart?.items.find((item) => item.product?.id === productId)?.quantity ?? 0;
+  const quantityByVariantId = useMemo(() => {
+    const map: Record<string, number> = {};
+    if (!cart) return map;
+    for (const item of cart.items) {
+      if (item.variant?.id) {
+        map[item.variant.id] = (map[item.variant.id] ?? 0) + item.quantity;
+      }
+    }
+    return map;
+  }, [cart]);
 
   return (
     <main className="bb-page">
@@ -181,7 +190,7 @@ export default function Home() {
                 }))}
                 onIncrease={(variantId, productId) => void changeProductQty(variantId, productId, 1)}
                 onDecrease={(variantId, productId) => void changeProductQty(variantId, productId, -1)}
-                quantity={qtyByProductId(product.id)}
+                quantityByVariantId={quantityByVariantId}
                 loading={loading}
                 href={`/products/${product.id}`}
                 imageUrl={product.imageCardUrl ?? product.imageUrl}

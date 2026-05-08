@@ -1,12 +1,19 @@
-import { IsInt, IsNotEmpty, IsString, Min, NotEquals } from 'class-validator';
-import { IsOptional } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsInt, IsNotEmpty, IsString, Min, NotEquals, IsOptional } from 'class-validator';
+
+function emptyToUndefined(value: unknown): unknown {
+  if (typeof value === 'string' && value.trim() === '') return undefined;
+  return value;
+}
 
 export class AddCartItemDto {
   @IsOptional()
+  @Transform(({ value }) => emptyToUndefined(value))
   @IsString()
   productId?: string;
 
   @IsOptional()
+  @Transform(({ value }) => emptyToUndefined(value))
   @IsString()
   variantId?: string;
 
@@ -27,10 +34,12 @@ export class AddCartBoxDto {
 
 export class RemoveCartItemDto {
   @IsOptional()
+  @Transform(({ value }) => emptyToUndefined(value))
   @IsString()
   productId?: string;
 
   @IsOptional()
+  @Transform(({ value }) => emptyToUndefined(value))
   @IsString()
   variantId?: string;
 }

@@ -11,6 +11,7 @@ type CartResponse = {
     id: string;
     quantity: number;
     product?: { id: string; name: string; price: string } | null;
+    variant?: { id: string; title?: string | null; flavor?: string | null; size?: string | null; price: number } | null;
     box?: { id: string; name: string; price: string } | null;
   }>;
 };
@@ -54,19 +55,19 @@ export default function ClientPage() {
     });
   };
 
-  const updateProductQty = async (productId: string, quantity: number) => {
-    const existing = cart?.items.find((i) => i.product?.id === productId);
+  const updateCartItemQty = async (variantId: string | undefined, productId: string | undefined, quantity: number) => {
+    const existing = cart?.items.find((i) => (variantId ? i.variant?.id === variantId : i.product?.id === productId));
     if (!existing) return;
     if (quantity <= 0) {
       await withLoading(async () => {
-        await api.delete('/cart/items', { productId }, token);
+        await api.delete('/cart/items', { productId, variantId }, token);
         await loadCart();
       });
       return;
     }
     const diff = quantity - existing.quantity;
     await withLoading(async () => {
-      await api.post('/cart/items', { productId, quantity: diff }, token);
+      await api.post('/cart/items', { productId, variantId, quantity: diff }, token);
       await loadCart();
     });
   };
@@ -74,6 +75,7 @@ export default function ClientPage() {
   const cartTotal = useMemo(() => {
     if (!cart) return 0;
     return cart.items.reduce((sum, item) => {
+      if (item.variant && item.product) return sum + Number(item.variant.price) * item.quantity;
       if (item.product) return sum + Number(item.product.price) * item.quantity;
       if (item.box) return sum + Number(item.box.price) * item.quantity;
       return sum;
@@ -94,7 +96,7 @@ export default function ClientPage() {
           ) : null}
           {cart?.items.map((item) => {
             const title = item.product ? item.product.name : item.box?.name ?? "Noma'lum";
-            const price = Number(item.product?.price ?? item.box?.price ?? 0);
+            const price = item.variant ? Number(item.variant.price) : Number(item.product?.price ?? item.box?.price ?? 0);
             return (
               <article key={item.id} className="rounded-3xl bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between">
@@ -104,11 +106,17 @@ export default function ClientPage() {
                   </div>
                   {item.product ? (
                     <div className="flex items-center gap-2">
-                      <button className="h-8 w-8 rounded-full bg-[#F3F4F6] font-bold" onClick={() => updateProductQty(item.product!.id, item.quantity - 1)}>
+                      <button
+                        className="h-8 w-8 rounded-full bg-[#F3F4F6] font-bold"
+                        onClick={() => updateCartItemQty(item.variant?.id, item.product!.id, item.quantity - 1)}
+                      >
                         -
                       </button>
                       <span className="w-6 text-center text-sm font-semibold">{item.quantity}</span>
-                      <button className="h-8 w-8 rounded-full bg-[#F3F4F6] font-bold" onClick={() => updateProductQty(item.product!.id, item.quantity + 1)}>
+                      <button
+                        className="h-8 w-8 rounded-full bg-[#F3F4F6] font-bold"
+                        onClick={() => updateCartItemQty(item.variant?.id, item.product!.id, item.quantity + 1)}
+                      >
                         +
                       </button>
                     </div>

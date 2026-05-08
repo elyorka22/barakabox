@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { formatMoneyUz } from '@/lib/format';
+import { getDefaultVariant } from '@/lib/default-variant';
 
 type Variant = {
   id: string;
@@ -23,6 +24,7 @@ type ProductCardProps = {
   onIncrease?: (variantId: string, productId: string) => void;
   onDecrease?: (variantId: string, productId: string) => void;
   quantity?: number;
+  quantityByVariantId?: Record<string, number>;
   loading?: boolean;
   href?: string;
   imageUrl?: string | null;
@@ -36,6 +38,7 @@ export function ProductCard({
   onIncrease,
   onDecrease,
   quantity = 0,
+  quantityByVariantId,
   loading,
   href,
   imageUrl,
@@ -43,16 +46,37 @@ export function ProductCard({
 }: ProductCardProps) {
   const [loaded, setLoaded] = useState(false);
   const [activeVariantIndex, setActiveVariantIndex] = useState(0);
-  const effectiveVariants =
-    variants.length > 0
-      ? variants
-      : [{ id: `${id}-default`, title: name, price, imageUrl, stock: 9999 }];
-  const activeVariant = effectiveVariants[Math.min(activeVariantIndex, effectiveVariants.length - 1)];
+  const effectiveVariants = variants;
+  const defaultVariant = getDefaultVariant({ variants });
+
+  const activeVariant =
+    effectiveVariants.length > 0
+      ? effectiveVariants[Math.min(activeVariantIndex, effectiveVariants.length - 1)]
+      : null;
+
+  const activeQuantity = activeVariant ? quantityByVariantId?.[activeVariant.id] ?? quantity : 0;
+
+  useEffect(() => {
+    setLoaded(false);
+  }, [activeVariant?.id]);
+
+  useEffect(() => {
+    if (!effectiveVariants?.length) {
+      setActiveVariantIndex(0);
+      return;
+    }
+    if (!defaultVariant) {
+      setActiveVariantIndex(0);
+      return;
+    }
+    const idx = effectiveVariants.findIndex((v) => v.id === defaultVariant.id);
+    setActiveVariantIndex(idx >= 0 ? idx : 0);
+  }, [effectiveVariants, defaultVariant?.id]);
 
   return (
     <article className="rounded-3xl bg-white p-3 shadow-sm">
       <Link href={href ?? '#'} className="block">
-        {effectiveVariants.length > 0 ? (
+        {activeVariant ? (
           <div className="relative h-28 w-full overflow-hidden rounded-2xl">
             {!loaded ? <div className="bb-skeleton absolute inset-0" /> : null}
             <div
@@ -68,7 +92,7 @@ export function ProductCard({
                   {variant.imageUrl ? (
                     <img
                       src={variant.imageUrl}
-                      alt={variant.title}
+                      alt={variant.title || name}
                       loading="lazy"
                       decoding="async"
                       className="h-28 w-full object-cover"
@@ -95,18 +119,24 @@ export function ProductCard({
         ) : (
           <div className="h-28 rounded-2xl bg-gradient-to-br from-green-200 to-green-100" />
         )}
-        <h3 className="mt-3 line-clamp-1 text-sm font-semibold text-[#121212]">{activeVariant.title || name}</h3>
-        <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">
-          {[activeVariant.flavor, activeVariant.size].filter(Boolean).join(' • ') || 'Variant'}
-        </p>
+        {activeVariant ? (
+          <>
+            <h3 className="mt-3 line-clamp-1 text-sm font-semibold text-[#121212]">{activeVariant.title || name}</h3>
+            <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">
+              {[activeVariant.flavor, activeVariant.size].filter(Boolean).join(' • ')}
+            </p>
+          </>
+        ) : (
+          <h3 className="mt-3 line-clamp-1 text-sm font-semibold text-[#121212]">Hozircha mavjud emas</h3>
+        )}
         <div className="mt-1 flex items-center justify-between">
-          <p className="text-base font-bold text-[#121212]">{formatMoneyUz(activeVariant.price)}</p>
+          <p className="text-base font-bold text-[#121212]">{activeVariant ? formatMoneyUz(activeVariant.price) : '—'}</p>
           <span className="text-xs text-gray-500">⭐ 4.8</span>
         </div>
       </Link>
       <div className="mt-2 flex items-center justify-between">
         <span className="rounded-full bg-green-100 px-2 py-1 text-[10px] font-semibold text-green-700">-10%</span>
-        {quantity > 0 ? (
+        {activeVariant && activeQuantity > 0 ? (
           <div className="flex items-center gap-2 rounded-xl bg-[#F3F4F6] p-1">
             <button
               onClick={() => onDecrease?.(activeVariant.id, id)}
@@ -115,7 +145,7 @@ export function ProductCard({
             >
               -
             </button>
-            <span className="w-5 text-center text-xs font-semibold text-[#121212]">{quantity}</span>
+            <span className="w-5 text-center text-xs font-semibold text-[#121212]">{activeQuantity}</span>
             <button
               onClick={() => onIncrease?.(activeVariant.id, id)}
               disabled={loading}
@@ -126,8 +156,11 @@ export function ProductCard({
           </div>
         ) : (
           <button
-            onClick={() => onAdd(activeVariant.id, id)}
-            disabled={loading || (activeVariant.stock ?? 0) <= 0}
+            onClick={() => {
+              if (!activeVariant) return;
+              onAdd(activeVariant.id, id);
+            }}
+            disabled={!activeVariant || loading || (activeVariant.stock ?? 0) <= 0}
             className="rounded-xl bg-[#16A34A] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
           >
             {loading ? "Qo'shilmoqda..." : "Qo'shish"}
