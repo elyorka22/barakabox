@@ -11,7 +11,7 @@ type CartResponse = {
     id: string;
     quantity: number;
     product?: { id: string; name: string; price: string } | null;
-    variant?: { id: string; title?: string | null; flavor?: string | null; size?: string | null; price: number } | null;
+    variant?: { id: string; title?: string | null; description?: string | null; price: number } | null;
     box?: { id: string; name: string; price: string } | null;
   }>;
 };

@@ -8,8 +8,7 @@ import { getDefaultVariant } from '@/lib/default-variant';
 type Variant = {
   id: string;
   title: string;
-  flavor?: string | null;
-  size?: string | null;
+  description?: string | null;
   price: string | number;
   stock?: number;
   imageUrl?: string | null;
@@ -122,9 +121,7 @@ export function ProductCard({
         {activeVariant ? (
           <>
             <h3 className="mt-3 line-clamp-1 text-sm font-semibold text-[#121212]">{activeVariant.title || name}</h3>
-            <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">
-              {[activeVariant.flavor, activeVariant.size].filter(Boolean).join(' • ')}
-            </p>
+            <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">{activeVariant.description ?? ''}</p>
           </>
         ) : (
           <h3 className="mt-3 line-clamp-1 text-sm font-semibold text-[#121212]">Hozircha mavjud emas</h3>

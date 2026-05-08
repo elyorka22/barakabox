@@ -17,8 +17,6 @@ type Product = {
   variants?: Array<{
     id: string;
     title: string;
-    flavor?: string | null;
-    size?: string | null;
     description?: string | null;
     price: number;
     stock: number;
@@ -115,7 +113,7 @@ export default function ProductDetailPage() {
                 }`}
                 onClick={() => setVariantIndex(idx)}
               >
-                {variant.flavor ?? variant.title}
+                {variant.title}
               </button>
             ))}
           </div>

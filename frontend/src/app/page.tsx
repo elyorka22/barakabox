@@ -17,8 +17,7 @@ type Product = {
   variants?: Array<{
     id: string;
     title: string;
-    flavor?: string | null;
-    size?: string | null;
+    description?: string | null;
     price: number;
     stock: number;
     imageUrl?: string | null;

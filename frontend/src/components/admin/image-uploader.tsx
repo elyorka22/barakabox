@@ -9,12 +9,21 @@ type Props = {
   valueKey: string;
   onChange: (next: { url: string; key: string }) => void;
   onUploadingChange?: (uploading: boolean) => void;
+  inputId?: string;
+  label?: string;
 };
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
-export function ImageUploader({ valueUrl, valueKey, onChange, onUploadingChange }: Props) {
+export function ImageUploader({
+  valueUrl,
+  valueKey,
+  onChange,
+  onUploadingChange,
+  inputId = 'product-image-upload',
+  label = 'Mahsulot rasmi',
+}: Props) {
   const [previewUrl, setPreviewUrl] = useState(valueUrl);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -96,8 +105,8 @@ export function ImageUploader({ valueUrl, valueKey, onChange, onUploadingChange 
 
   return (
     <div className="w-full min-w-0 max-w-full space-y-2 rounded-xl border border-dashed border-slate-300 p-3">
-      <label htmlFor="product-image-upload" className="block text-xs font-medium text-slate-700">
-        Mahsulot rasmi
+      <label htmlFor={inputId} className="block text-xs font-medium text-slate-700">
+        {label}
       </label>
       <p className="text-[11px] text-slate-500">JPG, PNG yoki WEBP. Maksimum 5MB</p>
       <div
@@ -111,14 +120,14 @@ export function ImageUploader({ valueUrl, valueKey, onChange, onUploadingChange 
         }}
       >
         <label
-          htmlFor="product-image-upload"
+          htmlFor={inputId}
           className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
         >
           <Upload className="h-4 w-4" />
           Rasm tanlash
         </label>
         <input
-          id="product-image-upload"
+          id={inputId}
           type="file"
           accept="image/jpeg,image/png,image/webp"
           aria-label="Mahsulot rasmini tanlash"

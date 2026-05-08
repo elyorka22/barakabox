@@ -8,6 +8,7 @@ import { ImageUploader } from '@/components/admin/image-uploader';
 type Product = {
   id: string;
   name: string;
+  description?: string | null;
   price: string;
   stockQuantity: number;
   unitType: 'kg' | 'piece' | 'pack';
@@ -20,8 +21,7 @@ type Product = {
   variants?: Array<{
     id?: string;
     title: string;
-    flavor?: string | null;
-    size?: string | null;
+    description?: string | null;
     price: number;
     stock: number;
     imageUrl?: string | null;
@@ -42,18 +42,18 @@ export default function AdminProductsPage() {
   const [form, setForm] = useState({
     id: '',
     name: '',
-    price: '1000',
-    stockQuantity: '0',
+    description: '',
     unitType: 'piece' as Product['unitType'],
     businessId: '',
     categoryId: '',
     imageUrl: '',
     imageKey: '',
     variants: [
-      { id: '', title: '', flavor: '', size: '', price: '1000', stock: '0', imageUrl: '' },
+      { id: '', title: '', description: '', price: '1000', stock: '0', imageUrl: '' },
     ],
   });
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingVariantImages, setUploadingVariantImages] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -98,25 +98,34 @@ export default function AdminProductsPage() {
   }, [products, search, categoryFilter, page]);
 
   const save = async () => {
-    const payload = {
-      businessId: form.businessId,
-      name: form.name.trim(),
-      price: Number(form.price),
-      stockQuantity: Number(form.stockQuantity),
-      unitType: form.unitType,
-      categoryId: form.categoryId || undefined,
-      imageUrl: form.imageUrl || undefined,
-      imageKey: form.imageKey || undefined,
-      variants: form.variants.map((variant, idx) => ({
+    const normalizedVariants = form.variants
+      .map((variant, idx) => ({
         ...(variant.id ? { id: variant.id } : {}),
         title: variant.title.trim() || `${form.name.trim()} Variant ${idx + 1}`,
-        flavor: variant.flavor.trim() || undefined,
-        size: variant.size.trim() || undefined,
+        description: variant.description.trim() || undefined,
         price: Number(variant.price),
         stock: Number(variant.stock),
         imageUrl: variant.imageUrl.trim() || undefined,
         sortOrder: idx,
-      })),
+      }))
+      .filter((variant) => variant.title && variant.price > 0);
+
+    if (normalizedVariants.length === 0) return;
+
+    const aggregatePrice = Math.min(...normalizedVariants.map((variant) => variant.price));
+    const aggregateStock = normalizedVariants.reduce((sum, variant) => sum + variant.stock, 0);
+
+    const payload = {
+      businessId: form.businessId,
+      name: form.name.trim(),
+      description: form.description.trim() || undefined,
+      price: aggregatePrice,
+      stockQuantity: aggregateStock,
+      unitType: form.unitType,
+      categoryId: form.categoryId || undefined,
+      imageUrl: form.imageUrl || undefined,
+      imageKey: form.imageKey || undefined,
+      variants: normalizedVariants,
     };
     if (!payload.businessId || !payload.name || payload.price <= 0) return;
     if (form.id) {
@@ -128,21 +137,21 @@ export default function AdminProductsPage() {
       ...prev,
       id: '',
       name: '',
-      price: '1000',
-      stockQuantity: '0',
+      description: '',
       imageUrl: '',
       imageKey: '',
-      variants: [{ id: '', title: '', flavor: '', size: '', price: '1000', stock: '0', imageUrl: '' }],
+      variants: [{ id: '', title: '', description: '', price: '1000', stock: '0', imageUrl: '' }],
     }));
+    setUploadingVariantImages({});
     await load();
   };
 
   const edit = (item: Product) => {
+    setUploadingVariantImages({});
     setForm({
       id: item.id,
       name: item.name,
-      price: String(item.price),
-      stockQuantity: String(item.stockQuantity),
+      description: item.description ?? '',
       unitType: item.unitType,
       businessId: item.businessId,
       categoryId: item.category?.id ?? '',
@@ -152,12 +161,21 @@ export default function AdminProductsPage() {
         item.variants?.map((variant) => ({
           id: variant.id ?? '',
           title: variant.title ?? '',
-          flavor: variant.flavor ?? '',
-          size: variant.size ?? '',
+          description: variant.description ?? '',
           price: String(variant.price ?? 0),
           stock: String(variant.stock ?? 0),
           imageUrl: variant.imageUrl ?? '',
-        })) ?? [{ id: '', title: '', flavor: '', size: '', price: String(item.price), stock: String(item.stockQuantity), imageUrl: item.imageUrl ?? '' }],
+        })) ??
+        [
+          {
+            id: '',
+            title: item.name,
+            description: '',
+            price: String(item.price),
+            stock: String(item.stockQuantity),
+            imageUrl: item.imageUrl ?? '',
+          },
+        ],
     });
   };
 
@@ -211,37 +229,19 @@ export default function AdminProductsPage() {
             />
           </div>
           <div className="min-w-0 max-w-full">
-            <label className="mb-1 block text-xs font-medium text-slate-700">Narx</label>
-            <input
+            <label className="mb-1 block text-xs font-medium text-slate-700">Do'kon</label>
+            <select
               className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              type="number"
-              placeholder="Masalan: 18000"
-              value={form.price}
-              onChange={(e) => setForm((prev) => ({ ...prev, price: e.target.value }))}
-            />
+              value={form.businessId}
+              onChange={(e) => setForm((prev) => ({ ...prev, businessId: e.target.value }))}
+            >
+              {businesses.map((business) => (
+                <option key={business.id} value={business.id}>
+                  {business.displayName}
+                </option>
+              ))}
+            </select>
           </div>
-          <div className="min-w-0 max-w-full">
-            <label className="mb-1 block text-xs font-medium text-slate-700">Qoldiq</label>
-            <input
-              className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              type="number"
-              placeholder="Masalan: 25"
-              value={form.stockQuantity}
-              onChange={(e) => setForm((prev) => ({ ...prev, stockQuantity: e.target.value }))}
-            />
-          </div>
-          <select className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" value={form.businessId} onChange={(e) => setForm((prev) => ({ ...prev, businessId: e.target.value }))}>
-            {businesses.map((business) => (
-              <option key={business.id} value={business.id}>
-                {business.displayName}
-              </option>
-            ))}
-          </select>
-          <select className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" value={form.unitType} onChange={(e) => setForm((prev) => ({ ...prev, unitType: e.target.value as Product['unitType'] }))}>
-            <option value="piece">piece</option>
-            <option value="kg">kg</option>
-            <option value="pack">pack</option>
-          </select>
           <div className="min-w-0 max-w-full">
             <select className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" value={form.categoryId} onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value }))}>
               <option value="">Kategoriya yo'q</option>
@@ -254,22 +254,58 @@ export default function AdminProductsPage() {
             <p className="mt-1 text-[11px] text-slate-500">Mahsulot kategoriyasini tanlang</p>
           </div>
           <div className="min-w-0 max-w-full sm:col-span-2 lg:col-span-3">
+            <label className="mb-1 block text-xs font-medium text-slate-700">Umumiy mahsulot tavsifi (ixtiyoriy)</label>
+            <textarea
+              className="min-h-[90px] w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              placeholder="Masalan: Tvorog massalar oilasi uchun umumiy tavsif"
+              value={form.description}
+              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+            />
+          </div>
+          <div className="min-w-0 max-w-full sm:col-span-2 lg:col-span-3">
             <ImageUploader
               valueUrl={form.imageUrl}
               valueKey={form.imageKey}
               onChange={({ url, key }) => setForm((prev) => ({ ...prev, imageUrl: url, imageKey: key }))}
               onUploadingChange={setUploadingImage}
+              inputId="main-product-image-upload"
+              label="Asosiy mahsulot rasmi (ixtiyoriy)"
             />
           </div>
           <div className="min-w-0 max-w-full sm:col-span-2 lg:col-span-3">
             <p className="mb-2 text-xs font-semibold text-slate-700">Variantlar</p>
-            <div className="space-y-2">
+            <p className="mb-3 text-[11px] text-slate-500">Har bir variant alohida narx, qoldiq, tavsif va rasmga ega bo'ladi.</p>
+            <div className="space-y-3">
               {form.variants.map((variant, idx) => (
-                <div key={`${variant.id || 'new'}-${idx}`} className="rounded-xl border border-slate-200 p-2">
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                <div key={`${variant.id || 'new'}-${idx}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-semibold text-slate-700">Variant #{idx + 1}</p>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-rose-300 px-2 py-1 text-xs text-rose-700"
+                      onClick={() => {
+                        setUploadingVariantImages((prev) => {
+                          const next: Record<number, boolean> = {};
+                          Object.entries(prev).forEach(([rawKey, value]) => {
+                            const key = Number(rawKey);
+                            if (key < idx) next[key] = value;
+                            if (key > idx) next[key - 1] = value;
+                          });
+                          return next;
+                        });
+                        setForm((prev) => ({
+                          ...prev,
+                          variants: prev.variants.length > 1 ? prev.variants.filter((_, itemIdx) => itemIdx !== idx) : prev.variants,
+                        }));
+                      }}
+                    >
+                      Olib tashlash
+                    </button>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
                     <input
-                      className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs"
-                      placeholder="Variant title"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs"
+                      placeholder="Variant nomi (masalan: Qulupnay)"
                       value={variant.title}
                       onChange={(e) =>
                         setForm((prev) => ({
@@ -281,35 +317,9 @@ export default function AdminProductsPage() {
                       }
                     />
                     <input
-                      className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs"
-                      placeholder="Flavor"
-                      value={variant.flavor}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          variants: prev.variants.map((item, itemIdx) =>
-                            itemIdx === idx ? { ...item, flavor: e.target.value } : item,
-                          ),
-                        }))
-                      }
-                    />
-                    <input
-                      className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs"
-                      placeholder="Size"
-                      value={variant.size}
-                      onChange={(e) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          variants: prev.variants.map((item, itemIdx) =>
-                            itemIdx === idx ? { ...item, size: e.target.value } : item,
-                          ),
-                        }))
-                      }
-                    />
-                    <input
-                      className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs"
                       type="number"
-                      placeholder="Price"
+                      placeholder="Narx"
                       value={variant.price}
                       onChange={(e) =>
                         setForm((prev) => ({
@@ -321,9 +331,9 @@ export default function AdminProductsPage() {
                       }
                     />
                     <input
-                      className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs"
                       type="number"
-                      placeholder="Stock"
+                      placeholder="Qoldiq"
                       value={variant.stock}
                       onChange={(e) =>
                         setForm((prev) => ({
@@ -334,33 +344,44 @@ export default function AdminProductsPage() {
                         }))
                       }
                     />
-                    <input
-                      className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs"
-                      placeholder="Variant image URL"
-                      value={variant.imageUrl}
+                  </div>
+                  <div className="mt-2">
+                    <label className="mb-1 block text-xs font-medium text-slate-700">Variant tavsifi</label>
+                    <textarea
+                      className="min-h-[82px] w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs"
+                      placeholder="Qulupnay tamli tvorog massa"
+                      value={variant.description}
                       onChange={(e) =>
                         setForm((prev) => ({
                           ...prev,
                           variants: prev.variants.map((item, itemIdx) =>
-                            itemIdx === idx ? { ...item, imageUrl: e.target.value } : item,
+                            itemIdx === idx ? { ...item, description: e.target.value } : item,
                           ),
                         }))
                       }
                     />
                   </div>
-                  <div className="mt-2 flex justify-end">
-                    <button
-                      type="button"
-                      className="rounded-lg border border-rose-300 px-2 py-1 text-xs text-rose-700"
-                      onClick={() =>
+                  <div className="mt-2">
+                    <ImageUploader
+                      valueUrl={variant.imageUrl}
+                      valueKey=""
+                      onChange={({ url }) =>
                         setForm((prev) => ({
                           ...prev,
-                          variants: prev.variants.length > 1 ? prev.variants.filter((_, itemIdx) => itemIdx !== idx) : prev.variants,
+                          variants: prev.variants.map((item, itemIdx) =>
+                            itemIdx === idx ? { ...item, imageUrl: url } : item,
+                          ),
                         }))
                       }
-                    >
-                      Olib tashlash
-                    </button>
+                      onUploadingChange={(isUploading) =>
+                        setUploadingVariantImages((prev) => ({
+                          ...prev,
+                          [idx]: isUploading,
+                        }))
+                      }
+                      inputId={`variant-image-upload-${idx}`}
+                      label="Variant rasmi"
+                    />
                   </div>
                 </div>
               ))}
@@ -370,7 +391,7 @@ export default function AdminProductsPage() {
                 onClick={() =>
                   setForm((prev) => ({
                     ...prev,
-                    variants: [...prev.variants, { id: '', title: '', flavor: '', size: '', price: '1000', stock: '0', imageUrl: '' }],
+                    variants: [...prev.variants, { id: '', title: '', description: '', price: '1000', stock: '0', imageUrl: '' }],
                   }))
                 }
               >
@@ -381,7 +402,7 @@ export default function AdminProductsPage() {
           <button
             className="w-full min-w-0 max-w-full rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
             onClick={() => void save()}
-            disabled={uploadingImage}
+            disabled={uploadingImage || Object.values(uploadingVariantImages).some(Boolean)}
           >
             {form.id ? 'Yangilash' : 'Yaratish'}
           </button>
