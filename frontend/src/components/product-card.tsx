@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { formatMoneyUz } from '@/lib/format';
 import { getDefaultVariant } from '@/lib/default-variant';
 
@@ -45,8 +45,10 @@ export function ProductCard({
 }: ProductCardProps) {
   const [loaded, setLoaded] = useState(false);
   const [activeVariantIndex, setActiveVariantIndex] = useState(0);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const effectiveVariants = variants;
   const defaultVariant = getDefaultVariant({ variants });
+  const variantIdsKey = useMemo(() => effectiveVariants.map((variant) => variant.id).join('|'), [effectiveVariants]);
 
   const activeVariant =
     effectiveVariants.length > 0
@@ -70,24 +72,44 @@ export function ProductCard({
     }
     const idx = effectiveVariants.findIndex((v) => v.id === defaultVariant.id);
     setActiveVariantIndex(idx >= 0 ? idx : 0);
-  }, [effectiveVariants, defaultVariant?.id]);
+  }, [variantIdsKey, defaultVariant?.id]);
+
+  const goToVariant = (targetIndex: number) => {
+    if (!effectiveVariants.length) return;
+    setActiveVariantIndex(Math.max(0, Math.min(targetIndex, effectiveVariants.length - 1)));
+  };
+
+  const handleTouchEnd = (touchEndX: number) => {
+    if (touchStartX === null) return;
+    const diff = touchStartX - touchEndX;
+    if (Math.abs(diff) < 30) {
+      setTouchStartX(null);
+      return;
+    }
+    if (diff > 0) {
+      goToVariant(activeVariantIndex + 1);
+    } else {
+      goToVariant(activeVariantIndex - 1);
+    }
+    setTouchStartX(null);
+  };
 
   return (
     <article className="rounded-3xl bg-white p-3 shadow-sm">
       <Link href={href ?? '#'} className="block">
         {activeVariant ? (
-          <div className="relative h-28 w-full overflow-hidden rounded-2xl">
+          <div
+            className="relative h-28 w-full overflow-hidden rounded-2xl"
+            onTouchStart={(event) => setTouchStartX(event.changedTouches[0]?.clientX ?? null)}
+            onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
+          >
             {!loaded ? <div className="bb-skeleton absolute inset-0" /> : null}
             <div
-              className="flex h-28 w-full snap-x snap-mandatory overflow-x-auto scroll-smooth"
-              onScroll={(event) => {
-                const target = event.currentTarget;
-                const index = Math.round(target.scrollLeft / target.clientWidth);
-                setActiveVariantIndex(Math.max(0, Math.min(index, effectiveVariants.length - 1)));
-              }}
+              className="flex h-28 w-full transition-transform duration-300 ease-out"
+              style={{ transform: `translateX(-${activeVariantIndex * 100}%)` }}
             >
               {effectiveVariants.map((variant) => (
-                <div key={variant.id} className="h-28 min-w-full snap-center">
+                <div key={variant.id} className="h-28 min-w-full">
                   {variant.imageUrl ? (
                     <img
                       src={variant.imageUrl}
@@ -107,10 +129,18 @@ export function ProductCard({
             {effectiveVariants.length > 1 ? (
               <div className="absolute bottom-1 left-0 right-0 flex justify-center gap-1">
                 {effectiveVariants.map((variant, idx) => (
-                  <span
+                  <button
+                    type="button"
                     key={variant.id}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      goToVariant(idx);
+                    }}
                     className={`h-1.5 w-1.5 rounded-full ${idx === activeVariantIndex ? 'bg-white' : 'bg-white/50'}`}
-                  />
+                  >
+                    <span className="sr-only">{`Variant ${idx + 1}`}</span>
+                  </button>
                 ))}
               </div>
             ) : null}
