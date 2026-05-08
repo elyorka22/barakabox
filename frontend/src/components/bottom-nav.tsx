@@ -3,51 +3,16 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Grid2X2, Home, ShoppingCart, User } from 'lucide-react';
 import { api, authEvents, authStorage, cartEvents } from '@/lib/api';
 
 const baseItems = [
-  { href: '/', key: 'home' },
-  { href: '/categories', key: 'categories' },
-  { href: '/client', key: 'cart' },
-  { href: '/profile', key: 'profile' },
-];
-
-function Icon({ iconKey, active }: { iconKey: string; active: boolean }) {
-  const className = `h-6 w-6 transition-transform duration-200 ${active ? 'scale-110 text-[#16A34A]' : 'text-slate-400'}`;
-  if (iconKey === 'home') {
-    return (
-      <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
-        <path d="M3 11.25L12 4l9 7.25" />
-        <path d="M6.5 10.5V20h11V10.5" />
-      </svg>
-    );
-  }
-  if (iconKey === 'categories') {
-    return (
-      <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
-        <rect x="4" y="4" width="7" height="7" rx="1.6" />
-        <rect x="13" y="4" width="7" height="7" rx="1.6" />
-        <rect x="4" y="13" width="7" height="7" rx="1.6" />
-        <rect x="13" y="13" width="7" height="7" rx="1.6" />
-      </svg>
-    );
-  }
-  if (iconKey === 'cart') {
-    return (
-      <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
-        <path d="M3.5 5.5h2.4l1.8 9h9.4l1.8-6.4H7.2" />
-        <circle cx="10" cy="18.5" r="1.3" />
-        <circle cx="17" cy="18.5" r="1.3" />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 19.5a8 8 0 0 1 16 0" />
-    </svg>
-  );
-}
+  { href: '/', key: 'home', icon: Home },
+  { href: '/categories', key: 'categories', icon: Grid2X2 },
+  { href: '/client', key: 'cart', icon: ShoppingCart },
+  { href: '/profile', key: 'profile', icon: User },
+] as const;
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -89,15 +54,33 @@ export function BottomNav() {
           <Link
             key={item.href}
             href={item.href}
-            className={`relative flex items-center justify-center rounded-2xl py-2 transition-all duration-200 active:scale-95 ${
-              active ? 'bg-emerald-50 text-[#16A34A]' : 'text-slate-400'
+            className={`relative flex items-center justify-center rounded-2xl py-2 transition-all duration-200 ${
+              active ? 'text-[#16C25B]' : 'text-slate-400'
             }`}
           >
-            <Icon iconKey={item.key} active={active} />
+            <motion.div
+              whileTap={{ scale: 0.92 }}
+              animate={{ scale: active ? 1.08 : 1 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+              className="relative"
+            >
+              {active ? (
+                <motion.span
+                  layoutId="nav-active-bg"
+                  className="absolute inset-[-10px] rounded-2xl bg-emerald-50"
+                  transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                />
+              ) : null}
+              <item.icon className="relative h-6 w-6" strokeWidth={1.9} />
+            </motion.div>
             {item.key === 'cart' && cartCount > 0 ? (
-              <span className="absolute right-3 top-1 flex min-h-4 min-w-4 animate-[bb-badge-pop_220ms_ease-out] items-center justify-center rounded-full bg-emerald-600 px-1 text-[10px] font-semibold leading-none text-white shadow">
+              <motion.span
+                initial={{ scale: 0.8, opacity: 0.7 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="absolute right-3 top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-[#16C25B] px-1 text-[10px] font-semibold leading-none text-white shadow"
+              >
                 {cartCount > 99 ? '99+' : cartCount}
-              </span>
+              </motion.span>
             ) : null}
           </Link>
         );

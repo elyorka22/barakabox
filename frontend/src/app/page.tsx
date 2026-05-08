@@ -1,11 +1,13 @@
 'use client';
 
+import { motion } from 'framer-motion';
+import { Heart, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api, authStorage, guestStorage } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
-import { Header } from '@/components/header';
 import { ProductCard } from '@/components/product-card';
+import { formatMoneyUz } from '@/lib/format';
 
 type Product = {
   id: string;
@@ -33,6 +35,42 @@ type CartResponse = {
   }>;
 };
 type Category = { id: string; name: string; slug: string; imageUrl?: string | null; productCount: number };
+const HOME_CATEGORY_NAMES = [
+  'Non mahsulotlari',
+  'Sabzavotlar',
+  'Mevalar',
+  "Un-yog'",
+  'Quruq mevalar',
+  'Ichimliklar',
+  'Ovqat uchun',
+  "Xo'jalik buyumlari",
+] as const;
+
+const HERO_SLIDES = [
+  {
+    title: 'Fresh mahsulotlar eng yaxshi narxda!',
+    subtitle: 'Tez yetkazib berish va sifat kafolati.',
+    cta: 'Buyurtma berish',
+  },
+  {
+    title: 'Kundalik savdo uchun premium tanlov',
+    subtitle: "Doimiy chegirmalar va yangi mahsulotlar.",
+    cta: "Aksiyani ko'rish",
+  },
+];
+
+function categoryEmoji(name: string) {
+  const lower = name.toLowerCase();
+  if (lower.includes('non')) return '🥖';
+  if (lower.includes('sabzavot')) return '🥬';
+  if (lower.includes('meva')) return '🍎';
+  if (lower.includes('un')) return '🌾';
+  if (lower.includes('quruq')) return '🥜';
+  if (lower.includes('ichimlik')) return '🥤';
+  if (lower.includes('ovqat')) return '🥩';
+  if (lower.includes("xo'jalik")) return '🧼';
+  return '🛒';
+}
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -42,6 +80,7 @@ export default function Home() {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [error, setError] = useState('');
+  const [heroIndex, setHeroIndex] = useState(0);
   const token = authStorage.getAccessToken();
 
   useEffect(() => {
@@ -129,92 +168,244 @@ export default function Home() {
       ),
     [products],
   );
+  const discountedProducts = useMemo(
+    () =>
+      renderableProducts.filter((product) =>
+        product.variants?.some(
+          (variant) =>
+            typeof variant.discountPrice === 'number' &&
+            variant.discountPrice > 0 &&
+            variant.discountPrice < Number(variant.price),
+        ),
+      ),
+    [renderableProducts],
+  );
+  const popularProducts = useMemo(() => renderableProducts.slice(0, 6), [renderableProducts]);
+  const recommendedProducts = useMemo(() => renderableProducts.slice(6, 12), [renderableProducts]);
+  const homeCategories = useMemo(() => {
+    const map = new Map(categories.map((category) => [category.name.toLowerCase(), category]));
+    return HOME_CATEGORY_NAMES.map((name) => ({
+      name,
+      entry: map.get(name.toLowerCase()) ?? null,
+    }));
+  }, [categories]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setHeroIndex((prev) => (prev + 1) % HERO_SLIDES.length);
+    }, 4800);
+    return () => window.clearInterval(timer);
+  }, []);
 
   return (
-    <main className="bb-page">
-      <section className="bb-shell">
-        <Header />
-        <div className="mt-4 rounded-2xl bg-[#F3F4F6] px-3 py-2">
-          <div className="flex items-center gap-2 text-gray-500">
-            <span>🔎</span>
-            <input className="w-full bg-transparent py-1 text-sm outline-none" placeholder="Mahsulotlarni qidirish" />
+    <main className="bb-page bg-[#F8F8F8]">
+      <section className="bb-shell bg-[#F8F8F8]">
+        <div className="bb-header-sticky !top-2 !mx-0 border border-white/70 !bg-[#F8F8F8]/95 !px-0 !py-0">
+          <div className="flex items-center gap-2 rounded-2xl bg-white p-2 shadow-[0_4px_14px_rgba(17,24,39,0.06)]">
+            <div className="flex flex-1 items-center gap-2 rounded-xl bg-[#F3F4F6] px-3 py-2.5 text-slate-500">
+              <Search className="h-4 w-4" />
+              <input
+                className="w-full bg-transparent text-sm outline-none"
+                placeholder="Mahsulot yoki kategoriya qidirish"
+              />
+            </div>
+            <button className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F3F4F6] text-slate-600">
+              <Heart className="h-5 w-5" />
+            </button>
           </div>
         </div>
-        <div className="mt-4 rounded-3xl bg-gradient-to-r from-[#16A34A] to-green-500 px-5 pb-10 pt-10 text-white">
-          <p className="text-xl font-bold leading-tight">Yangi mahsulotlar eshigingizgacha</p>
-          <p className="mt-1 text-sm text-white/90">Tez yetkazib berish va eng yaxshi kundalik narxlar.</p>
-        </div>
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-          {loadingCategories
-            ? Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex min-w-[76px] shrink-0 flex-col items-center gap-1 rounded-2xl bg-white p-2">
-                  <div className="bb-skeleton h-12 w-12 rounded-full" />
-                  <div className="bb-skeleton h-3 w-12" />
-                </div>
-              ))
-            : null}
-          {categories.map((category) => (
-            <Link
-              key={category.id}
-              href={`/categories/${category.slug}`}
-              className="flex min-w-[84px] shrink-0 flex-col items-center gap-1 rounded-2xl bg-white p-2"
-            >
-              <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#F3F4F6]">
-                {category.imageUrl ? (
-                  <img src={category.imageUrl} alt={category.name} className="h-full w-full object-cover" />
-                ) : (
-                  <span className="text-[10px] text-slate-500">No image</span>
-                )}
-              </div>
-              <span className="line-clamp-2 text-center text-xs font-medium text-gray-600">{category.name}</span>
-            </Link>
-          ))}
-        </div>
-        <div className="mt-6 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[#121212]">Mashhur mahsulotlar</h2>
-          <span className="text-sm text-[#16A34A]">Barchasini ko'rish</span>
-        </div>
-        {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
-        {loadingProducts ? (
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-3xl bg-white p-3">
-                <div className="bb-skeleton h-28" />
-                <div className="bb-skeleton mt-3 h-4 w-2/3" />
-                <div className="bb-skeleton mt-2 h-3 w-1/2" />
-              </div>
+
+        <motion.section
+          className="relative mt-4 overflow-hidden rounded-3xl bg-gradient-to-r from-[#16C25B] to-[#0FA34B] p-5 text-white shadow-[0_10px_24px_rgba(22,194,91,0.25)]"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+        >
+          <motion.div
+            key={heroIndex}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-2"
+          >
+            <p className="max-w-[72%] text-2xl font-bold leading-7">{HERO_SLIDES[heroIndex]?.title}</p>
+            <p className="max-w-[74%] text-sm text-white/90">{HERO_SLIDES[heroIndex]?.subtitle}</p>
+            <button className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-[#111111]">
+              {HERO_SLIDES[heroIndex]?.cta}
+            </button>
+          </motion.div>
+          <div className="absolute bottom-3 left-5 flex gap-1.5">
+            {HERO_SLIDES.map((_, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setHeroIndex(idx)}
+                className={`h-1.5 rounded-full transition-all ${idx === heroIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/50'}`}
+              />
             ))}
           </div>
-        ) : null}
-        {!loadingProducts ? (
-          <div className="mt-4 grid grid-cols-2 gap-3 pb-24">
-            {renderableProducts.length ? (
-              renderableProducts.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  id={product.id}
-                  name={product.name}
-                  price={product.price}
-                  onAdd={addProduct}
-                  variants={product.variants?.map((variant) => ({
-                    ...variant,
-                    imageUrl: variant.imageUrl ?? product.imageCardUrl ?? product.imageUrl,
-                  }))}
-                  onIncrease={(variantId, productId) => void changeProductQty(variantId, productId, 1)}
-                  onDecrease={(variantId, productId) => void changeProductQty(variantId, productId, -1)}
-                  quantityByVariantId={quantityByVariantId}
-                  loadingByVariantId={loadingByVariantId}
-                  href={`/products/${product.id}`}
-                  imageUrl={product.imageCardUrl ?? product.imageUrl}
-                />
-              ))
-            ) : (
-              <div className="col-span-2 rounded-2xl border border-slate-200 bg-white p-4 text-center text-sm text-slate-500">
-                Mahsulotlar mavjud emas
-              </div>
-            )}
+        </motion.section>
+
+        <section className="mt-5">
+          <div className="grid grid-cols-4 gap-x-2 gap-y-4">
+            {loadingCategories
+              ? Array.from({ length: 8 }).map((_, idx) => (
+                  <div key={idx} className="flex flex-col items-center gap-1">
+                    <div className="bb-skeleton h-16 w-16 rounded-full" />
+                    <div className="bb-skeleton h-3 w-14" />
+                  </div>
+                ))
+              : homeCategories.map((item, idx) => {
+                  const href = item.entry ? `/categories/${item.entry.slug}` : '/categories';
+                  return (
+                    <Link key={`${item.name}-${idx}`} href={href} className="flex flex-col items-center gap-1">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-[0_6px_16px_rgba(17,24,39,0.08)]">
+                        {item.entry?.imageUrl ? (
+                          <img
+                            src={item.entry.imageUrl}
+                            alt={item.name}
+                            className="h-full w-full rounded-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-2xl">{categoryEmoji(item.name)}</span>
+                        )}
+                      </div>
+                      <p className="line-clamp-2 text-center text-[11px] font-medium text-[#111111]">{item.name}</p>
+                    </Link>
+                  );
+                })}
           </div>
-        ) : null}
+        </section>
+
+        <section className="mt-5 rounded-3xl bg-[#8B5CF6] p-3 text-white shadow-[0_12px_24px_rgba(139,92,246,0.28)]">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold">Aksiya va chegirmalar</h2>
+            <div className="rounded-xl bg-white/20 px-2 py-1 text-[11px]">03 : 12 : 45</div>
+          </div>
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+            {loadingProducts
+              ? Array.from({ length: 4 }).map((_, idx) => (
+                  <div key={idx} className="min-w-[130px] rounded-2xl bg-white p-2">
+                    <div className="bb-skeleton h-20 w-full rounded-xl" />
+                    <div className="bb-skeleton mt-2 h-3 w-2/3" />
+                  </div>
+                ))
+              : discountedProducts.slice(0, 8).map((product) => {
+              const variant = product.variants?.[0];
+              const basePrice = Number(variant?.price ?? product.price);
+              const salePrice = Number(variant?.discountPrice ?? basePrice);
+              return (
+                <Link
+                  key={product.id}
+                  href={`/products/${product.id}`}
+                  className="min-w-[130px] rounded-2xl bg-white p-2 text-[#111111]"
+                >
+                  <div className="relative h-20 overflow-hidden rounded-xl bg-slate-100">
+                    {variant?.imageUrl || product.imageCardUrl || product.imageUrl ? (
+                      <img
+                        src={variant?.imageUrl ?? product.imageCardUrl ?? product.imageUrl ?? ''}
+                        alt={product.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : null}
+                  </div>
+                  <p className="mt-2 line-clamp-1 text-xs font-semibold">{product.name}</p>
+                  <p className="text-sm font-bold">{formatMoneyUz(salePrice)}</p>
+                  <p className="text-[10px] text-slate-400 line-through">{formatMoneyUz(basePrice)}</p>
+                </Link>
+              );
+            })}
+          </div>
+          <Link
+            href="/discounts"
+            className="mt-2 flex items-center justify-between rounded-2xl bg-white px-3 py-2 text-sm font-semibold text-[#111111]"
+          >
+            <span>Barcha aksiyalar</span>
+            <span>›</span>
+          </Link>
+        </section>
+
+        <section className="mt-4 rounded-3xl bg-[#F2E5CC] p-4">
+          <p className="text-base font-semibold text-[#111111]">50 000 so'mdan boshlab bepul yetkazib berish</p>
+          <p className="mt-1 text-xs text-slate-600">Tezkor delivery xizmati har kuni 24/7</p>
+        </section>
+
+        <section className="mt-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-[#111111]">Mashhur mahsulotlar</h2>
+            <Link href="/categories" className="text-sm font-medium text-[#16C25B]">
+              Barchasini ko'rish
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {loadingProducts
+              ? Array.from({ length: 4 }).map((_, idx) => (
+                  <div key={idx} className="rounded-3xl bg-white p-3">
+                    <div className="bb-skeleton h-36 w-full rounded-2xl" />
+                    <div className="bb-skeleton mt-3 h-4 w-2/3" />
+                  </div>
+                ))
+              : popularProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                id={product.id}
+                name={product.name}
+                price={product.price}
+                onAdd={addProduct}
+                variants={product.variants?.map((variant) => ({
+                  ...variant,
+                  imageUrl: variant.imageUrl ?? product.imageCardUrl ?? product.imageUrl,
+                }))}
+                onIncrease={(variantId, productId) => void changeProductQty(variantId, productId, 1)}
+                onDecrease={(variantId, productId) => void changeProductQty(variantId, productId, -1)}
+                quantityByVariantId={quantityByVariantId}
+                loadingByVariantId={loadingByVariantId}
+                href={`/products/${product.id}`}
+                imageUrl={product.imageCardUrl ?? product.imageUrl}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-5 pb-24">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-[#111111]">Siz uchun tavsiya</h2>
+            <Link href="/categories" className="text-sm font-medium text-[#16C25B]">
+              Yana
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {loadingProducts
+              ? Array.from({ length: 4 }).map((_, idx) => (
+                  <div key={idx} className="rounded-3xl bg-white p-3">
+                    <div className="bb-skeleton h-36 w-full rounded-2xl" />
+                    <div className="bb-skeleton mt-3 h-4 w-2/3" />
+                  </div>
+                ))
+              : recommendedProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                id={product.id}
+                name={product.name}
+                price={product.price}
+                onAdd={addProduct}
+                variants={product.variants?.map((variant) => ({
+                  ...variant,
+                  imageUrl: variant.imageUrl ?? product.imageCardUrl ?? product.imageUrl,
+                }))}
+                onIncrease={(variantId, productId) => void changeProductQty(variantId, productId, 1)}
+                onDecrease={(variantId, productId) => void changeProductQty(variantId, productId, -1)}
+                quantityByVariantId={quantityByVariantId}
+                loadingByVariantId={loadingByVariantId}
+                href={`/products/${product.id}`}
+                imageUrl={product.imageCardUrl ?? product.imageUrl}
+              />
+            ))}
+          </div>
+        </section>
+
+        {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
         <MobileNav />
       </section>
     </main>

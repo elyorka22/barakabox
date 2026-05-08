@@ -1,6 +1,8 @@
 'use client';
 
+import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { Funnel, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
@@ -13,12 +15,16 @@ type Category = {
   productCount?: number;
 };
 
-const serviceCategories = [
-  { name: 'Elektrik xizmatlari', emoji: '💡' },
-  { name: 'Santexnik', emoji: '🚰' },
-  { name: 'Usta chaqirish', emoji: '🛠️' },
-  { name: 'Boshqalar', emoji: '📦' },
-];
+const REQUIRED_CATEGORIES = [
+  'Oziq-ovqat',
+  'Qurilish mollari',
+  'Elektronika',
+  'Maishiy texnika',
+  'Elektrik xizmatlari',
+  'Santexnik',
+  'Usta chaqirish',
+  'Boshqalar',
+] as const;
 
 function categoryEmoji(name: string) {
   const normalized = name.toLowerCase();
@@ -35,6 +41,7 @@ function categoryEmoji(name: string) {
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -51,17 +58,44 @@ export default function CategoriesPage() {
     void load();
   }, []);
 
-  const featured = useMemo(() => {
-    const required = ['Oziq-ovqat', 'Qurilish mollari', 'Elektronika', 'Maishiy texnika'];
+  const mergedCategories = useMemo(() => {
     const byName = new Map(categories.map((item) => [item.name.toLowerCase(), item]));
-    return required.map((name) => byName.get(name.toLowerCase()) ?? null);
+    const required = REQUIRED_CATEGORIES.map((name) => {
+      const entry = byName.get(name.toLowerCase());
+      if (entry) return entry;
+      return { id: `fallback-${name}`, name, slug: 'categories', imageUrl: null, productCount: 0 };
+    });
+    const dynamicExtra = categories.filter(
+      (item) => !REQUIRED_CATEGORIES.some((requiredName) => requiredName.toLowerCase() === item.name.toLowerCase()),
+    );
+    return [...required, ...dynamicExtra];
   }, [categories]);
+
+  const filteredCategories = useMemo(() => {
+    if (!query.trim()) return mergedCategories;
+    const q = query.trim().toLowerCase();
+    return mergedCategories.filter((item) => item.name.toLowerCase().includes(q));
+  }, [mergedCategories, query]);
 
   return (
     <main className="bb-page">
       <section className="bb-shell pb-24">
-        <h1 className="text-2xl font-bold text-[#121212]">Kategoriyalar</h1>
-        <p className="mt-1 text-sm text-slate-500">Kerakli bo'limni tanlang va mahsulotlarni tez toping.</p>
+        <h1 className="text-2xl font-bold text-[#111111]">Kategoriyalar</h1>
+        <p className="mt-1 text-sm text-slate-500">Bo'limlarni tanlang va kerakli mahsulotni tez toping.</p>
+        <div className="mt-3 flex items-center gap-2 rounded-2xl bg-white p-2 shadow-[0_6px_14px_rgba(17,24,39,0.06)]">
+          <div className="flex flex-1 items-center gap-2 rounded-xl bg-[#F3F4F6] px-3 py-2.5 text-slate-500">
+            <Search className="h-4 w-4" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="w-full bg-transparent text-sm outline-none"
+              placeholder="Kategoriya qidirish"
+            />
+          </div>
+          <button className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F3F4F6] text-slate-600">
+            <Funnel className="h-4 w-4" />
+          </button>
+        </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3">
           {loading
@@ -74,61 +108,37 @@ export default function CategoriesPage() {
             : null}
 
           {!loading
-            ? categories.map((category) => (
-                <Link
+            ? filteredCategories.map((category, idx) => (
+                <motion.div
                   key={category.id}
-                  href={`/categories/${category.slug}`}
-                  className="rounded-3xl bg-white p-3 shadow-sm transition active:scale-[0.98]"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2, delay: idx * 0.02 }}
                 >
-                  <div className="flex h-24 items-center justify-center overflow-hidden rounded-2xl bg-slate-50">
-                    {category.imageUrl ? (
-                      <img src={category.imageUrl} alt={category.name} className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="text-3xl">{categoryEmoji(category.name)}</span>
-                    )}
-                  </div>
-                  <p className="mt-2 text-sm font-semibold text-[#121212]">{category.name}</p>
-                  {typeof category.productCount === 'number' ? (
-                    <p className="text-xs text-slate-500">{category.productCount} ta mahsulot</p>
-                  ) : null}
-                </Link>
+                  <Link
+                    href={category.slug === 'categories' ? '/categories' : `/categories/${category.slug}`}
+                    className="block rounded-3xl bg-white p-3 shadow-[0_8px_16px_rgba(17,24,39,0.06)]"
+                  >
+                    <div className="flex h-24 items-center justify-center overflow-hidden rounded-2xl bg-[#F3F4F6]">
+                      {category.imageUrl ? (
+                        <img src={category.imageUrl} alt={category.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <span className="text-3xl">{categoryEmoji(category.name)}</span>
+                      )}
+                    </div>
+                    <p className="mt-2 text-sm font-semibold text-[#111111]">{category.name}</p>
+                    <p className="text-xs text-slate-500">
+                      {typeof category.productCount === 'number' ? `${category.productCount} ta mahsulot` : 'Bo‘lim'}
+                    </p>
+                  </Link>
+                </motion.div>
               ))
             : null}
         </div>
-
-        <div className="mt-6">
-          <h2 className="text-base font-semibold text-[#121212]">Xizmatlar</h2>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            {serviceCategories.map((service) => (
-              <div key={service.name} className="rounded-3xl border border-slate-200 bg-white p-3">
-                <div className="flex h-16 items-center justify-center rounded-2xl bg-slate-50 text-2xl">
-                  {service.emoji}
-                </div>
-                <p className="mt-2 text-sm font-medium text-[#121212]">{service.name}</p>
-                <p className="text-xs text-slate-500">Tez orada</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {featured.some(Boolean) ? (
-          <div className="mt-6">
-            <h2 className="text-base font-semibold text-[#121212]">Mashhur bo'limlar</h2>
-            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-              {featured
-                .filter((item): item is Category => Boolean(item))
-                .map((item) => (
-                  <Link
-                    key={item.id}
-                    href={`/categories/${item.slug}`}
-                    className="flex min-w-[132px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2"
-                  >
-                    <span className="text-xl">{categoryEmoji(item.name)}</span>
-                    <span className="text-xs font-medium text-[#121212]">{item.name}</span>
-                  </Link>
-                ))}
-            </div>
-          </div>
+        {!loading && filteredCategories.length === 0 ? (
+          <p className="mt-4 rounded-2xl bg-white p-4 text-center text-sm text-slate-500">
+            Qidiruv bo‘yicha kategoriya topilmadi
+          </p>
         ) : null}
       </section>
       <MobileNav />
