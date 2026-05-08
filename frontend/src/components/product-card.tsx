@@ -46,7 +46,9 @@ export function ProductCard({
   const [loaded, setLoaded] = useState(false);
   const [activeVariantIndex, setActiveVariantIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const effectiveVariants = variants;
+  const effectiveVariants = variants.length
+    ? variants
+    : [{ id: `${id}-base`, title: name, description: '', price, stock: 0, imageUrl }];
   const defaultVariant = getDefaultVariant({ variants });
   const variantIdsKey = useMemo(() => effectiveVariants.map((variant) => variant.id).join('|'), [effectiveVariants]);
 
@@ -148,14 +150,8 @@ export function ProductCard({
         ) : (
           <div className="h-28 rounded-2xl bg-gradient-to-br from-green-200 to-green-100" />
         )}
-        {activeVariant ? (
-          <>
-            <h3 className="mt-3 line-clamp-1 text-sm font-semibold text-[#121212]">{activeVariant.title || name}</h3>
-            <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">{activeVariant.description ?? ''}</p>
-          </>
-        ) : (
-          <h3 className="mt-3 line-clamp-1 text-sm font-semibold text-[#121212]">Hozircha mavjud emas</h3>
-        )}
+        <h3 className="mt-3 line-clamp-1 text-sm font-semibold text-[#121212]">{activeVariant?.title || name}</h3>
+        <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">{activeVariant?.description ?? ''}</p>
         <div className="mt-1 flex items-center justify-between">
           <p className="text-base font-bold text-[#121212]">{activeVariant ? formatMoneyUz(activeVariant.price) : '—'}</p>
           <span className="text-xs text-gray-500">⭐ 4.8</span>
@@ -187,7 +183,7 @@ export function ProductCard({
               if (!activeVariant) return;
               onAdd(activeVariant.id, id);
             }}
-            disabled={!activeVariant || loading || (activeVariant.stock ?? 0) <= 0}
+            disabled={!activeVariant || loading || ((activeVariant.stock ?? 0) <= 0 && variants.length > 0)}
             className="rounded-xl bg-[#16A34A] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
           >
             {loading ? "Qo'shilmoqda..." : "Qo'shish"}

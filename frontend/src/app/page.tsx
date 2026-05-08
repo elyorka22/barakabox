@@ -176,25 +176,31 @@ export default function Home() {
         ) : null}
         {!loadingProducts ? (
           <div className="mt-4 grid grid-cols-2 gap-3 pb-24">
-            {products.map((product) => (
-              <ProductCard
-                key={product.id}
-                id={product.id}
-                name={product.name}
-                price={product.price}
-                onAdd={addProduct}
-                variants={product.variants?.map((variant) => ({
-                  ...variant,
-                  imageUrl: variant.imageUrl ?? product.imageCardUrl ?? product.imageUrl,
-                }))}
-                onIncrease={(variantId, productId) => void changeProductQty(variantId, productId, 1)}
-                onDecrease={(variantId, productId) => void changeProductQty(variantId, productId, -1)}
-                quantityByVariantId={quantityByVariantId}
-                loading={loading}
-                href={`/products/${product.id}`}
-                imageUrl={product.imageCardUrl ?? product.imageUrl}
-              />
-            ))}
+            {products.length ? (
+              products.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  id={product.id}
+                  name={product.name}
+                  price={product.price}
+                  onAdd={addProduct}
+                  variants={product.variants?.map((variant) => ({
+                    ...variant,
+                    imageUrl: variant.imageUrl ?? product.imageCardUrl ?? product.imageUrl,
+                  }))}
+                  onIncrease={(variantId, productId) => void changeProductQty(variantId, productId, 1)}
+                  onDecrease={(variantId, productId) => void changeProductQty(variantId, productId, -1)}
+                  quantityByVariantId={quantityByVariantId}
+                  loading={loading}
+                  href={`/products/${product.id}`}
+                  imageUrl={product.imageCardUrl ?? product.imageUrl}
+                />
+              ))
+            ) : (
+              <div className="col-span-2 rounded-2xl border border-slate-200 bg-white p-4 text-center text-sm text-slate-500">
+                Mahsulotlar mavjud emas
+              </div>
+            )}
           </div>
         ) : null}
         <MobileNav />

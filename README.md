@@ -48,6 +48,14 @@ backend/src/
 docker compose up --build
 ```
 
+Important: production startup no longer runs `prisma seed` automatically.
+This prevents accidental product data overwrite on restart/redeploy.
+If you need demo data in a fresh local environment, run seed manually:
+
+```bash
+docker compose exec backend npm run prisma:seed
+```
+
 Then open [http://localhost](http://localhost).
 
 Nginx routes:

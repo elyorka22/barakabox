@@ -56,22 +56,44 @@ async function main() {
     { name: 'Milk 1L', price: 21000, stockQuantity: 60, categoryId: categoryMap.dairy },
   ];
 
-  await prisma.boxItem.deleteMany();
-  await prisma.box.deleteMany();
-  await prisma.product.deleteMany({ where: { businessId: businessProfile.id } });
-
   const createdProducts: Record<string, { id: string; price: number }> = {};
   for (const product of products) {
-    const created = await prisma.product.create({
-      data: {
-        businessId: businessProfile.id,
-        name: product.name,
-        price: product.price,
-        stockQuantity: product.stockQuantity,
-        categoryId: product.categoryId,
-      },
+    const existing = await prisma.product.findFirst({
+      where: { businessId: businessProfile.id, name: product.name },
+      include: { variants: true },
     });
-    createdProducts[product.name] = { id: created.id, price: product.price };
+
+    const resolved =
+      existing ??
+      (await prisma.product.create({
+        data: {
+          businessId: businessProfile.id,
+          name: product.name,
+          price: product.price,
+          stockQuantity: product.stockQuantity,
+          categoryId: product.categoryId,
+        },
+      }));
+
+    const hasVariants =
+      existing?.variants?.length ??
+      (await prisma.productVariant.count({ where: { productId: resolved.id } }));
+
+    if (!hasVariants) {
+      await prisma.productVariant.create({
+        data: {
+          productId: resolved.id,
+          title: product.name,
+          description: `${product.name} default variant`,
+          price: product.price,
+          stock: product.stockQuantity,
+          sortOrder: 0,
+          isActive: true,
+        },
+      });
+    }
+
+    createdProducts[product.name] = { id: resolved.id, price: product.price };
   }
 
   const weeklyPrice =
@@ -125,6 +147,14 @@ async function main() {
   ];
 
   for (const box of boxes) {
+    const existingBox = await prisma.box.findFirst({
+      where: { name: box.name },
+      include: { items: true },
+    });
+    if (existingBox) {
+      continue;
+    }
+
     await prisma.box.create({
       data: {
         name: box.name,
