@@ -76,7 +76,7 @@ export class CartService {
           items: {
             include: {
               product: true,
-              variant: true,
+              variant: { include: { product: true } },
               box: { include: { items: { include: { product: true } } } },
             },
           },
@@ -111,8 +111,8 @@ export class CartService {
         ? await this.prisma.cartItem.findUnique({
             where: { cartId_variantId: { cartId: cart.id, variantId } },
           })
-        : await this.prisma.cartItem.findUnique({
-            where: { cartId_productId: { cartId: cart.id, productId: resolvedProductId! } },
+        : await this.prisma.cartItem.findFirst({
+            where: { cartId: cart.id, productId: resolvedProductId!, variantId: null },
           });
       if (!existing && quantity < 0) {
         throw new NotFoundException('Cart item not found');
@@ -178,8 +178,8 @@ export class CartService {
             where: { cartId_variantId: { cartId: cart.id, variantId } },
           })
         : productId
-        ? await this.prisma.cartItem.findUnique({
-            where: { cartId_productId: { cartId: cart.id, productId } },
+        ? await this.prisma.cartItem.findFirst({
+            where: { cartId: cart.id, productId, variantId: null },
           })
         : null;
       if (!existing) throw new NotFoundException('Cart item not found');

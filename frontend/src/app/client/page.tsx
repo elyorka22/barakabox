@@ -11,7 +11,15 @@ type CartResponse = {
     id: string;
     quantity: number;
     product?: { id: string; name: string; price: string } | null;
-    variant?: { id: string; flavor?: string | null; title?: string | null; description?: string | null; imageUrl?: string | null; price: number } | null;
+    variant?: {
+      id: string;
+      flavor?: string | null;
+      title?: string | null;
+      description?: string | null;
+      imageUrl?: string | null;
+      price: number;
+      product?: { id: string; name: string } | null;
+    } | null;
     box?: { id: string; name: string; price: string } | null;
   }>;
 };
@@ -95,7 +103,7 @@ export default function ClientPage() {
             </div>
           ) : null}
           {cart?.items.map((item) => {
-            const title = item.product ? item.product.name : item.box?.name ?? "Noma'lum";
+            const title = item.product?.name ?? item.variant?.product?.name ?? item.box?.name ?? "Noma'lum";
             const price = item.variant ? Number(item.variant.price) : Number(item.product?.price ?? item.box?.price ?? 0);
             return (
               <article key={item.id} className="rounded-3xl bg-white p-4 shadow-sm">

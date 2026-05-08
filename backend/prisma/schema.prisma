@@ -252,7 +252,6 @@ model CartItem {
   variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
   box       Box?     @relation(fields: [boxId], references: [id], onDelete: Cascade)
 
-  @@unique([cartId, productId])
   @@unique([cartId, variantId])
   @@unique([cartId, boxId])
   @@index([productId])
