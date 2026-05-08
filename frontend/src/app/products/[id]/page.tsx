@@ -6,7 +6,6 @@ import { useParams } from 'next/navigation';
 import { api, authStorage } from '@/lib/api';
 import { formatMoneyUz } from '@/lib/format';
 import { MobileNav } from '@/components/app-nav';
-import { getDefaultVariant } from '@/lib/default-variant';
 
 type Product = {
   id: string;
@@ -16,7 +15,7 @@ type Product = {
   description?: string | null;
   variants?: Array<{
     id: string;
-    title: string;
+    flavor?: string | null;
     description?: string | null;
     price: number;
     stock: number;
@@ -40,18 +39,11 @@ export default function ProductDetailPage() {
     void load();
   }, [params.id]);
 
-  const defaultVariant = getDefaultVariant({ variants: product?.variants });
   const activeVariant = product?.variants?.[variantIndex] ?? null;
 
   useEffect(() => {
-    if (!product?.variants?.length) return;
-    if (!defaultVariant) {
-      setVariantIndex(0);
-      return;
-    }
-    const idx = product.variants.findIndex((v) => v.id === defaultVariant.id);
-    setVariantIndex(idx >= 0 ? idx : 0);
-  }, [product?.variants, defaultVariant?.id]);
+    setVariantIndex(0);
+  }, [product?.id]);
 
   useEffect(() => {
     setImageLoaded(false);
@@ -86,7 +78,7 @@ export default function ProductDetailPage() {
             {!imageLoaded ? <div className="bb-skeleton absolute inset-0" /> : null}
             <img
               src={activeVariant?.imageUrl ?? product?.imageUrl ?? ''}
-              alt={activeVariant?.title ?? product?.name ?? 'Product'}
+              alt={activeVariant?.flavor ?? product?.name ?? 'Product'}
               loading="lazy"
               decoding="async"
               className="h-56 w-full object-cover"
@@ -97,7 +89,8 @@ export default function ProductDetailPage() {
         ) : (
           <div className="mt-3 h-56 rounded-3xl bg-gradient-to-br from-green-200 to-green-100" />
         )}
-        <h1 className="mt-4 text-2xl font-bold text-[#121212]">{activeVariant?.title ?? product?.name ?? 'Mahsulot'}</h1>
+        <h1 className="mt-4 text-2xl font-bold text-[#121212]">{product?.name ?? 'Mahsulot'}</h1>
+        {activeVariant?.flavor ? <p className="mt-1 text-sm font-medium text-slate-700">{activeVariant.flavor}</p> : null}
         <p className="mt-1 text-sm text-gray-500">⭐ 4.8 • Yangi va sifatli mahsulot</p>
         <p className="mt-2 text-2xl font-bold text-[#121212]">{formatMoneyUz(activeVariant?.price ?? product?.price ?? 0)}</p>
         {activeVariant?.description ? (
@@ -113,7 +106,7 @@ export default function ProductDetailPage() {
                 }`}
                 onClick={() => setVariantIndex(idx)}
               >
-                {variant.title}
+                {variant.flavor ?? `Variant ${idx + 1}`}
               </button>
             ))}
           </div>

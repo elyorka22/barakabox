@@ -8,7 +8,6 @@ import { ImageUploader } from '@/components/admin/image-uploader';
 type Product = {
   id: string;
   name: string;
-  description?: string | null;
   price: string;
   stockQuantity: number;
   unitType: 'kg' | 'piece' | 'pack';
@@ -20,7 +19,7 @@ type Product = {
   imageKey?: string | null;
   variants?: Array<{
     id?: string;
-    title: string;
+    flavor?: string | null;
     description?: string | null;
     price: number;
     stock: number;
@@ -42,17 +41,13 @@ export default function AdminProductsPage() {
   const [form, setForm] = useState({
     id: '',
     name: '',
-    description: '',
     unitType: 'piece' as Product['unitType'],
     businessId: '',
     categoryId: '',
-    imageUrl: '',
-    imageKey: '',
     variants: [
-      { id: '', title: '', description: '', price: '1000', stock: '0', imageUrl: '' },
+      { id: '', flavor: '', description: '', price: '1000', stock: '0', imageUrl: '' },
     ],
   });
-  const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingVariantImages, setUploadingVariantImages] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -98,17 +93,20 @@ export default function AdminProductsPage() {
   }, [products, search, categoryFilter, page]);
 
   const save = async () => {
+    if (!form.variants[0] || !form.variants[0].flavor.trim()) return;
+
     const normalizedVariants = form.variants
       .map((variant, idx) => ({
         ...(variant.id ? { id: variant.id } : {}),
-        title: variant.title.trim() || `${form.name.trim()} Variant ${idx + 1}`,
+        title: variant.flavor?.trim() || `${form.name.trim()} Variant ${idx + 1}`,
+        flavor: variant.flavor?.trim() || undefined,
         description: variant.description.trim() || undefined,
         price: Number(variant.price),
         stock: Number(variant.stock),
         imageUrl: variant.imageUrl.trim() || undefined,
         sortOrder: idx,
       }))
-      .filter((variant) => variant.title && variant.price > 0);
+      .filter((variant) => variant.flavor && variant.price > 0);
 
     if (normalizedVariants.length === 0) return;
 
@@ -121,13 +119,10 @@ export default function AdminProductsPage() {
     const payload = {
       businessId: form.businessId,
       name: form.name.trim(),
-      description: form.description.trim() || undefined,
       price: aggregatePrice,
       stockQuantity: aggregateStock,
       unitType: form.unitType,
       categoryId: form.categoryId || undefined,
-      imageUrl: form.imageUrl || undefined,
-      imageKey: form.imageKey || undefined,
       variants: normalizedVariants,
     };
     if (!payload.businessId || !payload.name || payload.price <= 0) return;
@@ -140,10 +135,7 @@ export default function AdminProductsPage() {
       ...prev,
       id: '',
       name: '',
-      description: '',
-      imageUrl: '',
-      imageKey: '',
-      variants: [{ id: '', title: '', description: '', price: '1000', stock: '0', imageUrl: '' }],
+      variants: [{ id: '', flavor: '', description: '', price: '1000', stock: '0', imageUrl: '' }],
     }));
     setUploadingVariantImages({});
     await load();
@@ -154,16 +146,13 @@ export default function AdminProductsPage() {
     setForm({
       id: item.id,
       name: item.name,
-      description: item.description ?? '',
       unitType: item.unitType,
       businessId: item.businessId,
       categoryId: item.category?.id ?? '',
-      imageUrl: item.imageUrl ?? '',
-      imageKey: item.imageKey ?? '',
       variants:
         item.variants?.map((variant) => ({
           id: variant.id ?? '',
-          title: variant.title ?? '',
+          flavor: variant.flavor ?? '',
           description: variant.description ?? '',
           price: String(variant.price ?? 0),
           stock: String(variant.stock ?? 0),
@@ -172,11 +161,11 @@ export default function AdminProductsPage() {
         [
           {
             id: '',
-            title: item.name,
+            flavor: '',
             description: '',
             price: String(item.price),
             stock: String(item.stockQuantity),
-            imageUrl: item.imageUrl ?? '',
+            imageUrl: '',
           },
         ],
     });
@@ -257,25 +246,6 @@ export default function AdminProductsPage() {
             <p className="mt-1 text-[11px] text-slate-500">Mahsulot kategoriyasini tanlang</p>
           </div>
           <div className="min-w-0 max-w-full sm:col-span-2 lg:col-span-3">
-            <label className="mb-1 block text-xs font-medium text-slate-700">Umumiy mahsulot tavsifi (ixtiyoriy)</label>
-            <textarea
-              className="min-h-[90px] w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              placeholder="Masalan: Tvorog massalar oilasi uchun umumiy tavsif"
-              value={form.description}
-              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-            />
-          </div>
-          <div className="min-w-0 max-w-full sm:col-span-2 lg:col-span-3">
-            <ImageUploader
-              valueUrl={form.imageUrl}
-              valueKey={form.imageKey}
-              onChange={({ url, key }) => setForm((prev) => ({ ...prev, imageUrl: url, imageKey: key }))}
-              onUploadingChange={setUploadingImage}
-              inputId="main-product-image-upload"
-              label="Asosiy mahsulot rasmi (ixtiyoriy)"
-            />
-          </div>
-          <div className="min-w-0 max-w-full sm:col-span-2 lg:col-span-3">
             <p className="mb-2 text-xs font-semibold text-slate-700">Variantlar</p>
             <p className="mb-3 text-[11px] text-slate-500">Har bir variant alohida narx, qoldiq, tavsif va rasmga ega bo'ladi.</p>
             <div className="space-y-3">
@@ -308,13 +278,13 @@ export default function AdminProductsPage() {
                   <div className="grid gap-2 sm:grid-cols-2">
                     <input
                       className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs"
-                      placeholder="Variant nomi (masalan: Qulupnay)"
-                      value={variant.title}
+                      placeholder="Ta'm nomi (masalan: Cherry)"
+                      value={variant.flavor}
                       onChange={(e) =>
                         setForm((prev) => ({
                           ...prev,
                           variants: prev.variants.map((item, itemIdx) =>
-                            itemIdx === idx ? { ...item, title: e.target.value } : item,
+                            itemIdx === idx ? { ...item, flavor: e.target.value } : item,
                           ),
                         }))
                       }
@@ -394,7 +364,7 @@ export default function AdminProductsPage() {
                 onClick={() =>
                   setForm((prev) => ({
                     ...prev,
-                    variants: [...prev.variants, { id: '', title: '', description: '', price: '1000', stock: '0', imageUrl: '' }],
+                    variants: [...prev.variants, { id: '', flavor: '', description: '', price: '1000', stock: '0', imageUrl: '' }],
                   }))
                 }
               >
@@ -405,7 +375,7 @@ export default function AdminProductsPage() {
           <button
             className="w-full min-w-0 max-w-full rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
             onClick={() => void save()}
-            disabled={uploadingImage || Object.values(uploadingVariantImages).some(Boolean)}
+            disabled={Object.values(uploadingVariantImages).some(Boolean)}
           >
             {form.id ? 'Yangilash' : 'Yaratish'}
           </button>

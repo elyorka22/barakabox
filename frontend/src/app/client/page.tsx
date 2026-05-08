@@ -11,7 +11,7 @@ type CartResponse = {
     id: string;
     quantity: number;
     product?: { id: string; name: string; price: string } | null;
-    variant?: { id: string; title?: string | null; description?: string | null; imageUrl?: string | null; price: number } | null;
+    variant?: { id: string; flavor?: string | null; title?: string | null; description?: string | null; imageUrl?: string | null; price: number } | null;
     box?: { id: string; name: string; price: string } | null;
   }>;
 };
@@ -104,7 +104,7 @@ export default function ClientPage() {
                     {item.variant?.imageUrl ? (
                       <img
                         src={item.variant.imageUrl}
-                        alt={item.variant.title ?? title}
+                        alt={item.variant.flavor ?? item.variant.title ?? title}
                         className="h-11 w-11 rounded-lg object-cover"
                         loading="lazy"
                         decoding="async"
@@ -112,7 +112,9 @@ export default function ClientPage() {
                     ) : null}
                     <div>
                     <h3 className="text-sm font-semibold text-[#121212]">{title}</h3>
-                    {item.variant?.title ? <p className="text-xs text-slate-500">{item.variant.title}</p> : null}
+                    {item.variant?.flavor || item.variant?.title ? (
+                      <p className="text-xs text-slate-500">{item.variant.flavor ?? item.variant.title}</p>
+                    ) : null}
                     <p className="text-xs text-gray-500">{formatMoneyUz(price)} / dona</p>
                     </div>
                   </div>

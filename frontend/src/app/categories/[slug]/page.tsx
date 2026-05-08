@@ -15,7 +15,7 @@ type Product = {
   imageCardUrl?: string | null;
   variants?: Array<{
     id: string;
-    title: string;
+    flavor?: string | null;
     description?: string | null;
     price: number;
     stock: number;

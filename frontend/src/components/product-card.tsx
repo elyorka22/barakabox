@@ -6,7 +6,7 @@ import { formatMoneyUz } from '@/lib/format';
 
 type Variant = {
   id: string;
-  title: string;
+  flavor?: string | null;
   description?: string | null;
   price: string | number;
   stock?: number;
@@ -64,7 +64,7 @@ export function ProductCard({
       setActiveVariantIndex(0);
       return;
     }
-    setActiveVariantIndex((prev) => Math.min(prev, effectiveVariants.length - 1));
+    setActiveVariantIndex(0);
   }, [variantIdsKey]);
 
   const goToVariant = (targetIndex: number) => {
@@ -106,7 +106,7 @@ export function ProductCard({
                   {variant.imageUrl ? (
                     <img
                       src={variant.imageUrl}
-                      alt={variant.title || name}
+                      alt={variant.flavor || name}
                       loading="lazy"
                       decoding="async"
                       className="h-28 w-full object-cover"
@@ -141,11 +141,12 @@ export function ProductCard({
         ) : (
           <div className="h-28 rounded-2xl bg-gradient-to-br from-green-200 to-green-100" />
         )}
-        <h3 className="mt-3 line-clamp-1 text-sm font-semibold text-[#121212]">{activeVariant?.title || name}</h3>
+        <h3 className="mt-3 line-clamp-1 text-sm font-semibold text-[#121212]">{name}</h3>
+        <p className="mt-0.5 line-clamp-1 text-[11px] font-medium text-slate-700">{activeVariant?.flavor ?? ''}</p>
         <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">{activeVariant?.description ?? ''}</p>
         <div className="mt-1 flex items-center justify-between">
           <p className="text-base font-bold text-[#121212]">{activeVariant ? formatMoneyUz(activeVariant.price) : '—'}</p>
-          <span className="text-xs text-gray-500">⭐ 4.8</span>
+          <span className="text-xs text-gray-500">{`Qoldiq: ${activeVariant?.stock ?? 0}`}</span>
         </div>
       </Link>
       <div className="mt-2 flex items-center justify-between">
