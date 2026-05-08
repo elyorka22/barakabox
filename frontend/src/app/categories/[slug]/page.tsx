@@ -18,6 +18,7 @@ type Product = {
     flavor?: string | null;
     description?: string | null;
     price: number;
+    discountPrice?: number | null;
     stock: number;
     imageUrl?: string | null;
   }>;

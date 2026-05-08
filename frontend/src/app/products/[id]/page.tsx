@@ -18,6 +18,7 @@ type Product = {
     flavor?: string | null;
     description?: string | null;
     price: number;
+    discountPrice?: number | null;
     stock: number;
     imageUrl?: string | null;
   }>;
@@ -72,8 +73,18 @@ export default function ProductDetailPage() {
   };
 
   const total = useMemo(
-    () => (product ? Number(activeVariant?.price ?? product.price) * quantity : 0),
-    [product, quantity, activeVariant],
+    () => {
+      if (!product) return 0;
+      const basePrice = Number(activeVariant?.price ?? product.price);
+      const salePrice =
+        activeVariant?.discountPrice &&
+        Number(activeVariant.discountPrice) > 0 &&
+        Number(activeVariant.discountPrice) < basePrice
+          ? Number(activeVariant.discountPrice)
+          : null;
+      return (salePrice ?? basePrice) * quantity;
+    },
+    [product, quantity, activeVariant?.price, activeVariant?.discountPrice],
   );
 
   const addToCart = async () => {
@@ -157,7 +168,24 @@ export default function ProductDetailPage() {
         <h1 className="mt-4 text-2xl font-bold text-[#121212]">{product?.name ?? 'Mahsulot'}</h1>
         {activeVariant?.flavor ? <p className="mt-1 text-sm font-medium text-slate-700">{activeVariant.flavor}</p> : null}
         <p className="mt-1 text-sm text-gray-500">⭐ 4.8 • Yangi va sifatli mahsulot</p>
-        <p className="mt-2 text-2xl font-bold text-[#121212]">{formatMoneyUz(activeVariant?.price ?? product?.price ?? 0)}</p>
+        {(() => {
+          const basePrice = Number(activeVariant?.price ?? product?.price ?? 0);
+          const salePrice =
+            activeVariant?.discountPrice &&
+            Number(activeVariant.discountPrice) > 0 &&
+            Number(activeVariant.discountPrice) < basePrice
+              ? Number(activeVariant.discountPrice)
+              : null;
+          if (salePrice) {
+            return (
+              <div className="mt-2 flex items-end gap-2">
+                <p className="text-2xl font-bold text-[#121212]">{formatMoneyUz(salePrice)}</p>
+                <p className="text-sm text-slate-400 line-through">{formatMoneyUz(basePrice)}</p>
+              </div>
+            );
+          }
+          return <p className="mt-2 text-2xl font-bold text-[#121212]">{formatMoneyUz(basePrice)}</p>;
+        })()}
         <p className={`mt-1 text-xs font-medium ${Number(activeVariant?.stock ?? 0) > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
           {Number(activeVariant?.stock ?? 0) > 0 ? `Mavjud: ${activeVariant?.stock} dona` : 'Hozircha mavjud emas'}
         </p>

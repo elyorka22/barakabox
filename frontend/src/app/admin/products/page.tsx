@@ -22,6 +22,7 @@ type Product = {
     flavor?: string | null;
     description?: string | null;
     price: number;
+    discountPrice?: number | null;
     stock: number;
     imageUrl?: string | null;
   }>;
@@ -45,7 +46,7 @@ export default function AdminProductsPage() {
     businessId: '',
     categoryId: '',
     variants: [
-      { id: '', flavor: '', description: '', price: '1000', stock: '0', imageUrl: '' },
+      { id: '', flavor: '', description: '', price: '1000', discountPrice: '', discountPercent: '', stock: '0', imageUrl: '' },
     ],
   });
   const [uploadingVariantImages, setUploadingVariantImages] = useState<Record<number, boolean>>({});
@@ -102,6 +103,19 @@ export default function AdminProductsPage() {
         flavor: variant.flavor?.trim() || undefined,
         description: variant.description.trim() || undefined,
         price: Number(variant.price),
+        discountPrice: (() => {
+          const basePrice = Number(variant.price);
+          const salePrice = Number(variant.discountPrice);
+          const percent = Number(variant.discountPercent);
+          if (Number.isFinite(salePrice) && salePrice > 0 && salePrice < basePrice) {
+            return Math.round(salePrice);
+          }
+          if (Number.isFinite(percent) && percent > 0 && percent < 100) {
+            const calculated = Math.round(basePrice * (1 - percent / 100));
+            return calculated > 0 && calculated < basePrice ? calculated : undefined;
+          }
+          return undefined;
+        })(),
         stock: Number(variant.stock),
         imageUrl: variant.imageUrl.trim() || undefined,
         sortOrder: idx,
@@ -135,7 +149,7 @@ export default function AdminProductsPage() {
       ...prev,
       id: '',
       name: '',
-      variants: [{ id: '', flavor: '', description: '', price: '1000', stock: '0', imageUrl: '' }],
+      variants: [{ id: '', flavor: '', description: '', price: '1000', discountPrice: '', discountPercent: '', stock: '0', imageUrl: '' }],
     }));
     setUploadingVariantImages({});
     await load();
@@ -155,6 +169,16 @@ export default function AdminProductsPage() {
           flavor: variant.flavor ?? '',
           description: variant.description ?? '',
           price: String(variant.price ?? 0),
+          discountPrice:
+            typeof variant.discountPrice === 'number' && variant.discountPrice > 0
+              ? String(variant.discountPrice)
+              : '',
+          discountPercent:
+            typeof variant.discountPrice === 'number' &&
+            variant.discountPrice > 0 &&
+            Number(variant.price) > variant.discountPrice
+              ? String(Math.round(((Number(variant.price) - Number(variant.discountPrice)) / Number(variant.price)) * 100))
+              : '',
           stock: String(variant.stock ?? 0),
           imageUrl: variant.imageUrl ?? '',
         })) ??
@@ -164,6 +188,8 @@ export default function AdminProductsPage() {
             flavor: '',
             description: '',
             price: String(item.price),
+            discountPrice: '',
+            discountPercent: '',
             stock: String(item.stockQuantity),
             imageUrl: '',
           },
@@ -306,6 +332,37 @@ export default function AdminProductsPage() {
                     <input
                       className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs"
                       type="number"
+                      min={0}
+                      max={99}
+                      placeholder="Chegirma foizi (ixtiyoriy)"
+                      value={variant.discountPercent}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          variants: prev.variants.map((item, itemIdx) => {
+                            if (itemIdx !== idx) return item;
+                            return { ...item, discountPercent: e.target.value };
+                          }),
+                        }))
+                      }
+                    />
+                    <input
+                      className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs"
+                      type="number"
+                      placeholder="Aksiya narxi (ixtiyoriy)"
+                      value={variant.discountPrice}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          variants: prev.variants.map((item, itemIdx) =>
+                            itemIdx === idx ? { ...item, discountPrice: e.target.value } : item,
+                          ),
+                        }))
+                      }
+                    />
+                    <input
+                      className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs"
+                      type="number"
                       placeholder="Qoldiq"
                       value={variant.stock}
                       onChange={(e) =>
@@ -364,7 +421,10 @@ export default function AdminProductsPage() {
                 onClick={() =>
                   setForm((prev) => ({
                     ...prev,
-                    variants: [...prev.variants, { id: '', flavor: '', description: '', price: '1000', stock: '0', imageUrl: '' }],
+                    variants: [
+                      ...prev.variants,
+                      { id: '', flavor: '', description: '', price: '1000', discountPrice: '', discountPercent: '', stock: '0', imageUrl: '' },
+                    ],
                   }))
                 }
               >

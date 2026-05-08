@@ -9,6 +9,7 @@ type Variant = {
   flavor?: string | null;
   description?: string | null;
   price: string | number;
+  discountPrice?: number | null;
   stock?: number;
   imageUrl?: string | null;
 };
@@ -54,6 +55,14 @@ export function ProductCard({
       : null;
 
   const activeQuantity = activeVariant ? quantityByVariantId?.[activeVariant.id] ?? quantity : 0;
+  const activeBasePrice = Number(activeVariant?.price ?? price);
+  const activeDiscountPrice =
+    activeVariant?.discountPrice && activeVariant.discountPrice > 0 && activeVariant.discountPrice < activeBasePrice
+      ? Number(activeVariant.discountPrice)
+      : null;
+  const discountPercent = activeDiscountPrice
+    ? Math.max(1, Math.round(((activeBasePrice - activeDiscountPrice) / activeBasePrice) * 100))
+    : null;
 
   useEffect(() => {
     setLoaded(false);
@@ -88,11 +97,11 @@ export function ProductCard({
   };
 
   return (
-    <article className="rounded-3xl bg-white p-2.5 shadow-sm sm:p-3">
+    <article className="overflow-hidden rounded-3xl bg-white shadow-sm">
       <Link href={href ?? '#'} className="block">
         {activeVariant ? (
           <div
-            className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-50"
+            className="relative h-36 w-full overflow-hidden rounded-t-3xl bg-slate-50 sm:h-40"
             onTouchStart={(event) => setTouchStartX(event.changedTouches[0]?.clientX ?? null)}
             onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
           >
@@ -114,14 +123,16 @@ export function ProductCard({
                       onError={() => setLoaded(true)}
                     />
                   ) : (
-                    <div className="h-full w-full rounded-2xl bg-gradient-to-br from-green-200 to-green-100" />
+                    <div className="h-full w-full bg-gradient-to-br from-green-200 to-green-100" />
                   )}
                 </div>
               ))}
             </div>
-            <span className="absolute left-2 top-2 rounded-lg bg-black/55 px-2 py-1 text-[10px] font-semibold text-white backdrop-blur-sm">
-              -10%
-            </span>
+            {discountPercent ? (
+              <span className="absolute left-2 top-2 rounded-lg bg-rose-600/90 px-2 py-1 text-[10px] font-semibold text-white shadow-sm backdrop-blur-sm">
+                -{discountPercent}%
+              </span>
+            ) : null}
             {effectiveVariants.length > 1 ? (
               <div className="absolute bottom-1.5 left-0 right-0 flex justify-center gap-1">
                 {effectiveVariants.map((variant, idx) => (
@@ -144,11 +155,24 @@ export function ProductCard({
         ) : (
           <div className="h-28 rounded-2xl bg-gradient-to-br from-green-200 to-green-100" />
         )}
-        <h3 className="mt-2.5 line-clamp-1 text-[13px] font-semibold text-[#121212]">{name}</h3>
-        <p className="mt-0.5 line-clamp-1 min-h-4 text-[11px] font-medium text-slate-600">{activeVariant?.flavor ?? ''}</p>
-        <p className="mt-1 text-base font-bold text-[#121212]">{activeVariant ? formatMoneyUz(activeVariant.price) : '—'}</p>
+        <div className="px-3 pb-2.5 pt-2.5 sm:px-3.5">
+          <h3 className="line-clamp-1 text-[13px] font-semibold text-[#121212]">{name}</h3>
+          <p className="mt-0.5 line-clamp-1 min-h-4 text-[11px] font-medium text-slate-600">{activeVariant?.flavor ?? ''}</p>
+          {activeVariant ? (
+            activeDiscountPrice ? (
+              <div className="mt-1 flex items-end gap-1.5">
+                <p className="text-base font-bold text-[#121212]">{formatMoneyUz(activeDiscountPrice)}</p>
+                <p className="text-xs text-slate-400 line-through">{formatMoneyUz(activeBasePrice)}</p>
+              </div>
+            ) : (
+              <p className="mt-1 text-base font-bold text-[#121212]">{formatMoneyUz(activeBasePrice)}</p>
+            )
+          ) : (
+            <p className="mt-1 text-base font-bold text-[#121212]">—</p>
+          )}
+        </div>
       </Link>
-      <div className="mt-2.5 flex items-center justify-end">
+      <div className="flex items-center justify-end px-3 pb-3 sm:px-3.5 sm:pb-3.5">
         {activeVariant && activeQuantity > 0 ? (
           <div className="flex items-center gap-2 rounded-xl bg-[#F3F4F6] p-1">
             <button
