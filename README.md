@@ -94,3 +94,27 @@ cp .env.example .env.local
 npm install
 npm run dev
 ```
+
+## SEO va Google Indexing (Production)
+
+Frontend production SEO sozlamalari tayyor:
+- `frontend/public/robots.txt` (`Sitemap` bilan)
+- dynamic `frontend/src/app/sitemap.ts` (`/sitemap.xml`)
+- `frontend/public/manifest.json`
+- global metadata va JSON-LD `frontend/src/app/layout.tsx`
+- category/product metadata (`generateMetadata`) va `generateStaticParams`
+- Open Graph fallback image route: `/og-image.png`
+
+Google Search Console ulash:
+1. Search Console oching: [https://search.google.com/search-console](https://search.google.com/search-console)
+2. `https://chust-online-bozor.uz` ni **Domain property** sifatida qo'shing.
+3. DNS TXT verification yozuvini domen DNS'iga kiriting va verify qiling.
+4. Search Console ichida **Sitemaps** bo'limiga o'ting.
+5. `https://chust-online-bozor.uz/sitemap.xml` ni submit qiling.
+6. `URL Inspection` orqali asosiy URL'larni (`/`, `/categories`, `/products/:id`) request indexing qiling.
+
+Production tekshiruv checklist:
+- `https://chust-online-bozor.uz/robots.txt` ochiladi
+- `https://chust-online-bozor.uz/sitemap.xml` ochiladi
+- sayt faqat HTTPS'da ishlaydi
+- browser console’da mixed-content xatolari yo'q
