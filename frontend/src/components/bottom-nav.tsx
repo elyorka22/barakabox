@@ -4,21 +4,23 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Home, LayoutGrid, ShoppingCart, User } from 'lucide-react';
+import { Home, LayoutGrid, Menu, ShoppingCart, User } from 'lucide-react';
 import { api, authEvents, authStorage, cartEvents } from '@/lib/api';
+import { MobileMoreMenuSheet } from '@/components/pwa/MobileMoreMenuSheet';
 
-const baseItems = [
-  { href: '/', key: 'home', icon: Home },
-  { href: '/categories', key: 'categories', icon: LayoutGrid },
-  { href: '/client', key: 'cart', icon: ShoppingCart },
-  { href: '/profile', key: 'profile', icon: User },
+const linkItems = [
+  { href: '/', key: 'home', icon: Home, label: 'Bosh' },
+  { href: '/categories', key: 'categories', icon: LayoutGrid, label: 'Kategoriya' },
+  { href: '/client', key: 'cart', icon: ShoppingCart, label: 'Savat' },
+  { href: '/profile', key: 'profile', icon: User, label: 'Profil' },
 ] as const;
 
 export function BottomNav() {
   const pathname = usePathname();
   const [cartCount, setCartCount] = useState(0);
+  const [moreOpen, setMoreOpen] = useState(false);
 
-  const items = useMemo(() => baseItems, []);
+  const items = useMemo(() => linkItems, []);
   const loadCartCount = async () => {
     try {
       const token = authStorage.getAccessToken();
@@ -47,44 +49,100 @@ export function BottomNav() {
   }, [pathname]);
 
   return (
-    <nav className="bb-mobile-nav">
-      {items.map((item) => {
-        const active = pathname === item.href;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`relative flex min-h-12 items-center justify-center rounded-2xl px-2 py-2.5 transition-all duration-200 ${
-              active ? 'text-[#16C25B]' : 'text-slate-400'
-            }`}
-          >
-            <motion.div
-              whileTap={{ scale: 0.92 }}
-              animate={{ scale: active ? 1.08 : 1 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 28 }}
-              className="relative"
+    <>
+      <MobileMoreMenuSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
+      <nav className="bb-mobile-nav">
+        {items.slice(0, 2).map((item) => {
+          const active = pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`relative flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl px-1 py-1.5 transition-all duration-200 ${
+                active ? 'text-[#16C25B]' : 'text-slate-400'
+              }`}
             >
-              {active ? (
-                <motion.span
-                  layoutId="nav-active-bg"
-                  className="absolute inset-[-8px] rounded-2xl bg-emerald-50 shadow-[0_0_0_1px_rgba(34,197,94,0.08),0_6px_14px_rgba(34,197,94,0.2)]"
-                  transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                />
-              ) : null}
-              <item.icon className={`relative ${active ? 'h-7 w-7' : 'h-6 w-6'}`} strokeWidth={1.9} />
-            </motion.div>
-            {item.key === 'cart' && cartCount > 0 ? (
-              <motion.span
-                initial={{ scale: 0.8, opacity: 0.7 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="absolute right-3 top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-[#16C25B] px-1 text-[10px] font-semibold leading-none text-white shadow"
+              <motion.div
+                whileTap={{ scale: 0.92 }}
+                animate={{ scale: active ? 1.06 : 1 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+                className="relative"
               >
-                {cartCount > 99 ? '99+' : cartCount}
-              </motion.span>
+                {active ? (
+                  <motion.span
+                    layoutId="nav-active-bg"
+                    className="absolute inset-[-6px] rounded-2xl bg-emerald-50 shadow-[0_0_0_1px_rgba(34,197,94,0.08),0_6px_14px_rgba(34,197,94,0.2)]"
+                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                  />
+                ) : null}
+                <item.icon className={`relative ${active ? 'h-6 w-6' : 'h-5 w-5'}`} strokeWidth={1.9} />
+              </motion.div>
+              <span className="max-w-[4.2rem] truncate font-medium leading-none">{item.label}</span>
+            </Link>
+          );
+        })}
+
+        <button
+          type="button"
+          className={`bb-nav-tap relative flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl px-1 py-1.5 transition-all duration-200 ${
+            moreOpen ? 'text-[#16C25B]' : 'text-slate-400'
+          }`}
+          onClick={() => setMoreOpen(true)}
+          aria-expanded={moreOpen}
+          aria-haspopup="dialog"
+        >
+          <motion.div whileTap={{ scale: 0.92 }} className="relative">
+            {moreOpen ? (
+              <motion.span
+                layoutId="nav-active-bg-menu"
+                className="absolute inset-[-6px] rounded-2xl bg-emerald-50 shadow-[0_0_0_1px_rgba(34,197,94,0.08),0_6px_14px_rgba(34,197,94,0.2)]"
+                transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+              />
             ) : null}
-          </Link>
-        );
-      })}
-    </nav>
+            <Menu className={`relative ${moreOpen ? 'h-6 w-6' : 'h-5 w-5'}`} strokeWidth={1.9} />
+          </motion.div>
+          <span className="max-w-[4.2rem] truncate font-medium leading-none">Menyu</span>
+        </button>
+
+        {items.slice(2).map((item) => {
+          const active = pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`relative flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl px-1 py-1.5 transition-all duration-200 ${
+                active ? 'text-[#16C25B]' : 'text-slate-400'
+              }`}
+            >
+              <motion.div
+                whileTap={{ scale: 0.92 }}
+                animate={{ scale: active ? 1.06 : 1 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+                className="relative"
+              >
+                {active ? (
+                  <motion.span
+                    layoutId="nav-active-bg"
+                    className="absolute inset-[-6px] rounded-2xl bg-emerald-50 shadow-[0_0_0_1px_rgba(34,197,94,0.08),0_6px_14px_rgba(34,197,94,0.2)]"
+                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                  />
+                ) : null}
+                <item.icon className={`relative ${active ? 'h-6 w-6' : 'h-5 w-5'}`} strokeWidth={1.9} />
+              </motion.div>
+              <span className="max-w-[4.2rem] truncate font-medium leading-none">{item.label}</span>
+              {item.key === 'cart' && cartCount > 0 ? (
+                <motion.span
+                  initial={{ scale: 0.8, opacity: 0.7 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="absolute right-0.5 top-0 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-[#16C25B] px-1 text-[9px] font-semibold leading-none text-white shadow sm:right-1 sm:text-[10px]"
+                >
+                  {cartCount > 99 ? '99+' : cartCount}
+                </motion.span>
+              ) : null}
+            </Link>
+          );
+        })}
+      </nav>
+    </>
   );
 }

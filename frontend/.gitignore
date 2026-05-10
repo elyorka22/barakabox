@@ -17,6 +17,15 @@
 /.next/
 /out/
 
+# PWA build artifacts (@ducanh2912/next-pwa)
+/public/sw.js
+/public/sw.js.map
+/public/workbox-*.js
+/public/workbox-*.js.map
+/public/fallback-*.js
+/public/fallback-*.js.map
+/public/swe-worker-*.js
+
 # production
 /build
 

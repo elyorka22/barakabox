@@ -3,6 +3,8 @@ import { Inter, Geist_Mono } from "next/font/google";
 import { RippleProvider } from "@/components/ripple-provider";
 import { ToastHost } from "@/components/toast-host";
 import { AuthBootstrap } from "@/components/auth-bootstrap";
+import { ApplePwaHead } from "@/components/pwa/ApplePwaHead";
+import { PWAProvider } from "@/components/pwa/PWAProvider";
 import { absoluteUrl, getSiteUrl } from "@/lib/seo";
 import "./globals.css";
 
@@ -83,7 +85,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Chust Online Bozor",
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
   },
 };
 
@@ -102,10 +104,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="uz" className={`${inter.variable} ${geistMono.variable} h-full antialiased`}>
+      <head>
+        <ApplePwaHead />
+      </head>
       <body className="min-h-full flex flex-col">
         <script
           type="application/ld+json"
@@ -137,10 +139,12 @@ export default function RootLayout({
             }),
           }}
         />
-        <AuthBootstrap />
-        <ToastHost />
-        <RippleProvider />
-        {children}
+        <PWAProvider>
+          <AuthBootstrap />
+          <ToastHost />
+          <RippleProvider />
+          {children}
+        </PWAProvider>
       </body>
     </html>
   );

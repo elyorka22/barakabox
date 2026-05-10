@@ -90,7 +90,7 @@ body {
   }
 
   .bb-mobile-nav {
-    @apply fixed bottom-0 z-30 mt-5 grid grid-cols-4 gap-1 rounded-t-3xl border border-b-0 border-gray-200/80 bg-white/90 px-2 py-2 text-center text-xs shadow-[0_-8px_24px_rgba(15,23,42,0.12)] backdrop-blur-md;
+    @apply fixed bottom-0 z-30 mt-5 grid grid-cols-5 gap-0.5 rounded-t-3xl border border-b-0 border-gray-200/80 bg-white/90 px-1.5 py-2 text-center text-[10px] shadow-[0_-8px_24px_rgba(15,23,42,0.12)] backdrop-blur-md sm:text-xs;
     left: max(0.25rem, env(safe-area-inset-left));
     right: max(0.25rem, env(safe-area-inset-right));
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
@@ -139,6 +139,7 @@ body {
   .bb-btn-secondary::after,
   .bb-btn-outline::after,
   .bb-card-product::after,
+  .bb-mobile-nav button.bb-nav-tap::after,
   .bb-mobile-nav a::after {
     content: '';
     position: absolute;
@@ -160,6 +161,7 @@ body {
   .bb-btn-secondary::after,
   .bb-btn-outline::after,
   .bb-card-product::after,
+  .bb-mobile-nav button.bb-nav-tap::after,
   .bb-mobile-nav a::after {
     background: rgba(17, 24, 39, 0.12);
   }
