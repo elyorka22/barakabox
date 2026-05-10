@@ -43,11 +43,9 @@ export function HomeInstallCard() {
     }
   };
 
-  const androidWaiting = showAndroid && !deferredPrompt;
-
   return (
     <motion.section
-      className="relative mt-4 overflow-hidden rounded-3xl border border-emerald-100/90 bg-white p-4 shadow-[0_12px_40px_rgba(22,194,91,0.12),0_0_0_1px_rgba(22,194,91,0.06)]"
+      className="relative mt-6 overflow-hidden rounded-[28px] border border-emerald-100/70 bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.08),0_0_0_1px_rgba(148,163,184,0.08)]"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
@@ -57,29 +55,25 @@ export function HomeInstallCard() {
         animate={{ opacity: [0.5, 0.85, 0.5], scale: [1, 1.08, 1] }}
         transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
       />
-      <div className="relative flex gap-3">
+      <div className="relative flex gap-4">
         <motion.div
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#16C25B] to-[#0FA34B] text-white shadow-[0_8px_20px_rgba(22,194,91,0.35)]"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#16C25B] to-[#0FA34B] text-white shadow-[0_8px_20px_rgba(22,194,91,0.28)]"
           animate={{ boxShadow: ["0 8px 20px rgba(22,194,91,0.25)", "0 10px 28px rgba(22,194,91,0.45)", "0 8px 20px rgba(22,194,91,0.25)"] }}
           transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
         >
           {showIos ? <Smartphone className="h-6 w-6" strokeWidth={2} /> : <Download className="h-6 w-6" strokeWidth={2} />}
         </motion.div>
         <div className="min-w-0 flex-1">
-          <h2 className="text-base font-bold leading-tight text-[#0f172a]">Ilovani o‘rnating</h2>
+          <h2 className="text-base font-semibold leading-tight tracking-[-0.01em] text-[#0f172a]">Ilovani o‘rnating</h2>
           <p className="mt-1 text-[13px] leading-snug text-slate-600">
             BazarBox ilovasini telefoningizga o‘rnating va tezkor foydalaning
           </p>
-          {androidWaiting ? (
-            <p className="mt-1 text-xs text-amber-700">Chrome o‘rnatishni tayyorlayapti — bir oz kutib, yana urinib ko‘ring.</p>
-          ) : null}
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-2.5">
             <motion.button
               type="button"
               whileTap={{ scale: 0.98 }}
-              disabled={showAndroid && androidWaiting}
               onClick={() => void onInstall()}
-              className="min-h-10 rounded-2xl bg-[#16C25B] px-4 text-sm font-semibold text-white shadow-[0_6px_18px_rgba(22,194,91,0.35)] disabled:cursor-not-allowed disabled:opacity-55"
+              className="min-h-10 rounded-2xl bg-[#16C25B] px-4 text-sm font-semibold text-white shadow-[0_6px_16px_rgba(22,194,91,0.28)]"
             >
               O‘rnatish
             </motion.button>
@@ -90,7 +84,7 @@ export function HomeInstallCard() {
                 recordEngagement();
                 dismissHomeInstallForSession();
               }}
-              className="min-h-10 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700"
+              className="min-h-10 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 shadow-[0_1px_0_rgba(15,23,42,0.03)]"
             >
               Keyinroq
             </motion.button>

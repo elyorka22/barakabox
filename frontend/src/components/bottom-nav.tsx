@@ -8,10 +8,10 @@ import { Home, LayoutGrid, ShoppingCart, User } from 'lucide-react';
 import { api, authEvents, authStorage, cartEvents } from '@/lib/api';
 
 const baseItems = [
-  { href: '/', key: 'home', icon: Home, label: 'Bosh' },
-  { href: '/categories', key: 'categories', icon: LayoutGrid, label: 'Kategoriya' },
-  { href: '/client', key: 'cart', icon: ShoppingCart, label: 'Savat' },
-  { href: '/profile', key: 'profile', icon: User, label: 'Profil' },
+  { href: '/', key: 'home', icon: Home },
+  { href: '/categories', key: 'categories', icon: LayoutGrid },
+  { href: '/client', key: 'cart', icon: ShoppingCart },
+  { href: '/profile', key: 'profile', icon: User },
 ] as const;
 
 export function BottomNav() {
@@ -54,31 +54,30 @@ export function BottomNav() {
           <Link
             key={item.href}
             href={item.href}
-            className={`relative flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl px-1 py-2 transition-all duration-200 ${
+            className={`relative flex min-h-12 items-center justify-center rounded-2xl px-1 py-2 transition-all duration-300 ${
               active ? 'text-[#16C25B]' : 'text-slate-400'
             }`}
           >
             <motion.div
               whileTap={{ scale: 0.92 }}
-              animate={{ scale: active ? 1.06 : 1 }}
-              transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+              animate={{ scale: active ? 1.14 : 1 }}
+              transition={{ type: 'spring', stiffness: 420, damping: 28 }}
               className="relative"
             >
               {active ? (
                 <motion.span
                   layoutId="nav-active-bg"
-                  className="absolute inset-[-8px] rounded-2xl bg-emerald-50 shadow-[0_0_0_1px_rgba(34,197,94,0.08),0_6px_14px_rgba(34,197,94,0.2)]"
-                  transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                  className="absolute inset-[-10px] rounded-2xl bg-emerald-100/75 shadow-[0_0_0_1px_rgba(34,197,94,0.12),0_8px_22px_rgba(34,197,94,0.26)]"
+                  transition={{ type: 'spring', stiffness: 390, damping: 32 }}
                 />
               ) : null}
               <item.icon className={`relative ${active ? 'h-7 w-7' : 'h-6 w-6'}`} strokeWidth={1.9} />
             </motion.div>
-            <span className="max-w-[4.5rem] truncate text-[10px] font-medium leading-none sm:text-xs">{item.label}</span>
             {item.key === 'cart' && cartCount > 0 ? (
               <motion.span
                 initial={{ scale: 0.8, opacity: 0.7 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="absolute right-2 top-1 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-[#16C25B] px-1 text-[9px] font-semibold leading-none text-white shadow sm:right-3 sm:text-[10px]"
+                className="absolute right-2 top-1.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-[#16C25B] px-1 text-[9px] font-semibold leading-none text-white shadow sm:right-3 sm:text-[10px]"
               >
                 {cartCount > 99 ? '99+' : cartCount}
               </motion.span>
