@@ -1,6 +1,21 @@
 import type { NextConfig } from "next";
 import withPWAInit from "@ducanh2912/next-pwa";
 
+function getHostname(urlValue?: string) {
+  if (!urlValue) return "";
+  try {
+    return new URL(urlValue).hostname;
+  } catch {
+    return "";
+  }
+}
+
+const siteHostname = getHostname(process.env.NEXT_PUBLIC_SITE_URL);
+const apiHostname = getHostname(process.env.NEXT_PUBLIC_API_BASE_URL);
+const remoteImageHostnames = Array.from(
+  new Set(["chust-online-bozor.uz", siteHostname, apiHostname].filter(Boolean)),
+);
+
 const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
@@ -26,6 +41,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "**.digitaloceanspaces.com",
       },
+      ...remoteImageHostnames.map((hostname) => ({
+        protocol: "https" as const,
+        hostname,
+      })),
     ],
   },
   async headers() {

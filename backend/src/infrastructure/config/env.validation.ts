@@ -10,6 +10,7 @@ export type AppEnv = {
   SPACES_BUCKET: string;
   SPACES_KEY: string;
   SPACES_SECRET: string;
+  SPACES_CDN_URL?: string;
   ALERT_WEBHOOK_URL: string;
   UPLOAD_ERROR_RATE_THRESHOLD: string;
   TELEGRAM_BOT_TOKEN: string;
@@ -41,6 +42,7 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
   const spacesBucket = String(config.SPACES_BUCKET ?? '');
   const spacesKey = String(config.SPACES_KEY ?? '');
   const spacesSecret = String(config.SPACES_SECRET ?? '');
+  const spacesCdnUrl = normalizeHttpsUrl(String(config.SPACES_CDN_URL ?? ''));
   const alertWebhookUrl = String(config.ALERT_WEBHOOK_URL ?? '');
   const uploadErrorRateThreshold = String(config.UPLOAD_ERROR_RATE_THRESHOLD ?? '10');
   const telegramBotToken = String(config.TELEGRAM_BOT_TOKEN ?? '');
@@ -84,6 +86,12 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
   if (!spacesSecret) {
     throw new Error('SPACES_SECRET is required');
   }
+  if (spacesCdnUrl && !spacesCdnUrl.startsWith('https://')) {
+    throw new Error('SPACES_CDN_URL must be a valid https URL when provided');
+  }
+  if (nodeEnv === 'production' && spacesCdnUrl.includes('localhost')) {
+    throw new Error('SPACES_CDN_URL must not use localhost in production');
+  }
   if (alertWebhookUrl && !alertWebhookUrl.startsWith('https://')) {
     throw new Error('ALERT_WEBHOOK_URL must be a valid https URL when provided');
   }
@@ -100,6 +108,7 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
     SPACES_BUCKET: spacesBucket,
     SPACES_KEY: spacesKey,
     SPACES_SECRET: spacesSecret,
+    SPACES_CDN_URL: spacesCdnUrl,
     ALERT_WEBHOOK_URL: alertWebhookUrl,
     UPLOAD_ERROR_RATE_THRESHOLD: uploadErrorRateThreshold,
     TELEGRAM_BOT_TOKEN: telegramBotToken,

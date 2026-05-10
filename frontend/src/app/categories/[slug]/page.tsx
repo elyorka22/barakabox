@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import CategoryProductsClientPage from './category-products-client';
 import { absoluteUrl, getApiBaseUrl } from '@/lib/seo';
+import { normalizeAssetUrl } from '@/lib/asset-url';
 
 type Category = { slug: string; name: string; description?: string | null; imageUrl?: string | null };
 
@@ -34,7 +35,7 @@ export async function generateMetadata({
       const categories: Category[] = await response.json();
       const category = categories.find((item) => item.slug === slug);
       if (category?.name) categoryName = category.name;
-      if (category?.imageUrl) imageUrl = category.imageUrl;
+      if (category?.imageUrl) imageUrl = normalizeAssetUrl(category.imageUrl);
     }
   } catch {
     // noop

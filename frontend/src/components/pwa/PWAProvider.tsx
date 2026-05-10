@@ -102,6 +102,37 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined" || !("caches" in window)) return;
+    const invalidHostPattern = /(localhost|127\.0\.0\.1|64\.226\.106\.88)/i;
+
+    const cleanup = async () => {
+      try {
+        const cacheNames = await caches.keys();
+        await Promise.all(
+          cacheNames.map(async (cacheName) => {
+            const cache = await caches.open(cacheName);
+            const requests = await cache.keys();
+            await Promise.all(
+              requests.map((req) => {
+                if (invalidHostPattern.test(req.url)) {
+                  return cache.delete(req);
+                }
+                return Promise.resolve(false);
+              }),
+            );
+          }),
+        );
+        const reg = await navigator.serviceWorker.getRegistration();
+        await reg?.update();
+      } catch {
+        // cache cleanup is best effort
+      }
+    };
+
+    void cleanup();
+  }, []);
+
+  useEffect(() => {
     if (!ready || isStandalone) return;
 
     const onBip = (e: BeforeInstallPromptEvent) => {

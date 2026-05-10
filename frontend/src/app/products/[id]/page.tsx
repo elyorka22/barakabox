@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import ProductDetailClientPage from './product-detail-client';
 import { absoluteUrl, getApiBaseUrl } from '@/lib/seo';
+import { normalizeAssetUrl } from '@/lib/asset-url';
 
 type Product = {
   id: string;
@@ -47,7 +48,7 @@ export async function generateMetadata({
 
   const title = product?.name ? `${product.name} - sotib oling` : 'Mahsulot tafsiloti';
   const description = product?.description || "Mahsulot haqida batafsil ma'lumot va narxlar.";
-  const imageUrl = product?.imageUrl || absoluteUrl('/og-image.png');
+  const imageUrl = product?.imageUrl ? normalizeAssetUrl(product.imageUrl) : absoluteUrl('/og-image.png');
 
   return {
     title,

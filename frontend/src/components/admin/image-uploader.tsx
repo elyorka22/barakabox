@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ImagePlus, Upload } from 'lucide-react';
 import { authStorage } from '@/lib/api';
+import { normalizeAssetUrl } from '@/lib/asset-url';
+import { getApiBaseUrl } from '@/lib/seo';
 
 type Props = {
   valueUrl: string;
@@ -30,7 +32,7 @@ export function ImageUploader({
   const [progress, setProgress] = useState(0);
   const progressTimerRef = useRef<number | null>(null);
 
-  const apiBase = useMemo(() => process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api', []);
+  const apiBase = useMemo(() => getApiBaseUrl(), []);
 
   useEffect(() => {
     setPreviewUrl(valueUrl);
@@ -87,7 +89,7 @@ export function ImageUploader({
       }
       const payload = (await response.json()) as { success: boolean; url: string; key: string };
       setProgress(100);
-      onChange({ url: payload.url, key: payload.key });
+      onChange({ url: normalizeAssetUrl(payload.url), key: payload.key });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Rasmni yuklashda xatolik");
     } finally {

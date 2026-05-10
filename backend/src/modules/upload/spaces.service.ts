@@ -26,7 +26,7 @@ export class SpacesService {
     const secretAccessKey = this.getEnvOrThrow('SPACES_SECRET');
     this.bucket = this.getEnvOrThrow('SPACES_BUCKET');
     this.publicBaseUrl = `https://${this.bucket}.${region}.digitaloceanspaces.com`;
-    this.cdnUrl = '';
+    this.cdnUrl = this.normalizeUrl(this.configService.get<string>('SPACES_CDN_URL') ?? '');
     this.uploadTimeoutMs = 10_000;
 
     this.logger.log(
@@ -35,6 +35,7 @@ export class SpacesService {
         endpoint,
         region,
         bucket: this.bucket,
+        cdnUrl: this.cdnUrl || null,
         forcePathStyle: false,
         hasAccessKey: Boolean(accessKeyId),
         hasSecret: Boolean(secretAccessKey),

@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { t } from './i18n';
 import { showToast } from './toast';
+import { normalizeAssetUrlsDeep } from './asset-url';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api';
 const REFRESH_TOKEN_KEY = 'barakabox_refresh_token';
@@ -150,7 +151,7 @@ async function request<T>(
     throw new Error(message || `${t('common.genericError')}. ${t('common.retry')}`);
   }
 
-  const payload = (await response.json()) as T;
+  const payload = normalizeAssetUrlsDeep((await response.json()) as T);
   const isCartMutation = path.startsWith('/cart') && method !== 'GET';
   const isCategoryMutation = path.startsWith('/admin/categories') && method !== 'GET';
   if (isCartMutation) {
