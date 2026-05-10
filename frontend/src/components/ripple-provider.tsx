@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 
 const RIPPLE_SELECTOR =
-  '.bb-btn-primary, .bb-btn-secondary, .bb-btn-outline, .bb-card-product, .bb-mobile-nav a, .bb-mobile-nav button.bb-nav-tap';
+  '.bb-btn-primary, .bb-btn-secondary, .bb-btn-outline, .bb-card-product, .bb-mobile-nav a';
 
 export function RippleProvider() {
   useEffect(() => {

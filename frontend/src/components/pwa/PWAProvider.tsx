@@ -2,33 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { emitPwaAnalytics } from "@/lib/pwa/analytics";
+import { isStandaloneDisplay } from "@/lib/pwa/device";
 import {
-  isAndroid,
-  isIOSSafari,
-  isStandaloneDisplay,
-  supportsBeforeInstallPrompt,
-} from "@/lib/pwa/device";
-import {
-  getAndroidBannerSoftUntil,
-  getAndroidNever,
-  getEngagementCount,
-  getIosLastShownAt,
-  getIosNever,
   incrementEngagementCount,
-  setAndroidBannerSoftUntil,
-  setAndroidNever,
+  isHomeInstallDismissedThisSession,
+  resetAllInstallHints,
+  setHomeInstallDismissedThisSession,
   setIosLastShownAt,
   setIosNever,
 } from "@/lib/pwa/storage";
-import {
-  PWA_ANDROID_BANNER_DELAY_MS,
-  PWA_ENGAGEMENT_THRESHOLD,
-  PWA_IOS_COOLDOWN_MS,
-} from "@/lib/pwa/types";
 import { PwaInstallContextProvider, type PwaInstallContextValue } from "./pwa-context";
-import { AndroidInstallBanner } from "./AndroidInstallBanner";
-import { AndroidInstallBottomSheet } from "./AndroidInstallBottomSheet";
-import { AndroidInstallFab } from "./AndroidInstallFab";
 import { IosInstallGuideModal } from "./IosInstallGuideModal";
 import { PwaUpdateBar } from "./PwaUpdateBar";
 
@@ -95,38 +78,28 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [androidSheetOpen, setAndroidSheetOpen] = useState(false);
   const [iosModalOpen, setIosModalOpen] = useState(false);
-  const [showAndroidBanner, setShowAndroidBanner] = useState(false);
-  const [engagement, setEngagement] = useState(0);
-  const [androidNever, setAndroidNeverState] = useState(false);
-  const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const iosAutoShownSessionRef = useRef(false);
+  const [homeInstallSessionDismissed, setHomeInstallSessionDismissed] = useState(false);
 
   const { swUpdateWaiting, applyWaitingServiceWorker } = useServiceWorkerUpdate();
 
   const recordEngagement = useCallback(() => {
-    const next = incrementEngagementCount();
-    setEngagement(next);
-    emitPwaAnalytics({ name: "pwa_engagement", props: { count: next } });
+    const count = incrementEngagementCount();
+    emitPwaAnalytics({ name: "pwa_engagement", props: { count } });
   }, []);
 
   useEffect(() => {
-    setIsStandalone(isStandaloneDisplay());
-    setEngagement(getEngagementCount());
-    setAndroidNeverState(getAndroidNever());
-    setReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (!ready || isStandalone) return;
-
-    const onPointer = () => {
-      recordEngagement();
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setIsStandalone(isStandaloneDisplay());
+      setHomeInstallSessionDismissed(isHomeInstallDismissedThisSession());
+      setReady(true);
+    });
+    return () => {
+      cancelled = true;
     };
-    window.addEventListener("pointerdown", onPointer, { passive: true, capture: true });
-    return () => window.removeEventListener("pointerdown", onPointer, true);
-  }, [ready, isStandalone, recordEngagement]);
+  }, []);
 
   useEffect(() => {
     if (!ready || isStandalone) return;
@@ -140,8 +113,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
 
     const onInstalled = () => {
       setDeferredPrompt(null);
-      setShowAndroidBanner(false);
-      setAndroidSheetOpen(false);
+      setIosModalOpen(false);
       emitPwaAnalytics({ name: "pwa_app_installed", props: {} });
     };
     window.addEventListener("appinstalled", onInstalled);
@@ -152,72 +124,23 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     };
   }, [ready, isStandalone]);
 
-  useEffect(() => {
-    if (!ready || isStandalone) return;
-    if (androidNever) return;
-    if (!deferredPrompt && !(isAndroid() && supportsBeforeInstallPrompt())) return;
-
-    if (bannerTimerRef.current) {
-      clearTimeout(bannerTimerRef.current);
-    }
-
-    bannerTimerRef.current = setTimeout(() => {
-      const softUntil = getAndroidBannerSoftUntil();
-      if (softUntil && Date.now() < softUntil) {
-        setShowAndroidBanner(false);
-        return;
-      }
-      if (engagement >= PWA_ENGAGEMENT_THRESHOLD || getEngagementCount() >= PWA_ENGAGEMENT_THRESHOLD) {
-        setShowAndroidBanner(true);
-        emitPwaAnalytics({ name: "pwa_android_banner_shown", props: {} });
-      }
-    }, PWA_ANDROID_BANNER_DELAY_MS);
-
-    return () => {
-      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
-    };
-  }, [ready, isStandalone, deferredPrompt, engagement, androidNever]);
-
-  useEffect(() => {
-    if (!ready || isStandalone) return;
-    if (!isIOSSafari()) return;
-    if (getIosNever()) return;
-
-    const last = getIosLastShownAt();
-    if (last && Date.now() - last < PWA_IOS_COOLDOWN_MS) return;
-    if (getEngagementCount() < PWA_ENGAGEMENT_THRESHOLD && engagement < PWA_ENGAGEMENT_THRESHOLD) return;
-    if (iosAutoShownSessionRef.current) return;
-
-    const t = window.setTimeout(() => {
-      if (getEngagementCount() < PWA_ENGAGEMENT_THRESHOLD) return;
-      iosAutoShownSessionRef.current = true;
-      setIosModalOpen(true);
-      setIosLastShownAt(Date.now());
-      emitPwaAnalytics({ name: "pwa_ios_guide_shown", props: { auto: true } });
-    }, PWA_ANDROID_BANNER_DELAY_MS + 2000);
-
-    return () => window.clearTimeout(t);
-  }, [ready, isStandalone, engagement]);
-
-  const dismissAndroidBannerSoft = useCallback(() => {
-    setShowAndroidBanner(false);
-    const day = 24 * 60 * 60 * 1000;
-    setAndroidBannerSoftUntil(Date.now() + day);
-    emitPwaAnalytics({ name: "pwa_android_banner_soft_dismiss", props: {} });
-  }, []);
-
-  const dismissAndroidForever = useCallback(() => {
-    setShowAndroidBanner(false);
-    setAndroidSheetOpen(false);
-    setAndroidNever();
-    setAndroidNeverState(true);
-    emitPwaAnalytics({ name: "pwa_android_never", props: {} });
+  const dismissHomeInstallForSession = useCallback(() => {
+    setHomeInstallDismissedThisSession();
+    setHomeInstallSessionDismissed(true);
+    emitPwaAnalytics({ name: "pwa_home_install_session_dismiss", props: {} });
   }, []);
 
   const dismissIosForever = useCallback(() => {
     setIosModalOpen(false);
     setIosNever();
     emitPwaAnalytics({ name: "pwa_ios_never", props: {} });
+  }, []);
+
+  const resetInstallHints = useCallback(() => {
+    resetAllInstallHints();
+    setHomeInstallSessionDismissed(false);
+    setIosModalOpen(false);
+    emitPwaAnalytics({ name: "pwa_install_hints_reset", props: {} });
   }, []);
 
   const runAndroidInstallPrompt = useCallback(async (): Promise<{
@@ -231,8 +154,6 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
       await deferredPrompt.prompt();
       const choice = await deferredPrompt.userChoice;
       setDeferredPrompt(null);
-      setAndroidSheetOpen(false);
-      setShowAndroidBanner(false);
       emitPwaAnalytics({
         name: "pwa_install_prompt_result",
         props: { outcome: choice.outcome },
@@ -243,29 +164,14 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     }
   }, [deferredPrompt]);
 
-  const bannerVisible =
-    showAndroidBanner && !isStandalone && Boolean(deferredPrompt) && !androidNever;
-
-  const fabVisible =
-    !isStandalone &&
-    Boolean(deferredPrompt) &&
-    isAndroid() &&
-    !androidNever &&
-    !bannerVisible;
-
   const value = useMemo<PwaInstallContextValue>(
     () => ({
       ready,
       isStandalone,
       deferredPrompt,
-      androidSheetOpen,
       iosModalOpen,
+      homeInstallSessionDismissed,
       recordEngagement,
-      openAndroidInstallSheet: () => {
-        setAndroidSheetOpen(true);
-        emitPwaAnalytics({ name: "pwa_android_sheet_open", props: {} });
-      },
-      closeAndroidInstallSheet: () => setAndroidSheetOpen(false),
       openIosInstallGuide: () => {
         setIosModalOpen(true);
         setIosLastShownAt(Date.now());
@@ -273,11 +179,9 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
       },
       closeIosInstallGuide: () => setIosModalOpen(false),
       runAndroidInstallPrompt,
-      dismissAndroidBannerSoft,
-      dismissAndroidForever,
+      dismissHomeInstallForSession,
       dismissIosForever,
-      showAndroidBanner: bannerVisible,
-      showAndroidFab: fabVisible,
+      resetInstallHints,
       applyWaitingServiceWorker,
       updateWaiting: swUpdateWaiting,
     }),
@@ -285,15 +189,13 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
       ready,
       isStandalone,
       deferredPrompt,
-      androidSheetOpen,
       iosModalOpen,
+      homeInstallSessionDismissed,
       recordEngagement,
       runAndroidInstallPrompt,
-      dismissAndroidBannerSoft,
-      dismissAndroidForever,
+      dismissHomeInstallForSession,
       dismissIosForever,
-      bannerVisible,
-      fabVisible,
+      resetInstallHints,
       applyWaitingServiceWorker,
       swUpdateWaiting,
     ],
@@ -303,9 +205,6 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     <PwaInstallContextProvider value={value}>
       {children}
       <PwaUpdateBar visible={swUpdateWaiting} onReload={applyWaitingServiceWorker} />
-      <AndroidInstallBanner />
-      <AndroidInstallFab />
-      <AndroidInstallBottomSheet />
       <IosInstallGuideModal />
     </PwaInstallContextProvider>
   );

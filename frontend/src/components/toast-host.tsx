@@ -33,6 +33,8 @@ export function ToastHost() {
       ? 'bg-emerald-600'
       : toast.type === 'error'
       ? 'bg-rose-600'
+      : toast.type === 'info'
+      ? 'bg-sky-700'
       : 'bg-slate-800';
 
   return (

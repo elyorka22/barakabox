@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api, authStorage, categoryEvents, guestStorage } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
-import { InstallAppButton } from '@/components/pwa/InstallAppButton';
+import { HomeInstallCard } from '@/components/pwa/HomeInstallCard';
 import { ProductCard } from '@/components/product-card';
 import { formatMoneyUz } from '@/lib/format';
 
@@ -231,15 +231,12 @@ export default function Home() {
           >
             <p className="max-w-[74%] text-xl font-bold leading-6">{HERO_SLIDES[heroIndex]?.title}</p>
             <p className="max-w-[76%] text-[13px] text-white/90">{HERO_SLIDES[heroIndex]?.subtitle}</p>
-            <div className="flex flex-wrap items-center gap-2 pt-0.5">
-              <button
-                type="button"
-                className="rounded-2xl bg-white px-3.5 py-1.5 text-xs font-semibold text-[#111111] shadow-sm"
-              >
-                {HERO_SLIDES[heroIndex]?.cta}
-              </button>
-              <InstallAppButton variant="hero" />
-            </div>
+            <button
+              type="button"
+              className="mt-0.5 rounded-2xl bg-white px-3.5 py-1.5 text-xs font-semibold text-[#111111] shadow-sm"
+            >
+              {HERO_SLIDES[heroIndex]?.cta}
+            </button>
           </motion.div>
           <div className="absolute bottom-3 left-5 flex gap-1.5">
             {HERO_SLIDES.map((_, idx) => (
@@ -252,6 +249,8 @@ export default function Home() {
             ))}
           </div>
         </motion.section>
+
+        <HomeInstallCard />
 
         <section className="mt-5">
           <div className="grid grid-cols-4 gap-x-2 gap-y-4">

@@ -1,5 +1,7 @@
 import { PWA_STORAGE } from "./types";
 
+const HOME_INSTALL_SESSION_KEY = "bb_pwa_home_install_dismissed_session";
+
 function readNumber(key: string): number | null {
   if (typeof window === "undefined") return null;
   const raw = window.localStorage.getItem(key);
@@ -19,25 +21,6 @@ export function incrementEngagementCount(): number {
   return next;
 }
 
-export function getAndroidBannerSoftUntil(): number | null {
-  return readNumber(PWA_STORAGE.androidBannerSoftUntil);
-}
-
-export function setAndroidBannerSoftUntil(timestamp: number) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(PWA_STORAGE.androidBannerSoftUntil, String(timestamp));
-}
-
-export function getAndroidNever(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(PWA_STORAGE.androidNever) === "1";
-}
-
-export function setAndroidNever() {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(PWA_STORAGE.androidNever, "1");
-}
-
 export function getIosLastShownAt(): number | null {
   return readNumber(PWA_STORAGE.iosLastShownAt);
 }
@@ -55,4 +38,29 @@ export function getIosNever(): boolean {
 export function setIosNever() {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(PWA_STORAGE.iosNever, "1");
+}
+
+export function isHomeInstallDismissedThisSession(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.sessionStorage.getItem(HOME_INSTALL_SESSION_KEY) === "1";
+}
+
+export function setHomeInstallDismissedThisSession() {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(HOME_INSTALL_SESSION_KEY, "1");
+}
+
+export function clearHomeInstallSessionDismiss() {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(HOME_INSTALL_SESSION_KEY);
+}
+
+/** Profil: barcha “hech qachon” va vaqtinchalik yashirishlarni tiklash. */
+export function resetAllInstallHints() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(PWA_STORAGE.androidNever);
+  window.localStorage.removeItem(PWA_STORAGE.iosNever);
+  window.localStorage.removeItem(PWA_STORAGE.androidBannerSoftUntil);
+  window.localStorage.removeItem(PWA_STORAGE.iosLastShownAt);
+  clearHomeInstallSessionDismiss();
 }

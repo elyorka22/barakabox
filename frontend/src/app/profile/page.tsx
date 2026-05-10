@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { api, authStorage } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
-import { InstallAppButton } from '@/components/pwa/InstallAppButton';
+import { ProfileInstallSection } from '@/components/pwa/ProfileInstallSection';
 
 type LoginResponse = {
   accessToken: string;
@@ -121,9 +121,7 @@ export default function ProfilePage() {
           <h1 className="text-2xl font-bold text-[#121212]">Profil</h1>
           <button className="h-10 w-10 rounded-xl bg-[#F3F4F6] text-gray-600">⚙️</button>
         </div>
-        <div className="mt-3">
-          <InstallAppButton variant="card" />
-        </div>
+        <ProfileInstallSection />
         {!user ? (
             <div className="mt-4 space-y-4">
             <div className="rounded-3xl bg-white p-4 shadow-sm">

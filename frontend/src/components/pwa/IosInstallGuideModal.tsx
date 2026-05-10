@@ -1,39 +1,34 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
-import { Plus, Share2, Smartphone, SquarePlus } from "lucide-react";
+import { AnimatePresence, motion, useDragControls } from "framer-motion";
+import { Plus, Share2, SquarePlus, X } from "lucide-react";
 import { useEffect } from "react";
 import { usePWAInstall } from "./pwa-context";
 
 const steps = [
   {
     icon: Share2,
-    title: "Ulashish tugmasini bosing",
-    body: "Pastki paneldagi kvadrat va strelka belgisini toping (Safari).",
-    accent: "from-sky-400/90 to-blue-500/90",
+    title: "Safari pastidagi Share tugmasini bosing",
+    body: "Ekran pastidagi o‘rtadagi ulashish (kvadrat va strelka) ikonkasini bosing.",
+    accent: "from-sky-400 to-blue-600",
   },
   {
     icon: SquarePlus,
-    title: '"Asosiy ekranga qo‘shish"',
-    body: "Ro‘yxatdan ushbu bandni tanlang.",
-    accent: "from-violet-400/90 to-purple-600/90",
+    title: "“Add to Home Screen” ni tanlang",
+    body: "Ro‘yxatdan ushbu punktni toping va tanlang.",
+    accent: "from-violet-400 to-purple-600",
   },
   {
     icon: Plus,
-    title: '"Qo‘shish" ni tasdiqlang',
-    body: "Ilova nomi va ikonka tayyor — tugmani bosing.",
-    accent: "from-emerald-400/90 to-[#16C25B]",
+    title: "“Add” tugmasini bosing",
+    body: "Ilova nomi va belgisini tekshirib, qo‘shishni tasdiqlang.",
+    accent: "from-emerald-400 to-[#16C25B]",
   },
 ];
 
 export function IosInstallGuideModal() {
-  const {
-    ready,
-    iosModalOpen,
-    closeIosInstallGuide,
-    dismissIosForever,
-    recordEngagement,
-  } = usePWAInstall();
+  const { ready, iosModalOpen, closeIosInstallGuide, dismissIosForever, recordEngagement } = usePWAInstall();
+  const dragControls = useDragControls();
 
   useEffect(() => {
     if (!iosModalOpen) return;
@@ -50,8 +45,10 @@ export function IosInstallGuideModal() {
     <AnimatePresence>
       {iosModalOpen ? (
         <>
-          <motion.div
-            className="fixed inset-0 z-[100] bg-slate-950/55 backdrop-blur-md"
+          <motion.button
+            type="button"
+            aria-label="Yopish"
+            className="fixed inset-0 z-[100] bg-slate-950/45 backdrop-blur-[3px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -60,86 +57,88 @@ export function IosInstallGuideModal() {
           <motion.div
             role="dialog"
             aria-modal="true"
-            aria-labelledby="pwa-ios-title"
-            className="fixed left-3 right-3 top-[max(8vh,env(safe-area-inset-top))] z-[101] mx-auto max-h-[min(82dvh,620px)] max-w-lg overflow-hidden rounded-[28px] border border-white/35 bg-gradient-to-b from-white/75 to-white/55 shadow-[0_24px_80px_rgba(15,23,42,0.35)] backdrop-blur-2xl md:left-1/2 md:w-full md:-translate-x-1/2"
-            initial={{ opacity: 0, y: 24, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.96 }}
-            transition={{ type: "spring", stiffness: 380, damping: 32 }}
+            aria-labelledby="pwa-ios-sheet-title"
+            className="fixed inset-x-0 bottom-0 z-[101] max-h-[min(90dvh,640px)] overflow-hidden rounded-t-[28px] border border-white/60 bg-[#f8fafc]/95 shadow-[0_-24px_80px_rgba(15,23,42,0.28)] backdrop-blur-2xl"
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", stiffness: 420, damping: 34 }}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 280 }}
+            dragElastic={{ top: 0, bottom: 0.15 }}
+            dragListener={false}
+            dragControls={dragControls}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 100 || info.velocity.y > 400) {
+                closeIosInstallGuide();
+              }
+            }}
           >
-            <div className="relative px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-6">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <motion.div
-                    className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-800 to-slate-950 text-white shadow-lg"
-                    animate={{ rotate: [0, -4, 4, 0] }}
-                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                  >
-                    <Smartphone className="h-6 w-6" strokeWidth={1.8} />
-                  </motion.div>
-                  <div>
-                    <h2 id="pwa-ios-title" className="text-lg font-bold tracking-tight text-slate-900">
-                      Asosiy ekranga qo‘shing
-                    </h2>
-                    <p className="text-xs text-slate-600">Safari orqali bir necha soniyada tayyor.</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => closeIosInstallGuide()}
-                  className="rounded-xl px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-white/50"
-                >
-                  Yopish
-                </button>
+            <div className="flex justify-center pt-2 pb-1">
+              <button
+                type="button"
+                className="h-1.5 w-12 cursor-grab touch-none rounded-full bg-slate-300 active:cursor-grabbing"
+                onPointerDown={(e) => dragControls.start(e)}
+                aria-hidden
+              />
+            </div>
+            <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 px-5 pb-3 pt-1">
+              <div>
+                <h2 id="pwa-ios-sheet-title" className="text-lg font-bold tracking-tight text-slate-900">
+                  iPhone’da ilovani o‘rnating
+                </h2>
+                <p className="mt-0.5 text-xs text-slate-500">Safari · Add to Home Screen</p>
               </div>
-              <p className="mt-4 text-sm leading-relaxed text-slate-700">
-                iPhone va iPad’da ilovalar brauzer orqali o‘rnatiladi — App Store talab qilinmaydi. Quyidagi
-                qadamlarni bajaring:
-              </p>
-              <div className="mt-5 space-y-3">
+              <button
+                type="button"
+                onClick={() => closeIosInstallGuide()}
+                className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-200/60"
+                aria-label="Yopish"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="max-h-[min(62dvh,480px)] overflow-y-auto px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
+              <div className="space-y-3">
                 {steps.map((step, i) => (
                   <motion.div
                     key={step.title}
-                    initial={{ opacity: 0, x: -12 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.08 * i, type: "spring", stiffness: 400, damping: 28 }}
-                    className="flex gap-3 rounded-2xl border border-white/50 bg-white/55 p-3 shadow-sm ring-1 ring-slate-100/80"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.06 * i, type: "spring", stiffness: 400, damping: 28 }}
+                    className="flex gap-3 rounded-2xl border border-white/80 bg-white/90 p-3.5 shadow-sm ring-1 ring-slate-100"
                   >
                     <div
-                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${step.accent} text-white shadow-md`}
+                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${step.accent} text-white shadow-md`}
                     >
                       <step.icon className="h-5 w-5" strokeWidth={2} />
                     </div>
                     <div className="min-w-0 pt-0.5">
-                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-                        Qadam {i + 1}
-                      </p>
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Qadam {i + 1}</p>
                       <p className="text-sm font-semibold text-slate-900">{step.title}</p>
                       <p className="mt-0.5 text-xs leading-relaxed text-slate-600">{step.body}</p>
                     </div>
                   </motion.div>
                 ))}
               </div>
-              <div className="mt-6 flex flex-col gap-2">
-                <motion.button
-                  type="button"
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    recordEngagement();
-                    closeIosInstallGuide();
-                  }}
-                  className="h-12 rounded-2xl bg-[#16C25B] text-sm font-semibold text-white shadow-[0_8px_24px_rgba(22,194,91,0.3)]"
-                >
-                  Tushunarli
-                </motion.button>
-                <button
-                  type="button"
-                  onClick={() => dismissIosForever()}
-                  className="py-2 text-center text-[11px] font-medium text-slate-400 underline decoration-slate-300 underline-offset-2"
-                >
-                  Bu maslahatni boshqa ko‘rsatilmasin
-                </button>
-              </div>
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  recordEngagement();
+                  closeIosInstallGuide();
+                }}
+                className="mt-5 h-12 w-full rounded-2xl bg-[#16C25B] text-sm font-semibold text-white shadow-[0_8px_24px_rgba(22,194,91,0.28)]"
+              >
+                Tushunarli
+              </motion.button>
+              <button
+                type="button"
+                onClick={() => dismissIosForever()}
+                className="mt-2 w-full py-2 text-center text-[11px] font-medium text-slate-400 underline decoration-slate-300 underline-offset-2"
+              >
+                Bu qo‘llanmani boshqa ko‘rsatilmasin
+              </button>
             </div>
           </motion.div>
         </>
