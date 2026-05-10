@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Home, LayoutGrid, ShoppingCart, User } from 'lucide-react';
@@ -16,6 +16,7 @@ const baseItems = [
 
 export function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const [cartCount, setCartCount] = useState(0);
 
   const items = useMemo(() => baseItems, []);
@@ -46,6 +47,14 @@ export function BottomNav() {
     void loadCartCount();
   }, [pathname]);
 
+  useEffect(() => {
+    for (const item of items) {
+      if (item.href !== pathname) {
+        router.prefetch(item.href);
+      }
+    }
+  }, [items, pathname, router]);
+
   return (
     <nav className="bb-mobile-nav">
       {items.map((item) => {
@@ -67,7 +76,7 @@ export function BottomNav() {
             }`}
           >
             <motion.div
-              whileTap={{ scale: 0.92 }}
+              whileTap={{ scale: 0.96 }}
               animate={{ scale: active ? 1.14 : 1 }}
               transition={{ type: 'spring', stiffness: 420, damping: 28 }}
               className="relative"

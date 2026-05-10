@@ -49,7 +49,7 @@ body {
   .bb-shell {
     @apply w-full min-h-[calc(100dvh-1rem)] rounded-none bg-white p-4 shadow-none;
     padding-bottom: calc(1rem + var(--bb-mobile-nav-height) + env(safe-area-inset-bottom));
-    animation: bb-fade-in 220ms ease-out;
+    animation: bb-fade-in 120ms ease-out;
   }
 
   .bb-card {
@@ -176,7 +176,7 @@ body {
 @keyframes bb-fade-in {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(2px);
   }
   to {
     opacity: 1;

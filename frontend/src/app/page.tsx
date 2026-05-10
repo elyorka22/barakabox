@@ -81,6 +81,7 @@ export default function Home() {
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [error, setError] = useState('');
   const [heroIndex, setHeroIndex] = useState(0);
+  const [showDeferredSections, setShowDeferredSections] = useState(false);
   const token = authStorage.getAccessToken();
 
   useEffect(() => {
@@ -197,6 +198,21 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    const deferred =
+      'requestIdleCallback' in window
+        ? window.requestIdleCallback(() => setShowDeferredSections(true), { timeout: 180 })
+        : window.setTimeout(() => setShowDeferredSections(true), 120);
+
+    return () => {
+      if ('cancelIdleCallback' in window && typeof deferred === 'number') {
+        window.cancelIdleCallback(deferred);
+      } else {
+        window.clearTimeout(deferred as number);
+      }
+    };
+  }, []);
+
   return (
     <main className="bb-page bg-[#F8F8F8]">
       <section className="bb-shell bg-[#F8F8F8]">
@@ -274,6 +290,8 @@ export default function Home() {
                             src={item.imageUrl}
                             alt={item.name}
                             className="h-full w-full rounded-full object-cover"
+                            loading="lazy"
+                            decoding="async"
                           />
                         ) : (
                           <span className="text-2xl">{categoryEmoji(item.name)}</span>
@@ -286,7 +304,9 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mt-5 rounded-3xl bg-[#8B5CF6] p-3 text-white shadow-[0_12px_24px_rgba(139,92,246,0.28)]">
+        {showDeferredSections ? (
+          <>
+            <section className="mt-5 rounded-3xl bg-[#8B5CF6] p-3 text-white shadow-[0_12px_24px_rgba(139,92,246,0.28)]">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold">Aksiya va chegirmalar</h2>
             <div className="rounded-xl bg-white/20 px-2 py-1 text-[11px]">03 : 12 : 45</div>
@@ -315,6 +335,8 @@ export default function Home() {
                         src={variant?.imageUrl ?? product.imageCardUrl ?? product.imageUrl ?? ''}
                         alt={product.name}
                         className="h-full w-full object-cover"
+                        loading="lazy"
+                        decoding="async"
                       />
                     ) : null}
                   </div>
@@ -332,14 +354,14 @@ export default function Home() {
             <span>Barcha aksiyalar</span>
             <span>›</span>
           </Link>
-        </section>
+            </section>
 
-        <section className="mt-4 rounded-3xl bg-[#F2E5CC] p-4">
+            <section className="mt-4 rounded-3xl bg-[#F2E5CC] p-4">
           <p className="text-base font-semibold text-[#111111]">50 000 so'mdan boshlab bepul yetkazib berish</p>
           <p className="mt-1 text-xs text-slate-600">Tezkor delivery xizmati har kuni 24/7</p>
-        </section>
+            </section>
 
-        <section className="mt-5">
+            <section className="mt-5">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-[#111111]">Mashhur mahsulotlar</h2>
             <Link href="/categories" className="text-sm font-medium text-[#16C25B]">
@@ -374,9 +396,9 @@ export default function Home() {
               />
             ))}
           </div>
-        </section>
+            </section>
 
-        <section className="mt-5 pb-24">
+            <section className="mt-5 pb-24">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-[#111111]">Siz uchun tavsiya</h2>
             <Link href="/categories" className="text-sm font-medium text-[#16C25B]">
@@ -411,7 +433,22 @@ export default function Home() {
               />
             ))}
           </div>
-        </section>
+            </section>
+          </>
+        ) : (
+          <div className="mt-5 space-y-4 pb-24">
+            <div className="bb-skeleton h-36 rounded-3xl" />
+            <div className="bb-skeleton h-24 rounded-3xl" />
+            <div className="grid grid-cols-2 gap-3">
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <div key={idx} className="rounded-3xl bg-white p-3">
+                  <div className="bb-skeleton h-36 w-full rounded-2xl" />
+                  <div className="bb-skeleton mt-3 h-4 w-2/3" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
         <MobileNav />
