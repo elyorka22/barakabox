@@ -199,16 +199,25 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const deferred =
-      'requestIdleCallback' in window
-        ? window.requestIdleCallback(() => setShowDeferredSections(true), { timeout: 180 })
-        : window.setTimeout(() => setShowDeferredSections(true), 120);
+    if (typeof window === 'undefined') return;
+
+    let deferred: number | null = null;
+
+    if ('requestIdleCallback' in window && typeof window.requestIdleCallback === 'function') {
+      deferred = window.requestIdleCallback(() => setShowDeferredSections(true), { timeout: 180 });
+    } else {
+      deferred = window.setTimeout(() => setShowDeferredSections(true), 120);
+    }
 
     return () => {
-      if ('cancelIdleCallback' in window && typeof deferred === 'number') {
-        window.cancelIdleCallback(deferred);
-      } else {
-        window.clearTimeout(deferred as number);
+      if ('cancelIdleCallback' in window && deferred !== null && typeof window.cancelIdleCallback === 'function') {
+        try {
+          window.cancelIdleCallback(deferred);
+        } catch {
+          clearTimeout(deferred);
+        }
+      } else if (deferred !== null) {
+        clearTimeout(deferred);
       }
     };
   }, []);
