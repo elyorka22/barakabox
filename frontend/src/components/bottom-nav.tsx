@@ -54,6 +54,14 @@ export function BottomNav() {
           <Link
             key={item.href}
             href={item.href}
+            scroll={false}
+            onClick={() => {
+              try {
+                sessionStorage.setItem(`bb:scroll:${pathname}`, String(window.scrollY));
+              } catch {
+                // Ignore storage issues on restricted browsers.
+              }
+            }}
             className={`relative flex min-h-12 items-center justify-center rounded-2xl px-1 py-2 transition-all duration-300 ${
               active ? 'text-[#16C25B]' : 'text-slate-400'
             }`}

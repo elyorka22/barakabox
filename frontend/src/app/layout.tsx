@@ -5,6 +5,7 @@ import { ToastHost } from "@/components/toast-host";
 import { AuthBootstrap } from "@/components/auth-bootstrap";
 import { ApplePwaHead } from "@/components/pwa/ApplePwaHead";
 import { PWAProvider } from "@/components/pwa/PWAProvider";
+import { StorefrontTransitionProvider } from "@/components/navigation/storefront-transition-provider";
 import { absoluteUrl, getSiteUrl } from "@/lib/seo";
 import "./globals.css";
 
@@ -143,7 +144,7 @@ export default function RootLayout({
           <AuthBootstrap />
           <ToastHost />
           <RippleProvider />
-          {children}
+          <StorefrontTransitionProvider>{children}</StorefrontTransitionProvider>
         </PWAProvider>
       </body>
     </html>
