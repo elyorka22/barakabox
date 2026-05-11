@@ -229,7 +229,7 @@ export default function Home() {
           <h2 id="home-categories-heading" className="sr-only">
             Kategoriyalar
           </h2>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-4 gap-x-3 gap-y-4">
             {loadingCategories
               ? Array.from({ length: 8 }).map((_, idx) => <CategoryCardSkeleton key={`cat-skeleton-${idx}`} />)
               : categories.map((item) => (

@@ -15,9 +15,11 @@ function CategoryCardBase({ href, name, imageUrl, fallbackEmoji = '🛒' }: Cate
     <Link
       href={href}
       aria-label={name}
-      className="group flex h-full flex-col items-center justify-start gap-2 rounded-[22px] border border-[#DFF5E7] bg-white p-3 shadow-[0_4px_12px_rgba(34,197,94,0.06)] outline-none transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(34,197,94,0.14)] focus-visible:ring-2 focus-visible:ring-[#22C55E] active:scale-[0.97] active:shadow-[0_2px_8px_rgba(34,197,94,0.18)]"
+      className="group flex h-full flex-col items-center text-center outline-none focus-visible:outline-none"
     >
-      <div className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-[18px] bg-[#DCFCE7]/45">
+      <div
+        className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-[22px] border border-[#E8F5EC] bg-white p-4 shadow-[0_4px_14px_rgba(15,23,42,0.05)] transition-all duration-200 ease-out group-hover:-translate-y-0.5 group-hover:shadow-[0_10px_22px_rgba(34,197,94,0.14)] group-active:scale-[0.96] group-active:shadow-[0_2px_8px_rgba(34,197,94,0.22)] group-focus-visible:ring-2 group-focus-visible:ring-[#22C55E]"
+      >
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -26,14 +28,16 @@ function CategoryCardBase({ href, name, imageUrl, fallbackEmoji = '🛒' }: Cate
             loading="lazy"
             decoding="async"
             draggable={false}
-            className="h-full w-full object-cover transition-transform duration-300 ease-out group-active:scale-[1.04]"
+            className="h-full w-full object-contain transition-transform duration-300 ease-out group-active:scale-[1.04]"
           />
         ) : (
-          <span className="text-2xl" aria-hidden="true">{fallbackEmoji}</span>
+          <span className="text-3xl" aria-hidden="true">
+            {fallbackEmoji}
+          </span>
         )}
       </div>
       <p
-        className="line-clamp-2 text-center text-[11px] font-medium leading-snug text-[#1F2937] sm:text-xs"
+        className="mt-2 line-clamp-2 text-center text-[11px] font-semibold leading-snug text-[#1F2937] transition-colors duration-200 group-active:text-[#16A34A] sm:text-xs"
         title={name}
       >
         {name}
@@ -46,12 +50,9 @@ export const CategoryCard = memo(CategoryCardBase);
 
 export function CategoryCardSkeleton() {
   return (
-    <div
-      aria-hidden="true"
-      className="flex h-full flex-col items-center gap-2 rounded-[22px] border border-[#DFF5E7] bg-white p-3 shadow-[0_4px_12px_rgba(34,197,94,0.06)]"
-    >
-      <div className="bb-skeleton aspect-square w-full rounded-[18px]" />
-      <div className="bb-skeleton h-3 w-3/4 rounded-full" />
+    <div aria-hidden="true" className="flex h-full flex-col items-center">
+      <div className="bb-skeleton aspect-square w-full rounded-[22px]" />
+      <div className="bb-skeleton mt-2 h-3 w-3/4 rounded-full" />
     </div>
   );
 }

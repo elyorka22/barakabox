@@ -86,7 +86,7 @@ export default function CategoriesPage() {
           </button>
         </div>
 
-        <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
+        <div className="mt-4 grid grid-cols-3 gap-x-3 gap-y-4 sm:grid-cols-4">
           {loading
             ? Array.from({ length: 9 }).map((_, index) => <CategoryCardSkeleton key={`cat-list-skeleton-${index}`} />)
             : filteredCategories.map((category, idx) => (
