@@ -353,3 +353,21 @@ model InventoryLog {
   @@index([productId, createdAt])
   @@index([orderId, createdAt])
 }
+
+model Banner {
+  id              String   @id @default(cuid())
+  title           String
+  subtitle        String?
+  imageUrl        String?
+  buttonText      String?
+  buttonLink      String?
+  backgroundColor String?
+  textColor       String?
+  overlayOpacity  Int      @default(0)
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}

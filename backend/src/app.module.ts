@@ -15,6 +15,7 @@ import { BusinessesModule } from './modules/businesses/businesses.module';
 import { BoxesModule } from './modules/boxes/boxes.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { BannersModule } from './modules/banners/banners.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { QueueService } from './infrastructure/queue/queue.service';
 import { EventEmitterService } from './infrastructure/events/event-emitter.service';
@@ -52,6 +53,7 @@ import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
     BoxesModule,
     AdminModule,
     CategoriesModule,
+    BannersModule,
     UploadModule,
   ],
   controllers: [AppController],

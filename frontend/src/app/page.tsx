@@ -1,11 +1,11 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { Heart, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api, authStorage, categoryEvents, guestStorage } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
+import { HomeBannerCarousel } from '@/components/home/home-banner-carousel';
 import { HomeInstallCard } from '@/components/pwa/HomeInstallCard';
 import { ProductCard } from '@/components/product-card';
 import { formatMoneyUz } from '@/lib/format';
@@ -46,19 +46,6 @@ type Category = {
   sortOrder?: number;
 };
 
-const HERO_SLIDES = [
-  {
-    title: 'Fresh mahsulotlar eng yaxshi narxda!',
-    subtitle: 'Tez yetkazib berish va sifat kafolati.',
-    cta: 'Buyurtma berish',
-  },
-  {
-    title: 'Kundalik savdo uchun premium tanlov',
-    subtitle: "Doimiy chegirmalar va yangi mahsulotlar.",
-    cta: "Aksiyani ko'rish",
-  },
-];
-
 function categoryEmoji(name: string) {
   const lower = name.toLowerCase();
   if (lower.includes('non')) return '🥖';
@@ -80,7 +67,6 @@ export default function Home() {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [error, setError] = useState('');
-  const [heroIndex, setHeroIndex] = useState(0);
   const [showDeferredSections, setShowDeferredSections] = useState(false);
   const token = authStorage.getAccessToken();
 
@@ -191,12 +177,6 @@ export default function Home() {
   );
   const popularProducts = useMemo(() => renderableProducts.slice(0, 6), [renderableProducts]);
   const recommendedProducts = useMemo(() => renderableProducts.slice(6, 12), [renderableProducts]);
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setHeroIndex((prev) => (prev + 1) % HERO_SLIDES.length);
-    }, 4800);
-    return () => window.clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -240,40 +220,7 @@ export default function Home() {
           </div>
         </div>
 
-        <motion.section
-          className="relative mt-3 overflow-hidden rounded-3xl bg-gradient-to-r from-[#16C25B] to-[#0FA34B] p-4 text-white shadow-[0_10px_24px_rgba(22,194,91,0.25)]"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-        >
-          <motion.div
-            key={heroIndex}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-2"
-          >
-            <p className="max-w-[74%] text-xl font-bold leading-6">{HERO_SLIDES[heroIndex]?.title}</p>
-            <p className="max-w-[76%] text-[13px] text-white/90">{HERO_SLIDES[heroIndex]?.subtitle}</p>
-            <button
-              type="button"
-              className="mt-0.5 rounded-2xl bg-white px-3.5 py-1.5 text-xs font-semibold text-[#111111] shadow-sm"
-            >
-              {HERO_SLIDES[heroIndex]?.cta}
-            </button>
-          </motion.div>
-          <div className="absolute bottom-3 left-5 flex gap-1.5">
-            {HERO_SLIDES.map((_, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setHeroIndex(idx)}
-                className={`h-1.5 rounded-full transition-all ${idx === heroIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/50'}`}
-              />
-            ))}
-          </div>
-        </motion.section>
+        <HomeBannerCarousel />
 
         <HomeInstallCard />
 
