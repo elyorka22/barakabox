@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Minus, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { formatMoneyUz } from '@/lib/format';
 
@@ -97,12 +98,19 @@ export function ProductCard({
     setTouchStartX(null);
   };
 
+  const stopLinkNavigation = (event: React.SyntheticEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  const outOfStock = activeVariant ? (activeVariant.stock ?? 0) <= 0 : true;
+
   return (
     <article className="overflow-hidden rounded-3xl bg-white shadow-sm">
       <Link href={href ?? '#'} className="block">
         {activeVariant ? (
           <div
-            className="relative h-36 w-full overflow-hidden rounded-t-3xl bg-slate-50 sm:h-40"
+            className="relative h-48 w-full overflow-hidden rounded-t-3xl bg-slate-50 sm:h-56"
             onTouchStart={(event) => setTouchStartX(event.changedTouches[0]?.clientX ?? null)}
             onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
           >
@@ -119,7 +127,7 @@ export function ProductCard({
                       alt={variant.flavor || name}
                       loading="lazy"
                       decoding="async"
-                      className="h-full w-full object-cover object-center"
+                      className="h-full w-full object-contain object-center"
                       onLoad={() => setLoaded(true)}
                       onError={() => setLoaded(true)}
                     />
@@ -135,28 +143,77 @@ export function ProductCard({
               </span>
             ) : null}
             {effectiveVariants.length > 1 ? (
-              <div className="absolute bottom-1.5 left-0 right-0 flex justify-center gap-1">
+              <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1">
                 {effectiveVariants.map((variant, idx) => (
                   <button
                     type="button"
                     key={variant.id}
                     onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
+                      stopLinkNavigation(event);
                       goToVariant(idx);
                     }}
-                    className={`h-1.5 w-1.5 rounded-full ${idx === activeVariantIndex ? 'bg-white' : 'bg-white/50'}`}
+                    className={`h-1.5 w-1.5 rounded-full ${idx === activeVariantIndex ? 'bg-[#16A34A]' : 'bg-slate-300'}`}
                   >
                     <span className="sr-only">{`Variant ${idx + 1}`}</span>
                   </button>
                 ))}
               </div>
             ) : null}
+
+            <div className="absolute bottom-2 right-2 z-10 flex items-center">
+              {activeQuantity > 0 ? (
+                <div
+                  className="flex items-center gap-1 rounded-full bg-white/95 p-1 shadow-[0_4px_12px_rgba(15,23,42,0.18)] backdrop-blur-sm"
+                  onClick={stopLinkNavigation}
+                >
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      stopLinkNavigation(event);
+                      onDecrease?.(activeVariant.id, id);
+                    }}
+                    disabled={activeLoading}
+                    aria-label="Sonni kamaytirish"
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-700 transition active:scale-95 disabled:opacity-50"
+                  >
+                    <Minus className="h-3.5 w-3.5" strokeWidth={2.4} />
+                  </button>
+                  <span className="min-w-5 text-center text-xs font-semibold text-[#121212]">
+                    {activeQuantity}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      stopLinkNavigation(event);
+                      onIncrease?.(activeVariant.id, id);
+                    }}
+                    disabled={activeLoading}
+                    aria-label="Sonni oshirish"
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-[#16A34A] text-white transition active:scale-95 disabled:opacity-50"
+                  >
+                    <Plus className="h-3.5 w-3.5" strokeWidth={2.4} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    stopLinkNavigation(event);
+                    onAdd(activeVariant.id, id);
+                  }}
+                  disabled={activeLoading || outOfStock}
+                  aria-label={outOfStock ? 'Mahsulot tugagan' : 'Savatga qo‘shish'}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[#16A34A] text-white shadow-[0_4px_12px_rgba(22,163,74,0.35)] transition active:scale-95 disabled:opacity-50"
+                >
+                  <Plus className="h-4 w-4" strokeWidth={2.6} />
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="h-28 rounded-2xl bg-gradient-to-br from-green-200 to-green-100" />
         )}
-        <div className="px-3 pb-2.5 pt-2.5 sm:px-3.5">
+        <div className="px-3 pb-3 pt-2.5 sm:px-3.5">
           <h3 className="line-clamp-1 text-[13px] font-semibold text-[#121212]">{name}</h3>
           <p className="mt-0.5 line-clamp-1 min-h-4 text-[11px] font-medium text-slate-600">{activeVariant?.flavor ?? ''}</p>
           {activeVariant ? (
@@ -173,38 +230,6 @@ export function ProductCard({
           )}
         </div>
       </Link>
-      <div className="flex items-center justify-end px-3 pb-3 sm:px-3.5 sm:pb-3.5">
-        {activeVariant && activeQuantity > 0 ? (
-          <div className="flex items-center gap-2 rounded-xl bg-[#F3F4F6] p-1">
-            <button
-              onClick={() => onDecrease?.(activeVariant.id, id)}
-              disabled={activeLoading}
-              className="h-7 w-7 rounded-lg bg-white text-sm font-bold text-gray-700 disabled:opacity-50"
-            >
-              -
-            </button>
-            <span className="w-5 text-center text-xs font-semibold text-[#121212]">{activeQuantity}</span>
-            <button
-              onClick={() => onIncrease?.(activeVariant.id, id)}
-              disabled={activeLoading}
-              className="h-7 w-7 rounded-lg bg-[#16A34A] text-sm font-bold text-white disabled:opacity-50"
-            >
-              +
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => {
-              if (!activeVariant) return;
-              onAdd(activeVariant.id, id);
-            }}
-            disabled={!activeVariant || activeLoading || (activeVariant.stock ?? 0) <= 0}
-            className="rounded-xl bg-[#16A34A] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
-          >
-            {activeLoading ? "Qo'shilmoqda..." : "Savatga"}
-          </button>
-        )}
-      </div>
     </article>
   );
 }
