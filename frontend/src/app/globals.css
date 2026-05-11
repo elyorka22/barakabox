@@ -90,7 +90,7 @@ body {
   }
 
   .bb-mobile-nav {
-    @apply fixed bottom-0 z-30 mt-5 grid grid-cols-4 gap-2 rounded-t-[28px] border border-b-0 border-slate-200/70 bg-white/95 px-3 py-2 text-center shadow-[0_-10px_28px_rgba(15,23,42,0.1)] backdrop-blur-lg;
+    @apply fixed bottom-0 z-30 mt-5 grid grid-cols-4 gap-2 rounded-t-[28px] border border-b-0 border-slate-200/70 bg-white px-3 py-2 text-center shadow-none;
     left: max(0.5rem, env(safe-area-inset-left));
     right: max(0.5rem, env(safe-area-inset-right));
     padding-bottom: max(0.6rem, env(safe-area-inset-bottom));
@@ -138,8 +138,7 @@ body {
   .bb-btn-primary::after,
   .bb-btn-secondary::after,
   .bb-btn-outline::after,
-  .bb-card-product::after,
-  .bb-mobile-nav a::after {
+  .bb-card-product::after {
     content: '';
     position: absolute;
     left: var(--bb-ripple-x, 50%);
@@ -159,9 +158,14 @@ body {
 
   .bb-btn-secondary::after,
   .bb-btn-outline::after,
-  .bb-card-product::after,
-  .bb-mobile-nav a::after {
+  .bb-card-product::after {
     background: rgba(17, 24, 39, 0.12);
+  }
+
+  /* Bottom nav: no ripple pseudo-element, no elevation on tap */
+  .bb-mobile-nav a::after {
+    content: none;
+    display: none;
   }
 
   .bb-rippling::after {

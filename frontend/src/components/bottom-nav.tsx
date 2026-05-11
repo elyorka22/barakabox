@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
 import { Home, LayoutGrid, ShoppingCart, User } from 'lucide-react';
 import { api, authEvents, authStorage, cartEvents } from '@/lib/api';
 
@@ -71,33 +70,17 @@ export function BottomNav() {
                 // Ignore storage issues on restricted browsers.
               }
             }}
-            className={`relative flex min-h-12 items-center justify-center rounded-2xl px-1 py-2 transition-all duration-300 ${
-              active ? 'text-[#16C25B]' : 'text-slate-400'
+            className={`relative flex min-h-12 items-center justify-center bg-transparent px-1 py-2 shadow-none transition-[color,transform] duration-200 ease-out active:scale-[0.96] ${
+              active ? 'text-[#22C55E]' : 'text-[#98A2B3]'
             }`}
           >
-            <motion.div
-              whileTap={{ scale: 0.96 }}
-              animate={{ scale: active ? 1.14 : 1 }}
-              transition={{ type: 'spring', stiffness: 420, damping: 28 }}
-              className="relative"
-            >
-              {active ? (
-                <motion.span
-                  layoutId="nav-active-bg"
-                  className="absolute inset-[-10px] rounded-2xl bg-emerald-100/75 shadow-[0_0_0_1px_rgba(34,197,94,0.12),0_8px_22px_rgba(34,197,94,0.26)]"
-                  transition={{ type: 'spring', stiffness: 390, damping: 32 }}
-                />
-              ) : null}
-              <item.icon className={`relative ${active ? 'h-7 w-7' : 'h-6 w-6'}`} strokeWidth={1.9} />
-            </motion.div>
+            <span className="relative flex items-center justify-center">
+              <item.icon className="relative h-6 w-6 shrink-0" strokeWidth={1.85} />
+            </span>
             {item.key === 'cart' && cartCount > 0 ? (
-              <motion.span
-                initial={{ scale: 0.8, opacity: 0.7 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="absolute right-2 top-1.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-[#16C25B] px-1 text-[9px] font-semibold leading-none text-white shadow sm:right-3 sm:text-[10px]"
-              >
+              <span className="absolute right-2 top-1.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-[#22C55E] px-1 text-[9px] font-semibold leading-none text-white shadow-none sm:right-3 sm:text-[10px]">
                 {cartCount > 99 ? '99+' : cartCount}
-              </motion.span>
+              </span>
             ) : null}
           </Link>
         );
