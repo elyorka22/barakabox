@@ -110,7 +110,7 @@ export function ProductCard({
       <Link href={href ?? '#'} className="block">
         {activeVariant ? (
           <div
-            className="relative h-48 w-full overflow-hidden rounded-t-3xl bg-slate-50 sm:h-56"
+            className="relative h-48 w-full overflow-hidden rounded-t-3xl bg-white sm:h-56"
             onTouchStart={(event) => setTouchStartX(event.changedTouches[0]?.clientX ?? null)}
             onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
           >
