@@ -183,7 +183,7 @@ export default function ProductDetailClientPage() {
         <Link href="/" className="text-sm text-gray-500">Orqaga</Link>
         {(activeVariant?.imageUrl ?? product?.imageUrl) ? (
           <div
-            className="relative mt-3 aspect-[4/3] w-full overflow-hidden rounded-3xl bg-slate-50"
+            className="relative mt-3 aspect-[4/3] w-full overflow-hidden rounded-3xl bg-white"
             onTouchStart={(event) => setTouchStartX(event.changedTouches[0]?.clientX ?? null)}
             onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
           >
@@ -201,7 +201,7 @@ export default function ProductDetailClientPage() {
                         alt={variant.flavor ?? product?.name ?? 'Product'}
                         loading="lazy"
                         decoding="async"
-                        className="h-full w-full object-cover object-center"
+                        className="h-full w-full object-contain object-center"
                         onLoad={() => setImageLoaded(true)}
                         onError={() => setImageLoaded(true)}
                       />
@@ -217,7 +217,7 @@ export default function ProductDetailClientPage() {
                 alt={product?.name ?? 'Product'}
                 loading="lazy"
                 decoding="async"
-                className="h-full w-full object-cover object-center"
+                className="h-full w-full object-contain object-center"
                 onLoad={() => setImageLoaded(true)}
                 onError={() => setImageLoaded(true)}
               />
@@ -229,7 +229,7 @@ export default function ProductDetailClientPage() {
                     key={variant.id}
                     type="button"
                     onClick={() => goToVariant(idx)}
-                    className={`h-1.5 w-1.5 rounded-full ${idx === variantIndex ? 'bg-white' : 'bg-white/55'}`}
+                    className={`h-1.5 w-1.5 rounded-full ${idx === variantIndex ? 'bg-[#16A34A]' : 'bg-slate-300'}`}
                   >
                     <span className="sr-only">{`Variant ${idx + 1}`}</span>
                   </button>
