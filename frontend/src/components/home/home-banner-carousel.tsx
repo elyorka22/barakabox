@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '@/lib/api';
+import { SafeImage } from '@/components/safe-image';
 
 export type HomeBanner = {
   id: string;
@@ -172,17 +173,17 @@ function BannerSlide({ banner, priority }: { banner: HomeBanner; priority: boole
       className="relative h-full w-full"
       style={{ backgroundColor }}
     >
-      {banner.imageUrl ? (
-        <img
-          src={banner.imageUrl}
-          alt={banner.title}
-          className="absolute inset-0 h-full w-full object-cover"
-          loading={priority ? 'eager' : 'lazy'}
-          decoding="async"
-          fetchPriority={priority ? 'high' : 'auto'}
-          draggable={false}
-        />
-      ) : null}
+      <SafeImage
+        src={banner.imageUrl ?? undefined}
+        alt={banner.title}
+        className="absolute inset-0 h-full w-full object-cover"
+        loading={priority ? 'eager' : 'lazy'}
+        decoding="async"
+        fetchPriority={priority ? 'high' : 'auto'}
+        draggable={false}
+        fallbackClassName="absolute inset-0 h-full w-full"
+        fallback={<span aria-hidden="true" />}
+      />
       {overlay > 0 ? (
         <div className="absolute inset-0 bg-black" style={{ opacity: overlay / 100 }} />
       ) : null}

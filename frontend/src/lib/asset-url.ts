@@ -1,17 +1,31 @@
 const FALLBACK_SITE_URL = "https://chust-online-bozor.uz";
+const FALLBACK_ASSET_BASE_URL = "https://test.fra1.digitaloceanspaces.com";
 
 const INVALID_HOSTS = new Set(["localhost", "127.0.0.1", "64.226.106.88"]);
 
+function trimTrailingSlash(value: string) {
+  return value.replace(/\/$/, "");
+}
+
 function getSiteOrigin() {
   if (typeof window !== "undefined" && window.location?.origin) {
-    return window.location.origin.replace(/\/$/, "");
+    return trimTrailingSlash(window.location.origin);
   }
-  return (process.env.NEXT_PUBLIC_SITE_URL || FALLBACK_SITE_URL).replace(/\/$/, "");
+  return trimTrailingSlash(process.env.NEXT_PUBLIC_SITE_URL || FALLBACK_SITE_URL);
+}
+
+function getAssetBaseUrl() {
+  return trimTrailingSlash(
+    process.env.NEXT_PUBLIC_ASSET_BASE_URL || FALLBACK_ASSET_BASE_URL,
+  );
+}
+
+function isSpacesHost(hostname: string) {
+  return hostname.toLowerCase().endsWith(".digitaloceanspaces.com");
 }
 
 function shouldRewriteHost(hostname: string) {
-  const host = hostname.toLowerCase();
-  return INVALID_HOSTS.has(host);
+  return INVALID_HOSTS.has(hostname.toLowerCase());
 }
 
 export function normalizeAssetUrl(input?: string | null): string {
@@ -20,8 +34,6 @@ export function normalizeAssetUrl(input?: string | null): string {
   if (!raw) return "";
   if (raw.startsWith("data:") || raw.startsWith("blob:")) return raw;
 
-  const siteOrigin = getSiteOrigin();
-
   if (raw.startsWith("//")) {
     return `https:${raw}`;
   }
@@ -29,8 +41,12 @@ export function normalizeAssetUrl(input?: string | null): string {
   if (/^https?:\/\//i.test(raw)) {
     try {
       const parsed = new URL(raw);
+      if (isSpacesHost(parsed.hostname)) {
+        parsed.protocol = "https:";
+        return parsed.toString();
+      }
       if (shouldRewriteHost(parsed.hostname)) {
-        const fallback = new URL(siteOrigin);
+        const fallback = new URL(getAssetBaseUrl());
         parsed.protocol = fallback.protocol;
         parsed.host = fallback.host;
       }
@@ -40,11 +56,12 @@ export function normalizeAssetUrl(input?: string | null): string {
     }
   }
 
+  const base = getAssetBaseUrl() || getSiteOrigin();
   if (raw.startsWith("/")) {
-    return `${siteOrigin}${raw}`;
+    return `${base}${raw}`;
   }
 
-  return `${siteOrigin}/${raw.replace(/^\/+/, "")}`;
+  return `${base}/${raw.replace(/^\/+/, "")}`;
 }
 
 export function normalizeAssetUrlsDeep<T>(value: T): T {

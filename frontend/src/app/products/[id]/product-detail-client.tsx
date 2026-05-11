@@ -7,6 +7,7 @@ import { api, authStorage } from '@/lib/api';
 import { formatMoneyUz } from '@/lib/format';
 import { MobileNav } from '@/components/app-nav';
 import { absoluteUrl } from '@/lib/seo';
+import { SafeImage } from '@/components/safe-image';
 
 type Product = {
   id: string;
@@ -195,31 +196,27 @@ export default function ProductDetailClientPage() {
               >
                 {variants.map((variant) => (
                   <div key={variant.id} className="h-full min-w-full">
-                    {variant.imageUrl ? (
-                      <img
-                        src={variant.imageUrl}
-                        alt={variant.flavor ?? product?.name ?? 'Product'}
-                        loading="lazy"
-                        decoding="async"
-                        className="h-full w-full object-contain object-center"
-                        onLoad={() => setImageLoaded(true)}
-                        onError={() => setImageLoaded(true)}
-                      />
-                    ) : (
-                      <div className="h-full w-full bg-gradient-to-br from-green-200 to-green-100" />
-                    )}
+                    <SafeImage
+                      src={variant.imageUrl ?? undefined}
+                      alt={variant.flavor ?? product?.name ?? 'Product'}
+                      loading="lazy"
+                      decoding="async"
+                      className="h-full w-full object-contain object-center"
+                      fallbackClassName="h-full w-full bg-gradient-to-br from-green-200 to-green-100"
+                      onLoad={() => setImageLoaded(true)}
+                    />
                   </div>
                 ))}
               </div>
             ) : (
-              <img
-                src={product?.imageUrl ?? ''}
+              <SafeImage
+                src={product?.imageUrl ?? undefined}
                 alt={product?.name ?? 'Product'}
                 loading="lazy"
                 decoding="async"
                 className="h-full w-full object-contain object-center"
+                fallbackClassName="h-full w-full bg-gradient-to-br from-green-200 to-green-100"
                 onLoad={() => setImageLoaded(true)}
-                onError={() => setImageLoaded(true)}
               />
             )}
             {variants.length > 1 ? (

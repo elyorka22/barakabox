@@ -12,8 +12,17 @@ function getHostname(urlValue?: string) {
 
 const siteHostname = getHostname(process.env.NEXT_PUBLIC_SITE_URL);
 const apiHostname = getHostname(process.env.NEXT_PUBLIC_API_BASE_URL);
+const assetHostname = getHostname(process.env.NEXT_PUBLIC_ASSET_BASE_URL);
 const remoteImageHostnames = Array.from(
-  new Set(["chust-online-bozor.uz", siteHostname, apiHostname].filter(Boolean)),
+  new Set(
+    [
+      "chust-online-bozor.uz",
+      "test.fra1.digitaloceanspaces.com",
+      siteHostname,
+      apiHostname,
+      assetHostname,
+    ].filter(Boolean),
+  ),
 );
 
 const withPWA = withPWAInit({
@@ -36,15 +45,16 @@ const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
   images: {
+    formats: ["image/avif", "image/webp"],
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "**.digitaloceanspaces.com",
-      },
-      ...remoteImageHostnames.map((hostname) => ({
-        protocol: "https" as const,
-        hostname,
-      })),
+      { protocol: "https", hostname: "*.digitaloceanspaces.com" },
+      { protocol: "https", hostname: "**.digitaloceanspaces.com" },
+      { protocol: "https", hostname: "*.cdn.digitaloceanspaces.com" },
+      { protocol: "https", hostname: "**.cdn.digitaloceanspaces.com" },
+      ...remoteImageHostnames.flatMap((hostname) => [
+        { protocol: "https" as const, hostname },
+        { protocol: "http" as const, hostname },
+      ]),
     ],
   },
   async headers() {

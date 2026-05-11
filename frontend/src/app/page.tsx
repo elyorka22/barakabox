@@ -9,6 +9,7 @@ import { HomeBannerCarousel } from '@/components/home/home-banner-carousel';
 import { CategoryCard, CategoryCardSkeleton } from '@/components/home/category-card';
 import { HomeInstallCard } from '@/components/pwa/HomeInstallCard';
 import { ProductCard } from '@/components/product-card';
+import { SafeImage } from '@/components/safe-image';
 import { formatMoneyUz } from '@/lib/format';
 
 type Product = {
@@ -270,15 +271,14 @@ export default function Home() {
                   className="min-w-[130px] rounded-2xl bg-white p-2 text-[#111111]"
                 >
                   <div className="relative h-20 overflow-hidden rounded-xl bg-white">
-                    {variant?.imageUrl || product.imageCardUrl || product.imageUrl ? (
-                      <img
-                        src={variant?.imageUrl ?? product.imageCardUrl ?? product.imageUrl ?? ''}
-                        alt={product.name}
-                        className="h-full w-full object-contain"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    ) : null}
+                    <SafeImage
+                      src={variant?.imageUrl ?? product.imageCardUrl ?? product.imageUrl ?? undefined}
+                      alt={product.name}
+                      className="h-full w-full object-contain"
+                      loading="lazy"
+                      decoding="async"
+                      fallbackClassName="flex h-full w-full items-center justify-center bg-gradient-to-br from-green-100 to-green-50"
+                    />
                   </div>
                   <p className="mt-2 line-clamp-1 text-xs font-semibold">{product.name}</p>
                   <p className="text-sm font-bold">{formatMoneyUz(salePrice)}</p>

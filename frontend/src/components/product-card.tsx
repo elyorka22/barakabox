@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Minus, Plus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { formatMoneyUz } from '@/lib/format';
+import { SafeImage } from '@/components/safe-image';
 
 type Variant = {
   id: string;
@@ -121,19 +122,15 @@ export function ProductCard({
             >
               {effectiveVariants.map((variant) => (
                 <div key={variant.id} className="flex h-full min-w-full items-center justify-center bg-white">
-                  {variant.imageUrl ? (
-                    <img
-                      src={variant.imageUrl}
-                      alt={variant.flavor || name}
-                      loading="lazy"
-                      decoding="async"
-                      className="h-full w-full object-contain object-center"
-                      onLoad={() => setLoaded(true)}
-                      onError={() => setLoaded(true)}
-                    />
-                  ) : (
-                    <div className="h-full w-full bg-gradient-to-br from-green-200 to-green-100" />
-                  )}
+                  <SafeImage
+                    src={variant.imageUrl ?? undefined}
+                    alt={variant.flavor || name}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full object-contain object-center"
+                    fallbackClassName="h-full w-full bg-gradient-to-br from-green-200 to-green-100"
+                    onLoad={() => setLoaded(true)}
+                  />
                 </div>
               ))}
             </div>
