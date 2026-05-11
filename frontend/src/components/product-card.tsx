@@ -114,13 +114,13 @@ export function ProductCard({
             onTouchStart={(event) => setTouchStartX(event.changedTouches[0]?.clientX ?? null)}
             onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
           >
-            {!loaded ? <div className="bb-skeleton absolute inset-0" /> : null}
+            {!loaded ? <div className="absolute inset-0 bg-white" /> : null}
             <div
-              className="flex h-full w-full transition-transform duration-300 ease-out"
+              className="relative flex h-full w-full bg-white transition-transform duration-300 ease-out"
               style={{ transform: `translateX(-${activeVariantIndex * 100}%)` }}
             >
               {effectiveVariants.map((variant) => (
-                <div key={variant.id} className="flex h-full min-w-full items-center justify-center">
+                <div key={variant.id} className="flex h-full min-w-full items-center justify-center bg-white">
                   {variant.imageUrl ? (
                     <img
                       src={variant.imageUrl}
