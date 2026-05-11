@@ -269,12 +269,12 @@ export default function Home() {
                   href={`/products/${product.id}`}
                   className="min-w-[130px] rounded-2xl bg-white p-2 text-[#111111]"
                 >
-                  <div className="relative h-20 overflow-hidden rounded-xl bg-slate-100">
+                  <div className="relative h-20 overflow-hidden rounded-xl bg-white">
                     {variant?.imageUrl || product.imageCardUrl || product.imageUrl ? (
                       <img
                         src={variant?.imageUrl ?? product.imageCardUrl ?? product.imageUrl ?? ''}
                         alt={product.name}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-contain"
                         loading="lazy"
                         decoding="async"
                       />
