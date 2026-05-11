@@ -3,6 +3,6 @@
  */
 export function ApplePwaHead() {
   return (
-    <link rel="apple-touch-startup-image" href="/icon-512.png" media="(orientation: portrait)" />
+    <link rel="apple-touch-startup-image" href="/web-app-manifest-512x512.png" media="(orientation: portrait)" />
   );
 }

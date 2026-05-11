@@ -77,7 +77,8 @@ export const metadata: Metadata = {
       { url: "/favicon.ico" },
       { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/web-app-manifest-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/web-app-manifest-512x512.png", sizes: "512x512", type: "image/png" },
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
     shortcut: ["/favicon.ico"],
@@ -119,7 +120,7 @@ export default function RootLayout({
               "@type": "Organization",
               name: "Chust Online Bozor",
               url: getSiteUrl(),
-              logo: absoluteUrl("/icon-192.png"),
+              logo: absoluteUrl("/web-app-manifest-512x512.png"),
             }),
           }}
         />
