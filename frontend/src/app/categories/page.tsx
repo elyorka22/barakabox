@@ -1,11 +1,11 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import Link from 'next/link';
 import { Funnel, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { api, categoryEvents } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
+import { CategoryCard, CategoryCardSkeleton } from '@/components/home/category-card';
 
 type Category = {
   id: string;
@@ -86,43 +86,25 @@ export default function CategoriesPage() {
           </button>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4">
           {loading
-            ? Array.from({ length: 6 }).map((_, index) => (
-                <div key={index} className="rounded-3xl bg-white p-3 shadow-sm">
-                  <div className="bb-skeleton h-24 w-full" />
-                  <div className="bb-skeleton mt-2 h-3 w-2/3" />
-                </div>
-              ))
-            : null}
-
-          {!loading
-            ? filteredCategories.map((category, idx) => (
+            ? Array.from({ length: 9 }).map((_, index) => <CategoryCardSkeleton key={`cat-list-skeleton-${index}`} />)
+            : filteredCategories.map((category, idx) => (
                 <motion.div
                   key={category.id}
-                  initial={{ opacity: 0, y: 8 }}
+                  initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2, delay: idx * 0.02 }}
+                  transition={{ duration: 0.18, delay: Math.min(idx * 0.015, 0.18) }}
+                  className="h-full"
                 >
-                  <Link
+                  <CategoryCard
                     href={`/categories/${category.slug}`}
-                    className="block rounded-3xl bg-white p-3 shadow-[0_8px_16px_rgba(17,24,39,0.06)]"
-                  >
-                    <div className="flex h-24 items-center justify-center overflow-hidden rounded-2xl bg-[#F3F4F6]">
-                      {category.imageUrl ? (
-                        <img src={category.imageUrl} alt={category.name} className="h-full w-full object-cover" />
-                      ) : (
-                        <span className="text-3xl">{categoryEmoji(category.name)}</span>
-                      )}
-                    </div>
-                    <p className="mt-2 text-sm font-semibold text-[#111111]">{category.name}</p>
-                    <p className="text-xs text-slate-500">
-                      {typeof category.productCount === 'number' ? `${category.productCount} ta mahsulot` : 'Bo‘lim'}
-                    </p>
-                  </Link>
+                    name={category.name}
+                    imageUrl={category.imageUrl}
+                    fallbackEmoji={categoryEmoji(category.name)}
+                  />
                 </motion.div>
-              ))
-            : null}
+              ))}
         </div>
         {!loading && filteredCategories.length === 0 ? (
           <p className="mt-4 rounded-2xl bg-white p-4 text-center text-sm text-slate-500">

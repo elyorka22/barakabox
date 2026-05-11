@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { api, authStorage, categoryEvents, guestStorage } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
 import { HomeBannerCarousel } from '@/components/home/home-banner-carousel';
+import { CategoryCard, CategoryCardSkeleton } from '@/components/home/category-card';
 import { HomeInstallCard } from '@/components/pwa/HomeInstallCard';
 import { ProductCard } from '@/components/product-card';
 import { formatMoneyUz } from '@/lib/format';
@@ -224,39 +225,22 @@ export default function Home() {
 
         <HomeInstallCard />
 
-        <section className="mt-5">
-          <div className="grid grid-cols-4 gap-x-2 gap-y-4">
+        <section className="mt-6" aria-labelledby="home-categories-heading">
+          <h2 id="home-categories-heading" className="sr-only">
+            Kategoriyalar
+          </h2>
+          <div className="grid grid-cols-4 gap-3">
             {loadingCategories
-              ? Array.from({ length: 8 }).map((_, idx) => (
-                  <div key={idx} className="flex flex-col items-center gap-1">
-                    <div className="bb-skeleton h-16 w-16 rounded-full" />
-                    <div className="bb-skeleton h-3 w-14" />
-                  </div>
-                ))
-              : categories.map((item, idx) => {
-                  return (
-                    <Link
-                      key={`${item.name}-${idx}`}
-                      href={`/categories/${item.slug}`}
-                      className="flex flex-col items-center gap-1 transition-transform duration-200 hover:scale-[1.03] active:scale-[1.03]"
-                    >
-                      <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#22c55e]/70 bg-white shadow-[0_8px_18px_rgba(34,197,94,0.16)]">
-                        {item.imageUrl ? (
-                          <img
-                            src={item.imageUrl}
-                            alt={item.name}
-                            className="h-full w-full rounded-full object-cover"
-                            loading="lazy"
-                            decoding="async"
-                          />
-                        ) : (
-                          <span className="text-2xl">{categoryEmoji(item.name)}</span>
-                        )}
-                      </div>
-                      <p className="line-clamp-2 text-center text-[11px] font-medium text-[#111111]">{item.name}</p>
-                    </Link>
-                  );
-                })}
+              ? Array.from({ length: 8 }).map((_, idx) => <CategoryCardSkeleton key={`cat-skeleton-${idx}`} />)
+              : categories.map((item) => (
+                  <CategoryCard
+                    key={item.id ?? item.slug}
+                    href={`/categories/${item.slug}`}
+                    name={item.name}
+                    imageUrl={item.imageUrl}
+                    fallbackEmoji={categoryEmoji(item.name)}
+                  />
+                ))}
           </div>
         </section>
 
