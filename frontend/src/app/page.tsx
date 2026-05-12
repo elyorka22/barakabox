@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api, categoryEvents, guestStorage } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
-import { AnimatedTagline } from '@/components/home/animated-tagline';
 import { HomeBannerCarousel } from '@/components/home/home-banner-carousel';
 import { CategoryCard, CategoryCardSkeleton } from '@/components/home/category-card';
 import { HomeInstallCard } from '@/components/pwa/HomeInstallCard';
@@ -150,7 +149,9 @@ export default function Home() {
     <main className="bb-page bg-[#F8F8F8]">
       <section className="bb-shell bg-[#F8F8F8]">
         <div className="mb-3 border border-white/70 bg-[#F8F8F8] px-0 py-0">
-          <AnimatedTagline />
+          <p className="mb-2 px-1 text-left text-base font-semibold text-[#16A34A]">
+            Chust
+          </p>
           <div className="flex items-center gap-2 rounded-2xl bg-white p-2 shadow-[0_4px_14px_rgba(17,24,39,0.06)]">
             <div className="flex flex-1 items-center gap-2 rounded-xl bg-[#F3F4F6] px-3 py-2.5 text-slate-500">
               <Search className="h-4 w-4" />

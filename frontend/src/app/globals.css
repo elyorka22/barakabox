@@ -227,23 +227,3 @@ body {
   }
 }
 
-@keyframes bb-tagline-in {
-  0% {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.bb-tagline-text {
-  animation: bb-tagline-in 360ms ease-out both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .bb-tagline-text {
-    animation: none;
-  }
-}
