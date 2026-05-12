@@ -1,6 +1,6 @@
 'use client';
 
-import { Heart, Search } from 'lucide-react';
+import { Bell, ChevronDown, Heart, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api, categoryEvents, guestStorage } from '@/lib/api';
@@ -149,9 +149,23 @@ export default function Home() {
     <main className="bb-page bg-[#F8F8F8]">
       <section className="bb-shell bg-[#F8F8F8]">
         <div className="mb-3 border border-white/70 bg-[#F8F8F8] px-0 py-0">
-          <p className="mb-2 px-1 text-left text-base font-semibold text-[#16A34A]">
-            Chust
-          </p>
+          <div className="mb-3 flex items-center justify-between px-1">
+            <button
+              type="button"
+              aria-label="Shaharni tanlash"
+              className="inline-flex items-center gap-1.5 text-[#0f172a] active:scale-[0.98]"
+            >
+              <span className="text-xl font-bold tracking-tight">Chust</span>
+              <ChevronDown className="h-5 w-5 text-slate-500" strokeWidth={2.2} />
+            </button>
+            <button
+              type="button"
+              aria-label="Bildirishnomalar"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-[0_4px_14px_rgba(17,24,39,0.06)] active:scale-[0.96]"
+            >
+              <Bell className="h-5 w-5" strokeWidth={2.2} />
+            </button>
+          </div>
           <div className="flex items-center gap-2 rounded-2xl bg-white p-2 shadow-[0_4px_14px_rgba(17,24,39,0.06)]">
             <div className="flex flex-1 items-center gap-2 rounded-xl bg-[#F3F4F6] px-3 py-2.5 text-slate-500">
               <Search className="h-4 w-4" />
@@ -191,7 +205,7 @@ export default function Home() {
 
         {showDeferredSections ? (
           <>
-            <section className="mt-5 rounded-3xl bg-[#8B5CF6] p-3 text-white shadow-[0_12px_24px_rgba(139,92,246,0.28)]">
+            <section className="mt-5 rounded-3xl bg-gradient-to-br from-[#FF6B35] to-[#F43F5E] p-3 text-white shadow-[0_12px_24px_rgba(244,63,94,0.28)]">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold">Aksiya va chegirmalar</h2>
             <div className="rounded-xl bg-white/20 px-2 py-1 text-[11px]">03 : 12 : 45</div>
