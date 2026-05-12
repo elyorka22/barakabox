@@ -61,11 +61,11 @@ export class BannersService {
     const nextSort = dto.sortOrder ?? (await this.computeNextSortOrder());
     return this.prisma.banner.create({
       data: {
-        title: dto.title.trim(),
-        subtitle: dto.subtitle?.trim() ?? null,
+        title: dto.title?.trim() || null,
+        subtitle: dto.subtitle?.trim() || null,
         imageUrl: dto.imageUrl?.trim() || null,
-        buttonText: dto.buttonText?.trim() ?? null,
-        buttonLink: dto.buttonLink?.trim() ?? null,
+        buttonText: dto.buttonText?.trim() || null,
+        buttonLink: dto.buttonLink?.trim() || null,
         backgroundColor: dto.backgroundColor ?? null,
         textColor: dto.textColor ?? null,
         overlayOpacity: dto.overlayOpacity ?? 0,
@@ -83,11 +83,11 @@ export class BannersService {
     return this.prisma.banner.update({
       where: { id },
       data: {
-        title: dto.title?.trim(),
-        subtitle: typeof dto.subtitle === 'string' ? dto.subtitle.trim() : undefined,
+        title: typeof dto.title === 'string' ? dto.title.trim() || null : undefined,
+        subtitle: typeof dto.subtitle === 'string' ? dto.subtitle.trim() || null : undefined,
         imageUrl: typeof dto.imageUrl === 'string' ? dto.imageUrl.trim() || null : undefined,
-        buttonText: typeof dto.buttonText === 'string' ? dto.buttonText.trim() : undefined,
-        buttonLink: typeof dto.buttonLink === 'string' ? dto.buttonLink.trim() : undefined,
+        buttonText: typeof dto.buttonText === 'string' ? dto.buttonText.trim() || null : undefined,
+        buttonLink: typeof dto.buttonLink === 'string' ? dto.buttonLink.trim() || null : undefined,
         backgroundColor: typeof dto.backgroundColor === 'string' ? dto.backgroundColor : undefined,
         textColor: typeof dto.textColor === 'string' ? dto.textColor : undefined,
         overlayOpacity: typeof dto.overlayOpacity === 'number' ? dto.overlayOpacity : undefined,

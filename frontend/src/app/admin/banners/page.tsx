@@ -17,7 +17,7 @@ import { ImageUploader } from '@/components/admin/image-uploader';
 
 type Banner = {
   id: string;
-  title: string;
+  title: string | null;
   subtitle: string | null;
   imageUrl: string | null;
   buttonText: string | null;
@@ -127,7 +127,7 @@ export default function AdminBannersPage() {
   const openEdit = (banner: Banner) => {
     setForm({
       id: banner.id,
-      title: banner.title,
+      title: banner.title ?? '',
       subtitle: banner.subtitle ?? '',
       imageUrl: banner.imageUrl ?? '',
       buttonText: banner.buttonText ?? '',
@@ -147,18 +147,23 @@ export default function AdminBannersPage() {
   };
 
   const save = async () => {
-    if (!form.title.trim()) {
-      showToast({ type: 'error', message: 'Banner sarlavhasini kiriting' });
+    const hasTitle = form.title.trim().length > 0;
+    const hasImage = form.imageUrl.trim().length > 0;
+    if (!hasTitle && !hasImage) {
+      showToast({
+        type: 'error',
+        message: "Rasm yuklang yoki sarlavha kiriting",
+      });
       return;
     }
     setSaving(true);
     try {
       const payload = {
         title: form.title.trim(),
-        subtitle: form.subtitle.trim() || undefined,
-        imageUrl: form.imageUrl.trim() || undefined,
-        buttonText: form.buttonText.trim() || undefined,
-        buttonLink: form.buttonLink.trim() || undefined,
+        subtitle: form.subtitle.trim(),
+        imageUrl: form.imageUrl.trim(),
+        buttonText: form.buttonText.trim(),
+        buttonLink: form.buttonLink.trim(),
         backgroundColor: normalizeHex(form.backgroundColor),
         textColor: normalizeHex(form.textColor),
         overlayOpacity: clampOverlay(form.overlayOpacity),
@@ -184,7 +189,8 @@ export default function AdminBannersPage() {
   };
 
   const remove = async (banner: Banner) => {
-    if (!window.confirm(`"${banner.title}" bannerni o'chirishni tasdiqlaysizmi?`)) return;
+    const label = banner.title?.trim() || 'rasmli';
+    if (!window.confirm(`"${label}" bannerni o'chirishni tasdiqlaysizmi?`)) return;
     try {
       await api.delete(`/admin/banners/${banner.id}`, {}, token);
       showToast({ type: 'success', message: "Banner o'chirildi" });
@@ -311,7 +317,7 @@ export default function AdminBannersPage() {
                 {banner.imageUrl ? (
                   <img
                     src={banner.imageUrl}
-                    alt={banner.title}
+                    alt={banner.title ?? 'Banner'}
                     loading="lazy"
                     decoding="async"
                     className="absolute inset-0 h-full w-full object-cover"
@@ -323,15 +329,19 @@ export default function AdminBannersPage() {
                     style={{ opacity: banner.overlayOpacity / 100 }}
                   />
                 ) : null}
-                <div
-                  className="absolute inset-0 flex flex-col justify-end gap-1 p-3"
-                  style={{ color: banner.textColor ?? '#FFFFFF' }}
-                >
-                  <p className="line-clamp-2 text-sm font-semibold drop-shadow">{banner.title}</p>
-                  {banner.subtitle ? (
-                    <p className="line-clamp-2 text-[11px] opacity-90">{banner.subtitle}</p>
-                  ) : null}
-                </div>
+                {banner.title || banner.subtitle ? (
+                  <div
+                    className="absolute inset-0 flex flex-col justify-end gap-1 p-3"
+                    style={{ color: banner.textColor ?? '#FFFFFF' }}
+                  >
+                    {banner.title ? (
+                      <p className="line-clamp-2 text-sm font-semibold drop-shadow">{banner.title}</p>
+                    ) : null}
+                    {banner.subtitle ? (
+                      <p className="line-clamp-2 text-[11px] opacity-90">{banner.subtitle}</p>
+                    ) : null}
+                  </div>
+                ) : null}
                 <div className="absolute right-2 top-2 flex items-center gap-1">
                   <span className="rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-semibold text-white">
                     #{idx + 1}
@@ -349,7 +359,9 @@ export default function AdminBannersPage() {
               </div>
 
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-[#111111]">{banner.title}</p>
+                <p className="truncate text-sm font-semibold text-[#111111]">
+                  {banner.title || (banner.imageUrl ? 'Rasmli banner' : 'Bo‘sh banner')}
+                </p>
                 {banner.subtitle ? (
                   <p className="truncate text-xs text-slate-500">{banner.subtitle}</p>
                 ) : null}
@@ -465,7 +477,9 @@ function BannerEditor({ form, saving, onChange, onClose, onSubmit }: BannerEdito
             <p className="text-sm font-semibold text-[#111111]">
               {form.id ? 'Bannerni tahrirlash' : 'Yangi banner'}
             </p>
-            <p className="text-xs text-slate-500">16:8 nisbat, bir xil o‘lcham va spacing</p>
+            <p className="text-xs text-slate-500">
+              16:8 nisbat. Sarlavhasiz, faqat rasmli banner ham bo‘ladi.
+            </p>
           </div>
           <button
             type="button"
@@ -481,14 +495,19 @@ function BannerEditor({ form, saving, onChange, onClose, onSubmit }: BannerEdito
         <div className="grid flex-1 gap-4 overflow-y-auto p-4 lg:grid-cols-2">
           <div className="space-y-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-700">Sarlavha</label>
+              <label className="mb-1 block text-xs font-medium text-slate-700">
+                Sarlavha <span className="text-slate-400">(ixtiyoriy)</span>
+              </label>
               <input
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
                 value={form.title}
                 onChange={(event) => onChange({ ...form, title: event.target.value })}
-                placeholder="Masalan: Fresh mahsulotlar"
+                placeholder="Masalan: Fresh mahsulotlar (bo‘sh qoldirish mumkin)"
                 maxLength={120}
               />
+              <p className="mt-1 text-[11px] text-slate-500">
+                Faqat rasm yuklab ham banner yaratish mumkin.
+              </p>
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-slate-700">Subtitle</label>
@@ -611,22 +630,24 @@ function BannerEditor({ form, saving, onChange, onClose, onSubmit }: BannerEdito
                 {overlayPct > 0 ? (
                   <div className="absolute inset-0 bg-black" style={{ opacity: overlayPct / 100 }} />
                 ) : null}
-                <div
-                  className="absolute inset-0 flex flex-col justify-end gap-2 p-4"
-                  style={{ color: normalizeHex(form.textColor) ?? '#FFFFFF' }}
-                >
-                  <p className="text-xl font-bold leading-tight drop-shadow-sm">
-                    {form.title || 'Banner sarlavhasi'}
-                  </p>
-                  {form.subtitle ? (
-                    <p className="text-sm opacity-90">{form.subtitle}</p>
-                  ) : null}
-                  {form.buttonText ? (
-                    <span className="mt-1 inline-block w-fit rounded-2xl bg-white px-3 py-1 text-xs font-semibold text-[#111111]">
-                      {form.buttonText}
-                    </span>
-                  ) : null}
-                </div>
+                {form.title || form.subtitle || form.buttonText ? (
+                  <div
+                    className="absolute inset-0 flex flex-col justify-end gap-2 p-4"
+                    style={{ color: normalizeHex(form.textColor) ?? '#FFFFFF' }}
+                  >
+                    {form.title ? (
+                      <p className="text-xl font-bold leading-tight drop-shadow-sm">{form.title}</p>
+                    ) : null}
+                    {form.subtitle ? (
+                      <p className="text-sm opacity-90">{form.subtitle}</p>
+                    ) : null}
+                    {form.buttonText ? (
+                      <span className="mt-1 inline-block w-fit rounded-2xl bg-white px-3 py-1 text-xs font-semibold text-[#111111]">
+                        {form.buttonText}
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>

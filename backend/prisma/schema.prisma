@@ -356,7 +356,7 @@ model InventoryLog {
 
 model Banner {
   id              String   @id @default(cuid())
-  title           String
+  title           String?
   subtitle        String?
   imageUrl        String?
   buttonText      String?

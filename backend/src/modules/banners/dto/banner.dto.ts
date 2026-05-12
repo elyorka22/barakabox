@@ -5,11 +5,9 @@ import {
   IsInt,
   IsOptional,
   IsString,
-  IsUrl,
   Max,
   MaxLength,
   Min,
-  MinLength,
 } from 'class-validator';
 
 const toBoolean = ({ value }: { value: unknown }) => value === 'true' || value === true;
@@ -41,10 +39,10 @@ export class PublicBannerQueryDto {
 }
 
 export class CreateBannerDto {
+  @IsOptional()
   @IsString()
-  @MinLength(2)
   @MaxLength(120)
-  title!: string;
+  title?: string;
 
   @IsOptional()
   @IsString()
@@ -94,7 +92,6 @@ export class CreateBannerDto {
 export class UpdateBannerDto {
   @IsOptional()
   @IsString()
-  @MinLength(2)
   @MaxLength(120)
   title?: string;
 
@@ -166,7 +163,7 @@ export class ReorderBannersDto {
 
 export type BannerResponse = {
   id: string;
-  title: string;
+  title: string | null;
   subtitle: string | null;
   imageUrl: string | null;
   buttonText: string | null;

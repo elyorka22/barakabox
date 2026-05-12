@@ -7,7 +7,7 @@ import { SafeImage } from '@/components/safe-image';
 
 export type HomeBanner = {
   id: string;
-  title: string;
+  title: string | null;
   subtitle: string | null;
   imageUrl: string | null;
   buttonText: string | null;
@@ -149,12 +149,16 @@ function BannerSlide({ banner, priority }: { banner: HomeBanner; priority: boole
   const backgroundColor = banner.backgroundColor ?? '#0FA34B';
   const textColor = banner.textColor ?? '#FFFFFF';
   const overlay = Math.max(0, Math.min(100, banner.overlayOpacity ?? 0));
+  const altText = banner.title?.trim() || 'Banner';
+  const hasTextContent = Boolean(banner.title || banner.subtitle || banner.buttonText);
 
-  const content = (
+  const content = hasTextContent ? (
     <div className="absolute inset-0 flex w-full flex-col justify-end gap-2 p-4 sm:p-5" style={{ color: textColor }}>
-      <p className="max-w-[80%] text-lg font-bold leading-tight drop-shadow-sm sm:text-xl">
-        {banner.title}
-      </p>
+      {banner.title ? (
+        <p className="max-w-[80%] text-lg font-bold leading-tight drop-shadow-sm sm:text-xl">
+          {banner.title}
+        </p>
+      ) : null}
       {banner.subtitle ? (
         <p className="max-w-[82%] text-[13px] leading-snug opacity-95">
           {banner.subtitle}
@@ -166,7 +170,7 @@ function BannerSlide({ banner, priority }: { banner: HomeBanner; priority: boole
         </span>
       ) : null}
     </div>
-  );
+  ) : null;
 
   const slideInner = (
     <div
@@ -175,7 +179,7 @@ function BannerSlide({ banner, priority }: { banner: HomeBanner; priority: boole
     >
       <SafeImage
         src={banner.imageUrl ?? undefined}
-        alt={banner.title}
+        alt={altText}
         className="absolute inset-0 h-full w-full object-cover"
         loading={priority ? 'eager' : 'lazy'}
         decoding="async"
@@ -194,7 +198,7 @@ function BannerSlide({ banner, priority }: { banner: HomeBanner; priority: boole
   return (
     <div className="aspect-[16/8] w-full shrink-0">
       {banner.buttonLink ? (
-        <Link href={banner.buttonLink} className="block h-full w-full" aria-label={banner.title}>
+        <Link href={banner.buttonLink} className="block h-full w-full" aria-label={altText}>
           {slideInner}
         </Link>
       ) : (
