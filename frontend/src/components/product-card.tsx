@@ -214,18 +214,22 @@ function ProductCardBase({
         <div className="px-3 pb-3 pt-2.5 sm:px-3.5">
           <h3 className="line-clamp-1 text-[13px] font-semibold text-[#121212]">{name}</h3>
           <p className="mt-0.5 line-clamp-1 min-h-4 text-[11px] font-medium text-slate-600">{activeVariant?.flavor ?? ''}</p>
-          {activeVariant ? (
-            activeDiscountPrice ? (
-              <div className="mt-1 flex items-end gap-1.5">
-                <p className="text-base font-bold text-[#121212]">{formatMoneyUz(activeDiscountPrice)}</p>
-                <p className="text-xs text-slate-400 line-through">{formatMoneyUz(activeBasePrice)}</p>
-              </div>
+          <div className="mt-1.5 flex min-h-[42px] flex-col justify-end">
+            {activeVariant ? (
+              <>
+                {activeDiscountPrice ? (
+                  <p className="text-[11px] font-medium leading-none text-slate-400 line-through opacity-80">
+                    {formatMoneyUz(activeBasePrice)}
+                  </p>
+                ) : null}
+                <p className="mt-0.5 text-[16px] font-bold leading-tight tracking-tight text-[#121212] tabular-nums">
+                  {formatMoneyUz(activeDiscountPrice ?? activeBasePrice)}
+                </p>
+              </>
             ) : (
-              <p className="mt-1 text-base font-bold text-[#121212]">{formatMoneyUz(activeBasePrice)}</p>
-            )
-          ) : (
-            <p className="mt-1 text-base font-bold text-[#121212]">—</p>
-          )}
+              <p className="text-[16px] font-bold leading-tight text-[#121212]">—</p>
+            )}
+          </div>
         </div>
       </Link>
     </article>

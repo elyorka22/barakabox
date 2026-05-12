@@ -240,13 +240,21 @@ export default function ProductDetailClientPage() {
               : null;
           if (salePrice) {
             return (
-              <div className="mt-2 flex items-end gap-2">
-                <p className="text-2xl font-bold text-[#121212]">{formatMoneyUz(salePrice)}</p>
-                <p className="text-sm text-slate-400 line-through">{formatMoneyUz(basePrice)}</p>
+              <div className="mt-2 flex flex-col">
+                <p className="text-sm font-medium leading-none text-slate-400 line-through opacity-80">
+                  {formatMoneyUz(basePrice)}
+                </p>
+                <p className="mt-1 text-2xl font-bold leading-tight tracking-tight text-[#121212] tabular-nums">
+                  {formatMoneyUz(salePrice)}
+                </p>
               </div>
             );
           }
-          return <p className="mt-2 text-2xl font-bold text-[#121212]">{formatMoneyUz(basePrice)}</p>;
+          return (
+            <p className="mt-2 text-2xl font-bold leading-tight tracking-tight text-[#121212] tabular-nums">
+              {formatMoneyUz(basePrice)}
+            </p>
+          );
         })()}
         <p className={`mt-1 text-xs font-medium ${Number(activeVariant?.stock ?? 0) > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
           {Number(activeVariant?.stock ?? 0) > 0 ? `Mavjud: ${activeVariant?.stock} dona` : 'Hozircha mavjud emas'}
