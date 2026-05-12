@@ -214,22 +214,24 @@ function ProductCardBase({
         <div className="px-3 pb-3 pt-2.5 sm:px-3.5">
           <h3 className="line-clamp-1 text-[13px] font-semibold text-[#121212]">{name}</h3>
           <p className="mt-0.5 line-clamp-1 min-h-4 text-[11px] font-medium text-slate-600">{activeVariant?.flavor ?? ''}</p>
-          <div className="mt-1.5 flex min-h-[42px] flex-col justify-end">
-            {activeVariant ? (
-              <>
-                {activeDiscountPrice ? (
-                  <p className="text-[11px] font-medium leading-none text-slate-400 line-through opacity-80">
-                    {formatMoneyUz(activeBasePrice)}
-                  </p>
-                ) : null}
-                <p className="mt-0.5 text-[16px] font-bold leading-tight tracking-tight text-[#121212] tabular-nums">
-                  {formatMoneyUz(activeDiscountPrice ?? activeBasePrice)}
+          {activeVariant ? (
+            activeDiscountPrice ? (
+              <div className="mt-1.5 flex flex-col">
+                <p className="text-[11px] font-medium leading-none text-slate-400 line-through opacity-80">
+                  {formatMoneyUz(activeBasePrice)}
                 </p>
-              </>
+                <p className="mt-0.5 text-[16px] font-bold leading-tight tracking-tight text-[#121212] tabular-nums">
+                  {formatMoneyUz(activeDiscountPrice)}
+                </p>
+              </div>
             ) : (
-              <p className="text-[16px] font-bold leading-tight text-[#121212]">—</p>
-            )}
-          </div>
+              <p className="mt-1.5 text-[16px] font-bold leading-tight tracking-tight text-[#121212] tabular-nums">
+                {formatMoneyUz(activeBasePrice)}
+              </p>
+            )
+          ) : (
+            <p className="mt-1.5 text-[16px] font-bold leading-tight text-[#121212]">—</p>
+          )}
         </div>
       </Link>
     </article>

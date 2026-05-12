@@ -239,10 +239,12 @@ export default function Home() {
                     />
                   </div>
                   <p className="mt-2 line-clamp-1 text-xs font-semibold">{product.name}</p>
-                  <div className="mt-1 flex min-h-[34px] flex-col justify-end">
-                    <p className="text-[10px] font-medium leading-none text-slate-400 line-through opacity-80">
-                      {formatMoneyUz(basePrice)}
-                    </p>
+                  <div className="mt-1 flex flex-col">
+                    {salePrice < basePrice ? (
+                      <p className="text-[10px] font-medium leading-none text-slate-400 line-through opacity-80">
+                        {formatMoneyUz(basePrice)}
+                      </p>
+                    ) : null}
                     <p className="mt-0.5 text-sm font-bold leading-tight text-[#121212] tabular-nums">
                       {formatMoneyUz(salePrice)}
                     </p>
