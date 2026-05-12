@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Home, LayoutGrid, ShoppingCart, User } from 'lucide-react';
-import { api, authEvents, authStorage, cartEvents } from '@/lib/api';
+import { bootstrapCart } from '@/lib/cart-store';
+import { useCartTotalCount } from '@/lib/use-cart-store';
 
 const baseItems = [
   { href: '/', key: 'home', icon: Home },
@@ -16,35 +17,13 @@ const baseItems = [
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const [cartCount, setCartCount] = useState(0);
+  const cartCount = useCartTotalCount();
 
   const items = useMemo(() => baseItems, []);
-  const loadCartCount = async () => {
-    try {
-      const token = authStorage.getAccessToken();
-      const payload = await api.get<{ items: Array<{ quantity: number }> }>('/cart', token, true);
-      const total = payload.items.reduce((sum, item) => sum + item.quantity, 0);
-      setCartCount(total);
-    } catch {
-      setCartCount(0);
-    }
-  };
 
   useEffect(() => {
-    void loadCartCount();
-    const handleCartChanged = () => void loadCartCount();
-    const handleAuthChanged = () => void loadCartCount();
-    window.addEventListener(cartEvents.changedEventName, handleCartChanged);
-    window.addEventListener(authEvents.changedEventName, handleAuthChanged);
-    return () => {
-      window.removeEventListener(cartEvents.changedEventName, handleCartChanged);
-      window.removeEventListener(authEvents.changedEventName, handleAuthChanged);
-    };
+    void bootstrapCart();
   }, []);
-
-  useEffect(() => {
-    void loadCartCount();
-  }, [pathname]);
 
   useEffect(() => {
     for (const item of items) {

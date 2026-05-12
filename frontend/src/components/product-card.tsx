@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { Minus, Plus } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useState } from 'react';
 import { formatMoneyUz } from '@/lib/format';
 import { SafeImage } from '@/components/safe-image';
+import { incrementCart } from '@/lib/cart-store';
+import { useCartPending, useCartQuantity } from '@/lib/use-cart-store';
 
 type Variant = {
   id: string;
@@ -21,43 +23,42 @@ type ProductCardProps = {
   name: string;
   price: string;
   variants?: Variant[];
-  onAdd: (variantId: string, productId: string) => void;
-  onIncrease?: (variantId: string, productId: string) => void;
-  onDecrease?: (variantId: string, productId: string) => void;
-  quantity?: number;
-  quantityByVariantId?: Record<string, number>;
-  loadingByVariantId?: Record<string, boolean>;
   href?: string;
   imageUrl?: string | null;
 };
 
-export function ProductCard({
+function stopLinkNavigation(event: React.SyntheticEvent) {
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function ProductCardBase({
   id,
   name,
   price,
-  onAdd,
-  onIncrease,
-  onDecrease,
-  quantity = 0,
-  quantityByVariantId,
-  loadingByVariantId,
   href,
-  imageUrl,
-  variants = [],
+  variants,
 }: ProductCardProps) {
-  const [loaded, setLoaded] = useState(false);
+  const effectiveVariants = variants ?? EMPTY_VARIANTS;
   const [activeVariantIndex, setActiveVariantIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const effectiveVariants = variants;
-  const variantIdsKey = useMemo(() => effectiveVariants.map((variant) => variant.id).join('|'), [effectiveVariants]);
+  const [variantSig, setVariantSig] = useState(() => keyOfVariants(effectiveVariants));
+
+  const currentSig = keyOfVariants(effectiveVariants);
+  if (currentSig !== variantSig) {
+    setVariantSig(currentSig);
+    setActiveVariantIndex(0);
+  }
 
   const activeVariant =
     effectiveVariants.length > 0
       ? effectiveVariants[Math.min(activeVariantIndex, effectiveVariants.length - 1)]
       : null;
 
-  const activeQuantity = activeVariant ? quantityByVariantId?.[activeVariant.id] ?? quantity : 0;
-  const activeLoading = activeVariant ? Boolean(loadingByVariantId?.[activeVariant.id]) : false;
+  const activeVariantId = activeVariant?.id;
+  const activeQuantity = useCartQuantity(activeVariantId);
+  const activeSyncing = useCartPending(activeVariantId);
+
   const activeBasePrice = Number(activeVariant?.price ?? price);
   const activeDiscountPrice =
     activeVariant?.discountPrice && activeVariant.discountPrice > 0 && activeVariant.discountPrice < activeBasePrice
@@ -67,17 +68,12 @@ export function ProductCard({
     ? Math.max(1, Math.round(((activeBasePrice - activeDiscountPrice) / activeBasePrice) * 100))
     : null;
 
-  useEffect(() => {
-    setLoaded(false);
-  }, [activeVariant?.id]);
-
-  useEffect(() => {
-    if (!effectiveVariants?.length) {
-      setActiveVariantIndex(0);
-      return;
-    }
-    setActiveVariantIndex(0);
-  }, [variantIdsKey]);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageKey, setImageKey] = useState(activeVariantId ?? '');
+  if (activeVariantId && activeVariantId !== imageKey) {
+    setImageKey(activeVariantId);
+    setImageLoaded(false);
+  }
 
   const goToVariant = (targetIndex: number) => {
     if (!effectiveVariants.length) return;
@@ -99,12 +95,25 @@ export function ProductCard({
     setTouchStartX(null);
   };
 
-  const stopLinkNavigation = (event: React.SyntheticEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const outOfStock = activeVariant ? (activeVariant.stock ?? 0) <= 0 : true;
+
+  const handleAdd = (event: React.SyntheticEvent) => {
+    stopLinkNavigation(event);
+    if (!activeVariant) return;
+    incrementCart(activeVariant.id, id, 1);
   };
 
-  const outOfStock = activeVariant ? (activeVariant.stock ?? 0) <= 0 : true;
+  const handleIncrease = (event: React.SyntheticEvent) => {
+    stopLinkNavigation(event);
+    if (!activeVariant) return;
+    incrementCart(activeVariant.id, id, 1);
+  };
+
+  const handleDecrease = (event: React.SyntheticEvent) => {
+    stopLinkNavigation(event);
+    if (!activeVariant) return;
+    incrementCart(activeVariant.id, id, -1);
+  };
 
   return (
     <article className="overflow-hidden rounded-3xl bg-white shadow-sm">
@@ -115,7 +124,7 @@ export function ProductCard({
             onTouchStart={(event) => setTouchStartX(event.changedTouches[0]?.clientX ?? null)}
             onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
           >
-            {!loaded ? <div className="absolute inset-0 bg-white" /> : null}
+            {!imageLoaded ? <div className="absolute inset-0 bg-white" /> : null}
             <div
               className="relative flex h-full w-full bg-white transition-transform duration-300 ease-out"
               style={{ transform: `translateX(-${activeVariantIndex * 100}%)` }}
@@ -129,7 +138,7 @@ export function ProductCard({
                     decoding="async"
                     className="h-full w-full object-contain object-center"
                     fallbackClassName="h-full w-full bg-gradient-to-br from-green-200 to-green-100"
-                    onLoad={() => setLoaded(true)}
+                    onLoad={() => setImageLoaded(true)}
                   />
                 </div>
               ))}
@@ -165,28 +174,22 @@ export function ProductCard({
                 >
                   <button
                     type="button"
-                    onClick={(event) => {
-                      stopLinkNavigation(event);
-                      onDecrease?.(activeVariant.id, id);
-                    }}
-                    disabled={activeLoading}
+                    onClick={handleDecrease}
                     aria-label="Sonni kamaytirish"
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-700 transition active:scale-95 disabled:opacity-50"
+                    aria-busy={activeSyncing}
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-700 transition active:scale-90"
                   >
                     <Minus className="h-3.5 w-3.5" strokeWidth={2.4} />
                   </button>
-                  <span className="min-w-5 text-center text-xs font-semibold text-[#121212]">
+                  <span className="min-w-5 text-center text-xs font-semibold text-[#121212] tabular-nums">
                     {activeQuantity}
                   </span>
                   <button
                     type="button"
-                    onClick={(event) => {
-                      stopLinkNavigation(event);
-                      onIncrease?.(activeVariant.id, id);
-                    }}
-                    disabled={activeLoading}
+                    onClick={handleIncrease}
                     aria-label="Sonni oshirish"
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-[#16A34A] text-white transition active:scale-95 disabled:opacity-50"
+                    aria-busy={activeSyncing}
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-[#16A34A] text-white transition active:scale-90"
                   >
                     <Plus className="h-3.5 w-3.5" strokeWidth={2.4} />
                   </button>
@@ -194,13 +197,11 @@ export function ProductCard({
               ) : (
                 <button
                   type="button"
-                  onClick={(event) => {
-                    stopLinkNavigation(event);
-                    onAdd(activeVariant.id, id);
-                  }}
-                  disabled={activeLoading || outOfStock}
+                  onClick={handleAdd}
+                  disabled={outOfStock}
                   aria-label={outOfStock ? 'Mahsulot tugagan' : 'Savatga qo‘shish'}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[#16A34A] text-white shadow-[0_4px_12px_rgba(22,163,74,0.35)] transition active:scale-95 disabled:opacity-50"
+                  aria-busy={activeSyncing}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[#16A34A] text-white shadow-[0_4px_12px_rgba(22,163,74,0.35)] transition active:scale-90 disabled:opacity-50"
                 >
                   <Plus className="h-4 w-4" strokeWidth={2.6} />
                 </button>
@@ -230,3 +231,39 @@ export function ProductCard({
     </article>
   );
 }
+
+const EMPTY_VARIANTS: Variant[] = [];
+
+function keyOfVariants(list: Variant[]): string {
+  if (!list.length) return '';
+  return list.map((variant) => `${variant.id}:${variant.imageUrl ?? ''}`).join('|');
+}
+
+function areVariantsEqual(prev: Variant[] | undefined, next: Variant[] | undefined): boolean {
+  const a = prev ?? EMPTY_VARIANTS;
+  const b = next ?? EMPTY_VARIANTS;
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const x = a[i];
+    const y = b[i];
+    if (x.id !== y.id) return false;
+    if (x.price !== y.price) return false;
+    if ((x.discountPrice ?? null) !== (y.discountPrice ?? null)) return false;
+    if ((x.stock ?? 0) !== (y.stock ?? 0)) return false;
+    if ((x.imageUrl ?? '') !== (y.imageUrl ?? '')) return false;
+    if ((x.flavor ?? '') !== (y.flavor ?? '')) return false;
+  }
+  return true;
+}
+
+function arePropsEqual(prev: ProductCardProps, next: ProductCardProps): boolean {
+  if (prev.id !== next.id) return false;
+  if (prev.name !== next.name) return false;
+  if (prev.price !== next.price) return false;
+  if (prev.href !== next.href) return false;
+  if ((prev.imageUrl ?? '') !== (next.imageUrl ?? '')) return false;
+  return areVariantsEqual(prev.variants, next.variants);
+}
+
+export const ProductCard = memo(ProductCardBase, arePropsEqual);

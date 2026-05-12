@@ -3,11 +3,12 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { api, authStorage } from '@/lib/api';
+import { api } from '@/lib/api';
 import { formatMoneyUz } from '@/lib/format';
 import { MobileNav } from '@/components/app-nav';
 import { absoluteUrl } from '@/lib/seo';
 import { SafeImage } from '@/components/safe-image';
+import { incrementCart } from '@/lib/cart-store';
 
 type Product = {
   id: string;
@@ -30,7 +31,6 @@ export default function ProductDetailClientPage() {
   const params = useParams<{ id: string }>();
   const [product, setProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
-  const [loading, setLoading] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [variantIndex, setVariantIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -89,19 +89,9 @@ export default function ProductDetailClientPage() {
     [product, quantity, activeVariant?.price, activeVariant?.discountPrice],
   );
 
-  const addToCart = async () => {
-    if (!product) return;
-    setLoading(true);
-    try {
-      const token = authStorage.getAccessToken();
-      await api.post(
-        '/cart/items',
-        { productId: product.id, variantId: activeVariant?.id, quantity },
-        token,
-      );
-    } finally {
-      setLoading(false);
-    }
+  const addToCart = () => {
+    if (!product || !activeVariant?.id) return;
+    incrementCart(activeVariant.id, product.id, quantity);
   };
 
   const breadcrumbLd = useMemo(
@@ -290,8 +280,8 @@ export default function ProductDetailClientPage() {
             bottom: 'calc(var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))',
           }}
         >
-          <button onClick={addToCart} disabled={loading || !product} className="w-full rounded-2xl bg-[#16A34A] py-3 text-sm font-semibold text-white disabled:opacity-60">
-            {loading ? "Qo'shilmoqda..." : `Savatga qo'shish • ${formatMoneyUz(total)}`}
+          <button onClick={addToCart} disabled={!product} className="w-full rounded-2xl bg-[#16A34A] py-3 text-sm font-semibold text-white transition active:scale-[0.98] disabled:opacity-60">
+            {`Savatga qo'shish • ${formatMoneyUz(total)}`}
           </button>
         </div>
       </section>

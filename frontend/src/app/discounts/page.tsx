@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Filter, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { api, authStorage } from '@/lib/api';
+import { api } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
 import { ProductCard } from '@/components/product-card';
 
@@ -25,50 +25,20 @@ type Product = {
   }>;
 };
 
-type CartResponse = {
-  items: Array<{
-    quantity: number;
-    variant?: { id: string } | null;
-  }>;
-};
-
 const tabs = ['Barcha', 'Oziq-ovqat', 'Ichimliklar', 'Mevalar', "Go'sht"] as const;
 
 export default function DiscountsPage() {
-  const token = authStorage.getAccessToken();
   const [products, setProducts] = useState<Product[]>([]);
-  const [cart, setCart] = useState<CartResponse | null>(null);
   const [activeTab, setActiveTab] = useState<typeof tabs[number]>('Barcha');
-  const [loadingByVariantId, setLoadingByVariantId] = useState<Record<string, boolean>>({});
 
   const loadProducts = async () => {
     const data = await api.get<Product[]>('/products');
     setProducts(data);
   };
 
-  const loadCart = async () => {
-    try {
-      const payload = await api.get<CartResponse>('/cart', token, true);
-      setCart(payload);
-    } catch {
-      setCart(null);
-    }
-  };
-
   useEffect(() => {
     void loadProducts();
-    void loadCart();
   }, []);
-
-  const quantityByVariantId = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const item of cart?.items ?? []) {
-      if (item.variant?.id) {
-        map[item.variant.id] = (map[item.variant.id] ?? 0) + item.quantity;
-      }
-    }
-    return map;
-  }, [cart]);
 
   const discountedProducts = useMemo(() => {
     return products
@@ -86,16 +56,6 @@ export default function DiscountsPage() {
         return product.name.toLowerCase().includes(lower);
       });
   }, [products, activeTab]);
-
-  const updateCart = async (variantId: string, productId: string, delta: number) => {
-    setLoadingByVariantId((prev) => ({ ...prev, [variantId]: true }));
-    try {
-      await api.post('/cart/items', { productId, variantId, quantity: delta }, token);
-      await loadCart();
-    } finally {
-      setLoadingByVariantId((prev) => ({ ...prev, [variantId]: false }));
-    }
-  };
 
   return (
     <main className="bb-page bg-[#F8F8F8]">
@@ -152,11 +112,6 @@ export default function DiscountsPage() {
                   ...variant,
                   imageUrl: variant.imageUrl ?? product.imageCardUrl ?? product.imageUrl,
                 }))}
-                quantityByVariantId={quantityByVariantId}
-                loadingByVariantId={loadingByVariantId}
-                onAdd={(variantId, productId) => void updateCart(variantId, productId, 1)}
-                onIncrease={(variantId, productId) => void updateCart(variantId, productId, 1)}
-                onDecrease={(variantId, productId) => void updateCart(variantId, productId, -1)}
                 href={`/products/${product.id}`}
                 imageUrl={product.imageCardUrl ?? product.imageUrl}
               />

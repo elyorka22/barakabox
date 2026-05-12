@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { api, authStorage } from '@/lib/api';
+import { api } from '@/lib/api';
 import { ProductCard } from '@/components/product-card';
 import { MobileNav } from '@/components/app-nav';
 import { absoluteUrl } from '@/lib/seo';
@@ -31,19 +31,12 @@ type CategoryProductsResponse = {
   pagination: { page: number; limit: number; total: number; totalPages: number };
 };
 
-type CartResponse = {
-  items: Array<{ quantity: number; product?: { id: string } | null; variant?: { id: string } | null }>;
-};
-
 export default function CategoryProductsClientPage() {
   const params = useParams<{ slug: string }>();
   const [data, setData] = useState<CategoryProductsResponse | null>(null);
-  const [cart, setCart] = useState<CartResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadingByVariantId, setLoadingByVariantId] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
-  const token = authStorage.getAccessToken();
 
   const load = async (targetPage: number) => {
     setLoading(true);
@@ -60,40 +53,9 @@ export default function CategoryProductsClientPage() {
     }
   };
 
-  const loadCart = async () => {
-    try {
-      const payload = await api.get<CartResponse>('/cart', token, true);
-      setCart(payload);
-    } catch {
-      setCart(null);
-    }
-  };
-
   useEffect(() => {
     void load(page);
-    void loadCart();
   }, [page, params.slug]);
-
-  const quantityByVariantId = useMemo(() => {
-    const map: Record<string, number> = {};
-    if (!cart) return map;
-    for (const item of cart.items) {
-      if (item.variant?.id) {
-        map[item.variant.id] = (map[item.variant.id] ?? 0) + item.quantity;
-      }
-    }
-    return map;
-  }, [cart]);
-
-  const addToCart = async (variantId: string, productId: string, quantity = 1) => {
-    setLoadingByVariantId((prev) => ({ ...prev, [variantId]: true }));
-    try {
-      await api.post('/cart/items', { productId, variantId, quantity }, token);
-      await loadCart();
-    } finally {
-      setLoadingByVariantId((prev) => ({ ...prev, [variantId]: false }));
-    }
-  };
 
   const renderableItems = useMemo(
     () =>
@@ -170,15 +132,10 @@ export default function CategoryProductsClientPage() {
                   id={item.id}
                   name={item.name}
                   price={String(item.price)}
-                  onAdd={(variantId, productId) => void addToCart(variantId, productId, 1)}
                   variants={item.variants?.map((variant) => ({
                     ...variant,
                     imageUrl: variant.imageUrl ?? item.imageCardUrl ?? item.imageUrl,
                   }))}
-                  onIncrease={(variantId, productId) => void addToCart(variantId, productId, 1)}
-                  onDecrease={(variantId, productId) => void addToCart(variantId, productId, -1)}
-                  quantityByVariantId={quantityByVariantId}
-                  loadingByVariantId={loadingByVariantId}
                   href={`/products/${item.id}`}
                   imageUrl={item.imageCardUrl ?? item.imageUrl}
                 />

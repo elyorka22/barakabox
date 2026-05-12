@@ -3,7 +3,7 @@
 import { Heart, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { api, authStorage, categoryEvents, guestStorage } from '@/lib/api';
+import { api, categoryEvents, guestStorage } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
 import { HomeBannerCarousel } from '@/components/home/home-banner-carousel';
 import { CategoryCard, CategoryCardSkeleton } from '@/components/home/category-card';
@@ -27,14 +27,6 @@ type Product = {
     discountPrice?: number | null;
     stock: number;
     imageUrl?: string | null;
-  }>;
-};
-type CartResponse = {
-  items: Array<{
-    id: string;
-    quantity: number;
-    product?: { id: string } | null;
-    variant?: { id: string } | null;
   }>;
 };
 type Category = {
@@ -64,19 +56,14 @@ function categoryEmoji(name: string) {
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [cart, setCart] = useState<CartResponse | null>(null);
-  const [loadingByVariantId, setLoadingByVariantId] = useState<Record<string, boolean>>({});
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(false);
-  const [error, setError] = useState('');
   const [showDeferredSections, setShowDeferredSections] = useState(false);
-  const token = authStorage.getAccessToken();
 
   useEffect(() => {
     guestStorage.getGuestId();
     void loadCategories();
     void loadProducts();
-    void loadCart();
     const onCategoryChanged = () => void loadCategories();
     window.addEventListener(categoryEvents.changedEventName, onCategoryChanged);
     return () => {
@@ -108,52 +95,6 @@ export default function Home() {
       setLoadingProducts(false);
     }
   };
-
-  const loadCart = async () => {
-    try {
-      const data = await api.get<CartResponse>('/cart', token, true);
-      setCart(data);
-    } catch {
-      setCart(null);
-    }
-  };
-
-  const addProduct = async (variantId: string, productId: string) => {
-    setLoadingByVariantId((prev) => ({ ...prev, [variantId]: true }));
-    setError('');
-    try {
-      await api.post('/cart/items', { productId, variantId, quantity: 1 }, token);
-      await loadCart();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Mahsulotni savatga qo'shib bo'lmadi");
-    } finally {
-      setLoadingByVariantId((prev) => ({ ...prev, [variantId]: false }));
-    }
-  };
-
-  const changeProductQty = async (variantId: string, productId: string, delta: number) => {
-    setLoadingByVariantId((prev) => ({ ...prev, [variantId]: true }));
-    setError('');
-    try {
-      await api.post('/cart/items', { productId, variantId, quantity: delta }, token);
-      await loadCart();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Xatolik yuz berdi");
-    } finally {
-      setLoadingByVariantId((prev) => ({ ...prev, [variantId]: false }));
-    }
-  };
-
-  const quantityByVariantId = useMemo(() => {
-    const map: Record<string, number> = {};
-    if (!cart) return map;
-    for (const item of cart.items) {
-      if (item.variant?.id) {
-        map[item.variant.id] = (map[item.variant.id] ?? 0) + item.quantity;
-      }
-    }
-    return map;
-  }, [cart]);
 
   const renderableProducts = useMemo(
     () =>
@@ -322,15 +263,10 @@ export default function Home() {
                 id={product.id}
                 name={product.name}
                 price={product.price}
-                onAdd={addProduct}
                 variants={product.variants?.map((variant) => ({
                   ...variant,
                   imageUrl: variant.imageUrl ?? product.imageCardUrl ?? product.imageUrl,
                 }))}
-                onIncrease={(variantId, productId) => void changeProductQty(variantId, productId, 1)}
-                onDecrease={(variantId, productId) => void changeProductQty(variantId, productId, -1)}
-                quantityByVariantId={quantityByVariantId}
-                loadingByVariantId={loadingByVariantId}
                 href={`/products/${product.id}`}
                 imageUrl={product.imageCardUrl ?? product.imageUrl}
               />
@@ -359,15 +295,10 @@ export default function Home() {
                 id={product.id}
                 name={product.name}
                 price={product.price}
-                onAdd={addProduct}
                 variants={product.variants?.map((variant) => ({
                   ...variant,
                   imageUrl: variant.imageUrl ?? product.imageCardUrl ?? product.imageUrl,
                 }))}
-                onIncrease={(variantId, productId) => void changeProductQty(variantId, productId, 1)}
-                onDecrease={(variantId, productId) => void changeProductQty(variantId, productId, -1)}
-                quantityByVariantId={quantityByVariantId}
-                loadingByVariantId={loadingByVariantId}
                 href={`/products/${product.id}`}
                 imageUrl={product.imageCardUrl ?? product.imageUrl}
               />
@@ -390,7 +321,6 @@ export default function Home() {
           </div>
         )}
 
-        {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
         <MobileNav />
       </section>
     </main>
