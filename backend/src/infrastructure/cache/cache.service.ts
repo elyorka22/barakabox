@@ -1,14 +1,34 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import type { Cache } from 'cache-manager';
 
 @Injectable()
 export class CacheService {
   private readonly logger = new Logger(CacheService.name);
 
-  async get<T>(_key: string): Promise<T | null> {
-    return null;
+  constructor(
+    @Inject(CACHE_MANAGER)
+    private readonly cache: Cache,
+  ) {}
+
+  async get<T>(key: string): Promise<T | null> {
+    try {
+      const value = await this.cache.get<T>(key);
+      return value ?? null;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown';
+      this.logger.warn(`Cache get failed for key "${key}": ${message}`);
+      return null;
+    }
   }
 
-  async set(_key: string, _value: unknown, _ttlSeconds?: number): Promise<void> {
-    this.logger.debug('Cache set skipped: in-memory placeholder');
+  async set(key: string, value: unknown, ttlSeconds?: number): Promise<void> {
+    try {
+      const ttl = typeof ttlSeconds === 'number' ? ttlSeconds * 1000 : undefined;
+      await this.cache.set(key, value, ttl);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown';
+      this.logger.warn(`Cache set failed for key "${key}": ${message}`);
+    }
   }
 }

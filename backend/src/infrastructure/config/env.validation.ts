@@ -5,6 +5,9 @@ export type AppEnv = {
   JWT_ACCESS_SECRET: string;
   JWT_REFRESH_SECRET: string;
   CORS_ORIGIN: string;
+  REDIS_HOST: string;
+  REDIS_PORT: string;
+  REDIS_PASSWORD?: string;
   SPACES_ENDPOINT: string;
   SPACES_REGION: string;
   SPACES_BUCKET: string;
@@ -37,6 +40,9 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
   const accessSecret = String(config.JWT_ACCESS_SECRET ?? '');
   const refreshSecret = String(config.JWT_REFRESH_SECRET ?? '');
   const corsOrigin = String(config.CORS_ORIGIN ?? '*');
+  const redisHost = String(config.REDIS_HOST ?? '127.0.0.1');
+  const redisPort = String(config.REDIS_PORT ?? '6379');
+  const redisPassword = String(config.REDIS_PASSWORD ?? '');
   const spacesEndpoint = normalizeHttpsUrl(String(config.SPACES_ENDPOINT ?? ''));
   const spacesRegion = String(config.SPACES_REGION ?? '');
   const spacesBucket = String(config.SPACES_BUCKET ?? '');
@@ -67,6 +73,12 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
   }
   if (nodeEnv === 'production' && corsOrigin.includes('localhost')) {
     throw new Error('CORS_ORIGIN must not use localhost in production');
+  }
+  if (!redisHost) {
+    throw new Error('REDIS_HOST is required');
+  }
+  if (!/^\d+$/.test(redisPort)) {
+    throw new Error('REDIS_PORT must be a valid integer');
   }
   if (!spacesEndpoint) {
     throw new Error('SPACES_ENDPOINT is required');
@@ -103,6 +115,9 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
     JWT_ACCESS_SECRET: accessSecret,
     JWT_REFRESH_SECRET: refreshSecret,
     CORS_ORIGIN: corsOrigin,
+    REDIS_HOST: redisHost,
+    REDIS_PORT: redisPort,
+    REDIS_PASSWORD: redisPassword,
     SPACES_ENDPOINT: spacesEndpoint,
     SPACES_REGION: spacesRegion,
     SPACES_BUCKET: spacesBucket,
