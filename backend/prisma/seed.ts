@@ -49,11 +49,11 @@ async function main() {
   };
 
   const products = [
-    { name: 'Apple', price: 12000, stockQuantity: 100, categoryId: categoryMap.fruits, unitType: 'dona' as const },
-    { name: 'Banana', price: 8000, stockQuantity: 120, categoryId: categoryMap.fruits, unitType: 'dona' as const },
-    { name: 'Tomato', price: 15000, stockQuantity: 80, categoryId: categoryMap.vegetables, unitType: 'kg' as const },
-    { name: 'Potato', price: 9000, stockQuantity: 150, categoryId: categoryMap.vegetables, unitType: 'kg' as const },
-    { name: 'Milk 1L', price: 21000, stockQuantity: 60, categoryId: categoryMap.dairy, unitType: 'litr' as const },
+    { name: 'Apple', price: 12000, stockQuantity: 100, categoryId: categoryMap.fruits, unit: 'dona' as const },
+    { name: 'Banana', price: 8000, stockQuantity: 120, categoryId: categoryMap.fruits, unit: 'dona' as const },
+    { name: 'Tomato', price: 15000, stockQuantity: 80, categoryId: categoryMap.vegetables, unit: 'kg' as const },
+    { name: 'Potato', price: 9000, stockQuantity: 150, categoryId: categoryMap.vegetables, unit: 'kg' as const },
+    { name: 'Milk 1L', price: 21000, stockQuantity: 60, categoryId: categoryMap.dairy, unit: 'litr' as const },
   ];
 
   const createdProducts: Record<string, { id: string; price: number }> = {};
@@ -72,7 +72,7 @@ async function main() {
           price: product.price,
           stockQuantity: product.stockQuantity,
           categoryId: product.categoryId,
-          unitType: product.unitType,
+          unit: product.unit,
         },
       }));
 

@@ -17,7 +17,9 @@ type Product = {
   name: string;
   price: string;
   stockQuantity: number;
-  unitType: string;
+  unit: string;
+  /** Legacy API */
+  unitType?: string | null;
   businessId: string;
   categoryId?: string | null;
   category?: { id: string; name: string } | null;
@@ -51,7 +53,7 @@ export default function AdminProductsPage() {
   const [form, setForm] = useState({
     id: '',
     name: '',
-    unitType: DEFAULT_PRODUCT_UNIT as ProductUnitCode,
+    unit: DEFAULT_PRODUCT_UNIT as ProductUnitCode,
     businessId: '',
     categoryId: '',
     variants: [
@@ -110,13 +112,13 @@ export default function AdminProductsPage() {
         (o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q),
       );
     }
-    const hasCurrent = list.some((o) => o.value === form.unitType);
+    const hasCurrent = list.some((o) => o.value === form.unit);
     if (!hasCurrent) {
-      const cur = PRODUCT_UNIT_SELECT_OPTIONS.find((o) => o.value === form.unitType);
+      const cur = PRODUCT_UNIT_SELECT_OPTIONS.find((o) => o.value === form.unit);
       if (cur) return [cur, ...list];
     }
     return list;
-  }, [unitSearch, form.unitType]);
+  }, [unitSearch, form.unit]);
 
   const save = async () => {
     setError('');
@@ -163,7 +165,7 @@ export default function AdminProductsPage() {
       name: form.name.trim(),
       price: aggregatePrice,
       stockQuantity: aggregateStock,
-      unitType: form.unitType,
+      unit: form.unit,
       categoryId: form.categoryId || undefined,
       variants: normalizedVariants,
     };
@@ -178,7 +180,7 @@ export default function AdminProductsPage() {
         ...prev,
         id: '',
         name: '',
-        unitType: DEFAULT_PRODUCT_UNIT,
+        unit: DEFAULT_PRODUCT_UNIT,
         variants: [{ id: '', flavor: '', description: '', price: '1000', discountPrice: '', discountPercent: '', stock: '0', imageUrl: '' }],
       }));
       setUploadingVariantImages({});
@@ -194,7 +196,7 @@ export default function AdminProductsPage() {
     setForm({
       id: item.id,
       name: item.name,
-      unitType: normalizeIncomingProductUnit(item.unitType) ?? DEFAULT_PRODUCT_UNIT,
+      unit: normalizeIncomingProductUnit(item.unit ?? item.unitType) ?? DEFAULT_PRODUCT_UNIT,
       businessId: item.businessId,
       categoryId: item.category?.id ?? '',
       variants:
@@ -290,9 +292,9 @@ export default function AdminProductsPage() {
             />
             <select
               className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-              value={form.unitType}
+              value={form.unit}
               onChange={(e) =>
-                setForm((prev) => ({ ...prev, unitType: e.target.value as ProductUnitCode }))
+                setForm((prev) => ({ ...prev, unit: e.target.value as ProductUnitCode }))
               }
             >
               {filteredUnitOptions.map((opt) => (
@@ -524,7 +526,7 @@ export default function AdminProductsPage() {
               <p className="mt-2 text-sm text-slate-700">
                 {formatMoneyWithUnitSuffix(
                   formatMoneyUz(item.price),
-                  normalizeIncomingProductUnit(item.unitType) ?? DEFAULT_PRODUCT_UNIT,
+                  normalizeIncomingProductUnit(item.unit ?? item.unitType) ?? DEFAULT_PRODUCT_UNIT,
                 )}
               </p>
               <p className={`text-xs ${item.stockQuantity > 0 ? 'text-emerald-700' : 'text-rose-700'}`}>

@@ -28,7 +28,7 @@ type ProductCardProps = {
   id: string;
   name: string;
   price: string;
-  unitType?: ProductUnitCode | string | null;
+  unit?: ProductUnitCode | string | null;
   variants?: Variant[];
   href?: string;
   imageUrl?: string | null;
@@ -43,12 +43,12 @@ function ProductCardBase({
   id,
   name,
   price,
-  unitType: unitTypeProp,
+  unit: unitProp,
   href,
   variants,
 }: ProductCardProps) {
   const unitType =
-    normalizeIncomingProductUnit(unitTypeProp) ?? DEFAULT_PRODUCT_UNIT;
+    normalizeIncomingProductUnit(unitProp) ?? DEFAULT_PRODUCT_UNIT;
   const effectiveVariants = variants ?? EMPTY_VARIANTS;
   const [activeVariantIndex, setActiveVariantIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -283,7 +283,7 @@ function arePropsEqual(prev: ProductCardProps, next: ProductCardProps): boolean 
   if (prev.id !== next.id) return false;
   if (prev.name !== next.name) return false;
   if (prev.price !== next.price) return false;
-  if ((prev.unitType ?? '') !== (next.unitType ?? '')) return false;
+  if ((prev.unit ?? '') !== (next.unit ?? '')) return false;
   if ((prev.imageUrl ?? '') !== (next.imageUrl ?? '')) return false;
   return areVariantsEqual(prev.variants, next.variants);
 }

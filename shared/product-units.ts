@@ -1,6 +1,7 @@
 /**
- * Product sale units — single source of truth.
- * Must match `UnitType` in `backend/prisma/schema.prisma` (see `product-units.sync.spec.ts`).
+ * Product sale units — single source of truth for Product.unit (API + DB).
+ * Must match `ProductUnit` in `backend/prisma/schema.prisma` (see `product-units.sync.spec.ts`).
+ * OrderItem may still expose legacy `UnitType` strings; `normalizeIncomingProductUnit` maps those.
  */
 export const PRODUCT_UNIT_CODES = [
   'dona',
@@ -10,10 +11,7 @@ export const PRODUCT_UNIT_CODES = [
   'ml',
   'quti',
   'karobka',
-  'paket',
   'toplam',
-  'bog',
-  'pack',
 ] as const;
 
 export type ProductUnitCode = (typeof PRODUCT_UNIT_CODES)[number];
@@ -35,10 +33,7 @@ export const PRODUCT_UNIT_LABEL_UZ: Record<ProductUnitCode, string> = {
   ml: 'ml',
   quti: 'quti',
   karobka: 'karobka',
-  paket: 'paket',
   toplam: "to'plam",
-  bog: "bog'",
-  pack: 'pack',
 };
 
 export const PRODUCT_UNIT_SELECT_OPTIONS: ReadonlyArray<{ value: ProductUnitCode; label: string }> =
@@ -48,14 +43,24 @@ export function isProductUnitCode(value: string): value is ProductUnitCode {
   return (PRODUCT_UNIT_CODES as readonly string[]).includes(value);
 }
 
-/** Map legacy API/DB values after enum migration. */
+/** Map legacy API/DB values (including old OrderItem.unitType) to ProductUnit. */
 export function normalizeIncomingProductUnit(value: unknown): ProductUnitCode | null {
   if (value === undefined || value === null || value === '') return null;
   if (typeof value !== 'string') return null;
   const v = value.trim();
   if (v === 'piece') return 'dona';
+  if (v === 'paket') return 'quti';
+  if (v === 'bog') return 'toplam';
+  if (v === 'pack') return 'karobka';
   if (isProductUnitCode(v)) return v;
   return null;
+}
+
+/** Read sale unit from product JSON (`unit` preferred; `unitType` legacy). */
+export function normalizedProductSaleUnit(
+  product: { unit?: unknown; unitType?: unknown } | null | undefined,
+): ProductUnitCode | null {
+  return normalizeIncomingProductUnit(product?.unit ?? product?.unitType);
 }
 
 export function formatQuantityWithUnit(quantity: number, unit: ProductUnitCode): string {

@@ -18,7 +18,7 @@ import {
   DEFAULT_PRODUCT_UNIT,
   PRODUCT_UNIT_LABEL_UZ,
   formatQuantityWithUnit,
-  normalizeIncomingProductUnit,
+  normalizedProductSaleUnit,
 } from '@onlinebozor/product-units';
 
 export default function ClientPage() {
@@ -119,8 +119,7 @@ function CartItemRow({ item }: { item: CartItem }) {
     ? Number(item.variant.price)
     : Number(item.product?.price ?? item.box?.price ?? 0);
   const unit =
-    normalizeIncomingProductUnit(item.variant?.product?.unitType ?? item.product?.unitType) ??
-    DEFAULT_PRODUCT_UNIT;
+    normalizedProductSaleUnit(item.variant?.product ?? item.product ?? undefined) ?? DEFAULT_PRODUCT_UNIT;
   const unitLabel = PRODUCT_UNIT_LABEL_UZ[unit];
 
   const handleDecrease = () => {

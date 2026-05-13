@@ -1,4 +1,4 @@
-import { UnitType } from '@prisma/client';
+import { ProductUnit } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import { IsArray, IsEnum, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 
@@ -73,8 +73,8 @@ export class UpdateProductDto {
 
   @IsOptional()
   @Transform(({ value }) => (value === 'piece' ? 'dona' : value))
-  @IsEnum(UnitType, { message: 'Noto‘g‘ri o‘lchov birligi' })
-  unitType?: UnitType;
+  @IsEnum(ProductUnit, { message: 'Noto‘g‘ri o‘lchov birligi' })
+  unit?: ProductUnit;
 
   @IsOptional()
   @IsString()

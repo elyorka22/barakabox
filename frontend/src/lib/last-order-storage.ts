@@ -1,5 +1,10 @@
 import type { CartItem } from '@/lib/cart-store';
-import { type ProductUnitCode, DEFAULT_PRODUCT_UNIT, normalizeIncomingProductUnit } from '@onlinebozor/product-units';
+import {
+  type ProductUnitCode,
+  DEFAULT_PRODUCT_UNIT,
+  normalizeIncomingProductUnit,
+  normalizedProductSaleUnit,
+} from '@onlinebozor/product-units';
 
 export type OrderStatusLite = 'NEW' | 'PICKING' | 'READY' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED';
 
@@ -29,7 +34,7 @@ export function enrichOrderLinesFromCart(cartItems: CartItem[]): LastOrderItemLi
     if (v?.id && productId) {
       const title = (v.title || v.flavor || item.product?.name || 'Mahsulot').trim() || 'Mahsulot';
       const unitType =
-        normalizeIncomingProductUnit(v?.product?.unitType ?? item.product?.unitType) ?? DEFAULT_PRODUCT_UNIT;
+        normalizedProductSaleUnit(v?.product ?? item.product ?? undefined) ?? DEFAULT_PRODUCT_UNIT;
       lines.push({
         title,
         quantity: item.quantity,
@@ -68,7 +73,7 @@ function normalizeItems(raw: unknown, enrich: LastOrderItemLine[]): LastOrderIte
       const hit = enrich.find((line) => line.variantId === variantId);
       productId = hit?.productId ?? null;
     }
-    const unitRaw = row.unitType;
+    const unitRaw = row.unitType ?? row.unit;
     const unitType = normalizeIncomingProductUnit(unitRaw) ?? DEFAULT_PRODUCT_UNIT;
     return {
       title: typeof row.title === 'string' ? row.title : 'Mahsulot',

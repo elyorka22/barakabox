@@ -13,7 +13,7 @@ import {
   DEFAULT_PRODUCT_UNIT,
   PRODUCT_UNIT_LABEL_UZ,
   formatQuantityWithUnit,
-  normalizeIncomingProductUnit,
+  normalizedProductSaleUnit,
 } from '@onlinebozor/product-units';
 
 type Product = {
@@ -22,6 +22,7 @@ type Product = {
   price: string;
   imageUrl?: string | null;
   description?: string | null;
+  unit?: string | null;
   unitType?: string | null;
   variants?: Array<{
     id: string;
@@ -52,7 +53,7 @@ export default function ProductDetailClientPage() {
 
   const activeVariant = product?.variants?.[variantIndex] ?? null;
   const variants = product?.variants ?? [];
-  const saleUnit = normalizeIncomingProductUnit(product?.unitType) ?? DEFAULT_PRODUCT_UNIT;
+  const saleUnit = normalizedProductSaleUnit(product) ?? DEFAULT_PRODUCT_UNIT;
 
   useEffect(() => {
     setVariantIndex(0);

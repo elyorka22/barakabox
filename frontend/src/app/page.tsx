@@ -16,6 +16,7 @@ type Product = {
   id: string;
   name: string;
   price: string;
+  unit?: string | null;
   unitType?: string | null;
   categoryId?: string | null;
   imageUrl?: string | null;
@@ -289,7 +290,7 @@ export default function Home() {
                 id={product.id}
                 name={product.name}
                 price={product.price}
-                unitType={product.unitType ?? undefined}
+                unit={(product.unit ?? product.unitType) ?? undefined}
                 variants={product.variants?.map((variant) => ({
                   ...variant,
                   imageUrl: variant.imageUrl ?? product.imageCardUrl ?? product.imageUrl,
@@ -322,7 +323,7 @@ export default function Home() {
                 id={product.id}
                 name={product.name}
                 price={product.price}
-                unitType={product.unitType ?? undefined}
+                unit={(product.unit ?? product.unitType) ?? undefined}
                 variants={product.variants?.map((variant) => ({
                   ...variant,
                   imageUrl: variant.imageUrl ?? product.imageCardUrl ?? product.imageUrl,

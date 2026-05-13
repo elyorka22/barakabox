@@ -10,6 +10,7 @@ export type CartItem = {
     id: string;
     name: string;
     price: string;
+    unit?: string | null;
     unitType?: string | null;
   } | null;
   variant?: {
@@ -19,7 +20,7 @@ export type CartItem = {
     description?: string | null;
     imageUrl?: string | null;
     price: number;
-    product?: { id: string; name: string; unitType?: string | null } | null;
+    product?: { id: string; name: string; unit?: string | null; unitType?: string | null } | null;
   } | null;
   box?: {
     id: string;

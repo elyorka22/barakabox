@@ -37,7 +37,7 @@ export class OrdersService {
 
     const normalizedItems = cart.items.map((item) => {
       if (item.variant) {
-        const unitType = item.variant.product?.unitType ?? 'dona';
+        const unitType = (item.variant.product?.unit ?? 'dona') as UnitType;
         return {
           type: 'variant' as const,
           entityId: item.variant.id,
@@ -62,7 +62,7 @@ export class OrdersService {
           sku: null,
           price: Number(item.product.price),
           quantity: item.quantity,
-          unitType: item.product.unitType,
+          unitType: (item.product.unit ?? 'dona') as UnitType,
         };
       }
       if (item.box) {

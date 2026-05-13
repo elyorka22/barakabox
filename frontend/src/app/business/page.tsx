@@ -4,7 +4,11 @@ import { useState } from 'react';
 import { api } from '@/lib/api';
 import { formatMoneyUz } from '@/lib/format';
 import { DesktopNav, MobileNav } from '@/components/app-nav';
-import { normalizeIncomingProductUnit, DEFAULT_PRODUCT_UNIT, formatQuantityWithUnit } from '@onlinebozor/product-units';
+import {
+  DEFAULT_PRODUCT_UNIT,
+  formatQuantityWithUnit,
+  normalizedProductSaleUnit,
+} from '@onlinebozor/product-units';
 
 type Product = {
   id: string;
@@ -12,7 +16,8 @@ type Product = {
   description?: string | null;
   price: string;
   stockQuantity: number;
-  unitType: string;
+  unit?: string | null;
+  unitType?: string | null;
   isActive: boolean;
   category?: { id: string; name: string } | null;
 };
@@ -138,7 +143,7 @@ export default function BusinessPage() {
                 {formatMoneyUz(product.price)} · qoldiq{' '}
                 {formatQuantityWithUnit(
                   product.stockQuantity,
-                  normalizeIncomingProductUnit(product.unitType) ?? DEFAULT_PRODUCT_UNIT,
+                  normalizedProductSaleUnit(product) ?? DEFAULT_PRODUCT_UNIT,
                 )}{' '}
                 · {product.category?.name ?? "Kategoriya yo'q"}
               </p>

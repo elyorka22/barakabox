@@ -44,6 +44,18 @@ enum UnitType {
   pack
 }
 
+/// Sale unit stored on Product (subset of legacy UnitType used on OrderItem snapshots).
+enum ProductUnit {
+  dona
+  kg
+  gramm
+  litr
+  ml
+  quti
+  karobka
+  toplam
+}
+
 enum InventoryReason {
   INCOME
   SALE
@@ -111,7 +123,7 @@ model Product {
   imageCardKey String?
   imageThumbUrl String?
   imageThumbKey String?
-  unitType     UnitType @default(dona)
+  unit         ProductUnit @default(dona)
   price        Int
   stockQuantity Int     @default(0)
   isActive     Boolean  @default(true)
