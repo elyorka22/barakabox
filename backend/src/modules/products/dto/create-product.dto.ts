@@ -1,5 +1,6 @@
-import { Type } from 'class-transformer';
-import { IsArray, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { UnitType } from '@prisma/client';
+import { Transform, Type } from 'class-transformer';
+import { IsArray, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 
 class ProductVariantDto {
   @IsString()
@@ -69,8 +70,9 @@ export class CreateProductDto {
   @Min(0)
   stockQuantity!: number;
 
-  @IsIn(['kg', 'piece', 'pack'])
-  unitType!: 'kg' | 'piece' | 'pack';
+  @Transform(({ value }) => (value === 'piece' ? 'dona' : value))
+  @IsEnum(UnitType, { message: 'Noto‘g‘ri o‘lchov birligi' })
+  unitType!: UnitType;
 
   @IsOptional()
   @IsString()

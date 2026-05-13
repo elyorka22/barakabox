@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { api, authStorage } from '@/lib/api';
 import { DesktopNav, MobileNav } from '@/components/app-nav';
+import { formatQuantityWithUnit, normalizeIncomingProductUnit, DEFAULT_PRODUCT_UNIT } from '@onlinebozor/product-units';
 
 type OrderItem = {
   id: string;
   title: string;
   quantity: number;
+  unitType?: string;
 };
 
 type Order = {
@@ -56,7 +58,11 @@ export default function PickerPage() {
               <ul className="mt-2 space-y-1 text-sm text-gray-600">
                 {order.items.map((item) => (
                   <li key={item.id}>
-                    {item.title} x {item.quantity}
+                    {item.title} —{' '}
+                    {formatQuantityWithUnit(
+                      item.quantity,
+                      normalizeIncomingProductUnit(item.unitType) ?? DEFAULT_PRODUCT_UNIT,
+                    )}
                   </li>
                 ))}
               </ul>

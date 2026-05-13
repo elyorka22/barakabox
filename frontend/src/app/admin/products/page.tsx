@@ -4,13 +4,20 @@ import { useEffect, useMemo, useState } from 'react';
 import { api, authStorage } from '@/lib/api';
 import { formatMoneyUz } from '@/lib/format';
 import { ImageUploader } from '@/components/admin/image-uploader';
+import {
+  DEFAULT_PRODUCT_UNIT,
+  PRODUCT_UNIT_SELECT_OPTIONS,
+  type ProductUnitCode,
+  formatMoneyWithUnitSuffix,
+  normalizeIncomingProductUnit,
+} from '@onlinebozor/product-units';
 
 type Product = {
   id: string;
   name: string;
   price: string;
   stockQuantity: number;
-  unitType: 'kg' | 'piece' | 'pack';
+  unitType: string;
   businessId: string;
   categoryId?: string | null;
   category?: { id: string; name: string } | null;
@@ -39,10 +46,11 @@ export default function AdminProductsPage() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [page, setPage] = useState(1);
+  const [unitSearch, setUnitSearch] = useState('');
   const [form, setForm] = useState({
     id: '',
     name: '',
-    unitType: 'piece' as Product['unitType'],
+    unitType: DEFAULT_PRODUCT_UNIT as ProductUnitCode,
     businessId: '',
     categoryId: '',
     variants: [
@@ -92,6 +100,22 @@ export default function AdminProductsPage() {
     const pageSize = 8;
     return filtered.slice((page - 1) * pageSize, page * pageSize);
   }, [products, search, categoryFilter, page]);
+
+  const filteredUnitOptions = useMemo(() => {
+    const q = unitSearch.trim().toLowerCase();
+    let list = PRODUCT_UNIT_SELECT_OPTIONS;
+    if (q) {
+      list = PRODUCT_UNIT_SELECT_OPTIONS.filter(
+        (o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q),
+      );
+    }
+    const hasCurrent = list.some((o) => o.value === form.unitType);
+    if (!hasCurrent) {
+      const cur = PRODUCT_UNIT_SELECT_OPTIONS.find((o) => o.value === form.unitType);
+      if (cur) return [cur, ...list];
+    }
+    return list;
+  }, [unitSearch, form.unitType]);
 
   const save = async () => {
     if (!form.variants[0] || !form.variants[0].flavor.trim()) return;
@@ -149,6 +173,7 @@ export default function AdminProductsPage() {
       ...prev,
       id: '',
       name: '',
+      unitType: DEFAULT_PRODUCT_UNIT,
       variants: [{ id: '', flavor: '', description: '', price: '1000', discountPrice: '', discountPercent: '', stock: '0', imageUrl: '' }],
     }));
     setUploadingVariantImages({});
@@ -157,10 +182,11 @@ export default function AdminProductsPage() {
 
   const edit = (item: Product) => {
     setUploadingVariantImages({});
+    setUnitSearch('');
     setForm({
       id: item.id,
       name: item.name,
-      unitType: item.unitType,
+      unitType: normalizeIncomingProductUnit(item.unitType) ?? DEFAULT_PRODUCT_UNIT,
       businessId: item.businessId,
       categoryId: item.category?.id ?? '',
       variants:
@@ -245,6 +271,29 @@ export default function AdminProductsPage() {
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
             />
+          </div>
+          <div className="min-w-0 max-w-full sm:col-span-2 lg:col-span-3">
+            <label className="mb-1 block text-xs font-medium text-slate-700">O‘lchov birligi</label>
+            <input
+              className="mb-2 w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              placeholder="Qidirish (masalan: kg, dona, quti...)"
+              value={unitSearch}
+              onChange={(e) => setUnitSearch(e.target.value)}
+            />
+            <select
+              className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              value={form.unitType}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, unitType: e.target.value as ProductUnitCode }))
+              }
+            >
+              {filteredUnitOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-slate-500">Faqat ro‘yxatdagi birliklar saqlanadi (standart: dona).</p>
           </div>
           <div className="min-w-0 max-w-full">
             <label className="mb-1 block text-xs font-medium text-slate-700">Do'kon</label>
@@ -464,7 +513,12 @@ export default function AdminProductsPage() {
                   <p className="truncate text-xs text-slate-500">{item.category?.name ?? "Kategoriya yo'q"}</p>
                 </div>
               </div>
-              <p className="mt-2 text-sm">{formatMoneyUz(item.price)}</p>
+              <p className="mt-2 text-sm text-slate-700">
+                {formatMoneyWithUnitSuffix(
+                  formatMoneyUz(item.price),
+                  normalizeIncomingProductUnit(item.unitType) ?? DEFAULT_PRODUCT_UNIT,
+                )}
+              </p>
               <p className={`text-xs ${item.stockQuantity > 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                 {item.stockQuantity > 0 ? `In stock: ${item.stockQuantity}` : 'Out of stock'}
               </p>

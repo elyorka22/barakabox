@@ -1,3 +1,4 @@
+import path from "path";
 import type { NextConfig } from "next";
 import withPWAInit from "@ducanh2912/next-pwa";
 
@@ -44,6 +45,13 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@onlinebozor/product-units": path.resolve(__dirname, "../shared/product-units.ts"),
+    };
+    return config;
+  },
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [

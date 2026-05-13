@@ -4,6 +4,12 @@ import Link from 'next/link';
 import { Minus, Plus } from 'lucide-react';
 import { memo, useState } from 'react';
 import { formatMoneyUz } from '@/lib/format';
+import {
+  DEFAULT_PRODUCT_UNIT,
+  type ProductUnitCode,
+  PRODUCT_UNIT_LABEL_UZ,
+  normalizeIncomingProductUnit,
+} from '@onlinebozor/product-units';
 import { SafeImage } from '@/components/safe-image';
 import { incrementCart } from '@/lib/cart-store';
 import { useCartPending, useCartQuantity } from '@/lib/use-cart-store';
@@ -22,6 +28,7 @@ type ProductCardProps = {
   id: string;
   name: string;
   price: string;
+  unitType?: ProductUnitCode | string | null;
   variants?: Variant[];
   href?: string;
   imageUrl?: string | null;
@@ -36,9 +43,12 @@ function ProductCardBase({
   id,
   name,
   price,
+  unitType: unitTypeProp,
   href,
   variants,
 }: ProductCardProps) {
+  const unitType =
+    normalizeIncomingProductUnit(unitTypeProp) ?? DEFAULT_PRODUCT_UNIT;
   const effectiveVariants = variants ?? EMPTY_VARIANTS;
   const [activeVariantIndex, setActiveVariantIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -222,11 +232,17 @@ function ProductCardBase({
                 </p>
                 <p className="mt-0.5 text-[16px] font-bold leading-tight tracking-tight text-[#121212] tabular-nums">
                   {formatMoneyUz(activeDiscountPrice)}
+                  <span className="ml-1 text-[11px] font-medium text-slate-500">
+                    / {PRODUCT_UNIT_LABEL_UZ[unitType]}
+                  </span>
                 </p>
               </div>
             ) : (
               <p className="mt-1.5 text-[16px] font-bold leading-tight tracking-tight text-[#121212] tabular-nums">
                 {formatMoneyUz(activeBasePrice)}
+                <span className="ml-1 text-[11px] font-medium text-slate-500">
+                  / {PRODUCT_UNIT_LABEL_UZ[unitType]}
+                </span>
               </p>
             )
           ) : (
@@ -267,7 +283,7 @@ function arePropsEqual(prev: ProductCardProps, next: ProductCardProps): boolean 
   if (prev.id !== next.id) return false;
   if (prev.name !== next.name) return false;
   if (prev.price !== next.price) return false;
-  if (prev.href !== next.href) return false;
+  if ((prev.unitType ?? '') !== (next.unitType ?? '')) return false;
   if ((prev.imageUrl ?? '') !== (next.imageUrl ?? '')) return false;
   return areVariantsEqual(prev.variants, next.variants);
 }

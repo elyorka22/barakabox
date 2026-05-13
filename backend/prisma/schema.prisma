@@ -31,8 +31,16 @@ enum OrderStatus {
 }
 
 enum UnitType {
+  dona
   kg
-  piece
+  gramm
+  litr
+  ml
+  quti
+  karobka
+  paket
+  toplam
+  bog
   pack
 }
 
@@ -103,7 +111,7 @@ model Product {
   imageCardKey String?
   imageThumbUrl String?
   imageThumbKey String?
-  unitType     UnitType @default(piece)
+  unitType     UnitType @default(dona)
   price        Int
   stockQuantity Int     @default(0)
   isActive     Boolean  @default(true)
@@ -295,6 +303,7 @@ model OrderItem {
   productId  String?
   variantId  String?
   boxId      String?
+  unitType   UnitType @default(dona)
   quantity   Int
   price      Int
   title      String

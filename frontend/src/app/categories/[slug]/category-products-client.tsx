@@ -12,6 +12,7 @@ type Product = {
   id: string;
   name: string;
   price: number;
+  unitType?: string | null;
   imageUrl?: string | null;
   imageCardUrl?: string | null;
   variants?: Array<{
@@ -132,6 +133,7 @@ export default function CategoryProductsClientPage() {
                   id={item.id}
                   name={item.name}
                   price={String(item.price)}
+                  unitType={item.unitType ?? undefined}
                   variants={item.variants?.map((variant) => ({
                     ...variant,
                     imageUrl: variant.imageUrl ?? item.imageCardUrl ?? item.imageUrl,

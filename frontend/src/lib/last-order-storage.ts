@@ -1,10 +1,12 @@
 import type { CartItem } from '@/lib/cart-store';
+import { type ProductUnitCode, DEFAULT_PRODUCT_UNIT, normalizeIncomingProductUnit } from '@onlinebozor/product-units';
 
 export type OrderStatusLite = 'NEW' | 'PICKING' | 'READY' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED';
 
 export type LastOrderItemLine = {
   title: string;
   quantity: number;
+  unitType?: ProductUnitCode;
   variantId?: string | null;
   productId?: string | null;
   boxId?: string | null;
@@ -26,11 +28,14 @@ export function enrichOrderLinesFromCart(cartItems: CartItem[]): LastOrderItemLi
     const productId = v?.product?.id;
     if (v?.id && productId) {
       const title = (v.title || v.flavor || item.product?.name || 'Mahsulot').trim() || 'Mahsulot';
+      const unitType =
+        normalizeIncomingProductUnit(v?.product?.unitType ?? item.product?.unitType) ?? DEFAULT_PRODUCT_UNIT;
       lines.push({
         title,
         quantity: item.quantity,
         variantId: v.id,
         productId,
+        unitType,
       });
     }
   }
@@ -55,7 +60,7 @@ function normalizeItems(raw: unknown, enrich: LastOrderItemLine[]): LastOrderIte
   if (!Array.isArray(raw)) return enrich.length ? enrich : [];
   const fromApi: LastOrderItemLine[] = raw.map((row) => {
     if (!isRecord(row)) {
-      return { title: '', quantity: 1 };
+      return { title: '', quantity: 1, unitType: DEFAULT_PRODUCT_UNIT };
     }
     const variantId = typeof row.variantId === 'string' ? row.variantId : null;
     let productId = typeof row.productId === 'string' ? row.productId : null;
@@ -63,9 +68,12 @@ function normalizeItems(raw: unknown, enrich: LastOrderItemLine[]): LastOrderIte
       const hit = enrich.find((line) => line.variantId === variantId);
       productId = hit?.productId ?? null;
     }
+    const unitRaw = row.unitType;
+    const unitType = normalizeIncomingProductUnit(unitRaw) ?? DEFAULT_PRODUCT_UNIT;
     return {
       title: typeof row.title === 'string' ? row.title : 'Mahsulot',
       quantity: typeof row.quantity === 'number' && row.quantity > 0 ? row.quantity : 1,
+      unitType,
       variantId,
       productId,
       boxId: typeof row.boxId === 'string' ? row.boxId : null,

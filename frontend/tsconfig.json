@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@onlinebozor/product-units": ["../shared/product-units.ts"]
     }
   },
   "include": [

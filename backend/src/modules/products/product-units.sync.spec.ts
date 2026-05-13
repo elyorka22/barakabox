@@ -1,0 +1,8 @@
+import { UnitType } from '@prisma/client';
+import { PRODUCT_UNIT_CODES } from '../../../../shared/product-units';
+
+describe('product-units vs Prisma UnitType', () => {
+  it('shared codes match Prisma enum exactly', () => {
+    expect(new Set(PRODUCT_UNIT_CODES)).toEqual(new Set(Object.values(UnitType)));
+  });
+});

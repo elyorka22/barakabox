@@ -9,6 +9,12 @@ import { MobileNav } from '@/components/app-nav';
 import { absoluteUrl } from '@/lib/seo';
 import { SafeImage } from '@/components/safe-image';
 import { incrementCart } from '@/lib/cart-store';
+import {
+  DEFAULT_PRODUCT_UNIT,
+  PRODUCT_UNIT_LABEL_UZ,
+  formatQuantityWithUnit,
+  normalizeIncomingProductUnit,
+} from '@onlinebozor/product-units';
 
 type Product = {
   id: string;
@@ -16,6 +22,7 @@ type Product = {
   price: string;
   imageUrl?: string | null;
   description?: string | null;
+  unitType?: string | null;
   variants?: Array<{
     id: string;
     flavor?: string | null;
@@ -45,6 +52,7 @@ export default function ProductDetailClientPage() {
 
   const activeVariant = product?.variants?.[variantIndex] ?? null;
   const variants = product?.variants ?? [];
+  const saleUnit = normalizeIncomingProductUnit(product?.unitType) ?? DEFAULT_PRODUCT_UNIT;
 
   useEffect(() => {
     setVariantIndex(0);
@@ -256,8 +264,11 @@ export default function ProductDetailClientPage() {
             </p>
           );
         })()}
+        <p className="mt-0.5 text-xs font-medium text-slate-500">/ {PRODUCT_UNIT_LABEL_UZ[saleUnit]}</p>
         <p className={`mt-1 text-xs font-medium ${Number(activeVariant?.stock ?? 0) > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-          {Number(activeVariant?.stock ?? 0) > 0 ? `Mavjud: ${activeVariant?.stock} dona` : 'Hozircha mavjud emas'}
+          {Number(activeVariant?.stock ?? 0) > 0
+            ? `Mavjud: ${formatQuantityWithUnit(Number(activeVariant?.stock ?? 0), saleUnit)}`
+            : 'Hozircha mavjud emas'}
         </p>
         {activeVariant?.description ? (
           <p className="mt-2 text-sm text-gray-500 line-clamp-2">{activeVariant.description}</p>
@@ -279,7 +290,7 @@ export default function ProductDetailClientPage() {
         ) : null}
         <div className="mt-5 flex w-fit items-center gap-4 rounded-2xl bg-white px-4 py-2 shadow-sm">
           <button className="text-xl font-bold" onClick={() => setQuantity((q) => Math.max(1, q - 1))}>-</button>
-          <span className="text-base font-semibold">{quantity}</span>
+          <span className="text-base font-semibold">{formatQuantityWithUnit(quantity, saleUnit)}</span>
           <button className="text-xl font-bold" onClick={() => setQuantity((q) => q + 1)}>+</button>
         </div>
         <div

@@ -14,6 +14,12 @@ import {
 } from '@/lib/cart-store';
 import { enrichOrderLinesFromCart, saveLastOrderSnapshot } from '@/lib/last-order-storage';
 import { useCartItems, useCartQuantity } from '@/lib/use-cart-store';
+import {
+  DEFAULT_PRODUCT_UNIT,
+  PRODUCT_UNIT_LABEL_UZ,
+  formatQuantityWithUnit,
+  normalizeIncomingProductUnit,
+} from '@onlinebozor/product-units';
 
 export default function ClientPage() {
   const deliveryFee = 15000;
@@ -112,6 +118,10 @@ function CartItemRow({ item }: { item: CartItem }) {
   const price = item.variant
     ? Number(item.variant.price)
     : Number(item.product?.price ?? item.box?.price ?? 0);
+  const unit =
+    normalizeIncomingProductUnit(item.variant?.product?.unitType ?? item.product?.unitType) ??
+    DEFAULT_PRODUCT_UNIT;
+  const unitLabel = PRODUCT_UNIT_LABEL_UZ[unit];
 
   const handleDecrease = () => {
     if (!variantId || !productId) return;
@@ -145,7 +155,9 @@ function CartItemRow({ item }: { item: CartItem }) {
             {item.variant?.flavor || item.variant?.title ? (
               <p className="text-xs text-slate-500">{item.variant.flavor ?? item.variant.title}</p>
             ) : null}
-            <p className="text-xs text-gray-500">{formatMoneyUz(price)} / dona</p>
+            <p className="text-xs text-gray-500">
+              {formatMoneyUz(price)} / {unitLabel} · {formatQuantityWithUnit(displayedQuantity, unit)}
+            </p>
           </div>
         </div>
         {variantId && productId ? (

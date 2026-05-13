@@ -5,7 +5,7 @@ import { QueueService } from '../../infrastructure/queue/queue.service';
 import { EventEmitterService } from '../../infrastructure/events/event-emitter.service';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
-import { OrderStatus, Prisma } from '@prisma/client';
+import { OrderStatus, Prisma, UnitType } from '@prisma/client';
 
 const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   NEW: ['PICKING', 'CANCELLED'],
@@ -37,6 +37,7 @@ export class OrdersService {
 
     const normalizedItems = cart.items.map((item) => {
       if (item.variant) {
+        const unitType = item.variant.product?.unitType ?? 'dona';
         return {
           type: 'variant' as const,
           entityId: item.variant.id,
@@ -47,6 +48,7 @@ export class OrdersService {
           sku: item.variant.sku ?? null,
           price: Number(item.variant.discountPrice ?? item.variant.price),
           quantity: item.quantity,
+          unitType,
         };
       }
       if (item.product) {
@@ -60,6 +62,7 @@ export class OrdersService {
           sku: null,
           price: Number(item.product.price),
           quantity: item.quantity,
+          unitType: item.product.unitType,
         };
       }
       if (item.box) {
@@ -69,6 +72,7 @@ export class OrdersService {
           title: item.box.name,
           price: Number(item.box.price),
           quantity: item.quantity,
+          unitType: 'dona' as UnitType,
         };
       }
       throw new BadRequestException('Invalid cart item');
@@ -126,6 +130,7 @@ export class OrdersService {
               productId: item.type === 'product' ? item.entityId : null,
               variantId: item.type === 'variant' ? item.entityId : null,
               boxId: item.type === 'box' ? item.entityId : null,
+              unitType: item.unitType,
               title: item.title,
               variantSnapshotTitle: item.type === 'variant' ? item.title : null,
               variantSnapshotFlavor: item.type === 'variant' ? item.flavor : null,

@@ -1,3 +1,4 @@
+import { UnitType } from '@prisma/client';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { UploadService } from '../upload/upload.service';
@@ -75,7 +76,7 @@ export class ProductsService {
       description?: string;
       price: number;
       stockQuantity: number;
-      unitType: 'kg' | 'piece' | 'pack';
+      unitType: UnitType;
       categoryId?: string;
       imageUrl?: string;
       imageKey?: string;
@@ -185,7 +186,7 @@ export class ProductsService {
       description?: string;
       price?: number;
       stockQuantity?: number;
-      unitType?: 'kg' | 'piece' | 'pack';
+      unitType?: UnitType;
       categoryId?: string;
       imageUrl?: string;
       imageKey?: string;

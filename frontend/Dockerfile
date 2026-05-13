@@ -1,20 +1,23 @@
+# Build from repository root: docker build -f frontend/Dockerfile .
 FROM node:20-alpine AS deps
-WORKDIR /app
-COPY package*.json ./
+WORKDIR /repo/frontend
+COPY frontend/package*.json ./
 RUN npm install
 
 FROM node:20-alpine AS build
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+WORKDIR /repo
+COPY shared ./shared
+COPY --from=deps /repo/frontend/node_modules ./frontend/node_modules
+COPY frontend ./frontend
+WORKDIR /repo/frontend
 RUN npm run build
 
 FROM node:20-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=build /app/.next ./.next
-COPY --from=build /app/public ./public
-COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /repo/frontend/.next ./.next
+COPY --from=build /repo/frontend/public ./public
+COPY --from=build /repo/frontend/package.json ./package.json
+COPY --from=build /repo/frontend/node_modules ./node_modules
 EXPOSE 3000
 CMD ["npm", "run", "start"]

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { api } from '@/lib/api';
 import { formatMoneyUz } from '@/lib/format';
 import { DesktopNav, MobileNav } from '@/components/app-nav';
+import { normalizeIncomingProductUnit, DEFAULT_PRODUCT_UNIT, formatQuantityWithUnit } from '@onlinebozor/product-units';
 
 type Product = {
   id: string;
@@ -11,7 +12,7 @@ type Product = {
   description?: string | null;
   price: string;
   stockQuantity: number;
-  unitType: 'kg' | 'piece' | 'pack';
+  unitType: string;
   isActive: boolean;
   category?: { id: string; name: string } | null;
 };
@@ -134,7 +135,12 @@ export default function BusinessPage() {
               <p className="font-semibold">{product.name}</p>
               {product.description ? <p className="text-xs text-gray-500">{product.description}</p> : null}
               <p className="text-xs text-gray-500">
-                {formatMoneyUz(product.price)} · qoldiq {product.stockQuantity} {product.unitType} · {product.category?.name ?? "Kategoriya yo'q"}
+                {formatMoneyUz(product.price)} · qoldiq{' '}
+                {formatQuantityWithUnit(
+                  product.stockQuantity,
+                  normalizeIncomingProductUnit(product.unitType) ?? DEFAULT_PRODUCT_UNIT,
+                )}{' '}
+                · {product.category?.name ?? "Kategoriya yo'q"}
               </p>
             </div>
           </div>
