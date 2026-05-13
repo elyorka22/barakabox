@@ -26,6 +26,7 @@ type Product = {
   imageKey?: string | null;
   variants?: Array<{
     id?: string;
+    title?: string | null;
     flavor?: string | null;
     description?: string | null;
     price: number;
@@ -118,10 +119,14 @@ export default function AdminProductsPage() {
   }, [unitSearch, form.unitType]);
 
   const save = async () => {
-    if (!form.variants[0] || !form.variants[0].flavor.trim()) return;
+    setError('');
+    const rows = form.variants.filter((v) => v.flavor.trim() && Number(v.price) > 0);
+    if (rows.length === 0) {
+      setError("Kamida bitta variant uchun ta'm nomi va musbat narx kiriting.");
+      return;
+    }
 
-    const normalizedVariants = form.variants
-      .map((variant, idx) => ({
+    const normalizedVariants = rows.map((variant, idx) => ({
         ...(variant.id ? { id: variant.id } : {}),
         title: variant.flavor?.trim() || `${form.name.trim()} Variant ${idx + 1}`,
         flavor: variant.flavor?.trim() || undefined,
@@ -143,8 +148,7 @@ export default function AdminProductsPage() {
         stock: Number(variant.stock),
         imageUrl: variant.imageUrl.trim() || undefined,
         sortOrder: idx,
-      }))
-      .filter((variant) => variant.flavor && variant.price > 0);
+      }));
 
     if (normalizedVariants.length === 0) return;
 
@@ -164,20 +168,24 @@ export default function AdminProductsPage() {
       variants: normalizedVariants,
     };
     if (!payload.businessId || !payload.name || payload.price <= 0) return;
-    if (form.id) {
-      await api.patch(`/products/${form.id}`, payload, token);
-    } else {
-      await api.post('/products', payload, token);
+    try {
+      if (form.id) {
+        await api.patch(`/products/${form.id}`, payload, token);
+      } else {
+        await api.post('/products', payload, token);
+      }
+      setForm((prev) => ({
+        ...prev,
+        id: '',
+        name: '',
+        unitType: DEFAULT_PRODUCT_UNIT,
+        variants: [{ id: '', flavor: '', description: '', price: '1000', discountPrice: '', discountPercent: '', stock: '0', imageUrl: '' }],
+      }));
+      setUploadingVariantImages({});
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Saqlab bo‘lmadi');
     }
-    setForm((prev) => ({
-      ...prev,
-      id: '',
-      name: '',
-      unitType: DEFAULT_PRODUCT_UNIT,
-      variants: [{ id: '', flavor: '', description: '', price: '1000', discountPrice: '', discountPercent: '', stock: '0', imageUrl: '' }],
-    }));
-    setUploadingVariantImages({});
-    await load();
   };
 
   const edit = (item: Product) => {
@@ -192,7 +200,7 @@ export default function AdminProductsPage() {
       variants:
         item.variants?.map((variant) => ({
           id: variant.id ?? '',
-          flavor: variant.flavor ?? '',
+          flavor: variant.flavor?.trim() || variant.title?.trim() || '',
           description: variant.description ?? '',
           price: String(variant.price ?? 0),
           discountPrice:
