@@ -1,0 +1,10 @@
+# Repo-root context for frontend image (compose build.context ".")
+.git
+frontend/node_modules
+frontend/.next
+backend/node_modules
+backend/dist
+test-results
+coverage
+*.log
+.DS_Store

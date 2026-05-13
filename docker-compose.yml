@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -41,10 +43,8 @@ services:
 
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      additional_contexts:
-        shared: ./shared
+      context: .
+      dockerfile: frontend/Dockerfile
     environment:
       NEXT_PUBLIC_API_BASE_URL: /api
     depends_on:
