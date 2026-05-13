@@ -12,6 +12,7 @@ import {
   refreshCart,
   type CartItem,
 } from '@/lib/cart-store';
+import { enrichOrderLinesFromCart, saveLastOrderSnapshot } from '@/lib/last-order-storage';
 import { useCartItems, useCartQuantity } from '@/lib/use-cart-store';
 
 export default function ClientPage() {
@@ -22,15 +23,20 @@ export default function ClientPage() {
   const cartItems = useCartItems();
 
   useEffect(() => {
-    setToken(authStorage.getAccessToken());
+    const id = requestAnimationFrame(() => {
+      setToken(authStorage.getAccessToken());
+    });
     void bootstrapCart();
+    return () => cancelAnimationFrame(id);
   }, []);
 
   const placeOrder = async () => {
     setPlacingOrder(true);
     setError('');
     try {
-      await api.post('/orders', {}, token);
+      const enrich = enrichOrderLinesFromCart(cartItems);
+      const order = await api.post<unknown>('/orders', {}, token);
+      saveLastOrderSnapshot(order, enrich);
       await refreshCart();
     } catch (err) {
       setError(err instanceof Error ? err.message : "So'rov muvaffaqiyatsiz yakunlandi");
@@ -57,7 +63,7 @@ export default function ClientPage() {
         <div className="mt-4 space-y-3">
           {cartItems.length === 0 ? (
             <div className="rounded-3xl bg-white p-5 text-center shadow-sm">
-              <p className="text-sm text-gray-500">Savatingiz hozircha bo'sh.</p>
+              <p className="text-sm text-gray-500">{"Savatingiz hozircha bo'sh."}</p>
             </div>
           ) : null}
           {cartItems.map((item) => (
@@ -84,7 +90,7 @@ export default function ClientPage() {
               <span className="text-lg font-bold">{formatMoneyUz(cartTotal + (cartTotal > 0 ? deliveryFee : 0))}</span>
             </div>
             <Link href="/checkout" className={`block w-full rounded-2xl py-3 text-center text-sm font-semibold text-white ${placingOrder || cartTotal <= 0 ? 'pointer-events-none bg-green-300' : 'bg-[#16A34A]'}`}>
-              Rasmiylashtirishga o'tish
+              {"Rasmiylashtirishga o'tish"}
             </Link>
             <button className="mt-2 w-full rounded-2xl border border-gray-200 py-2 text-xs font-medium text-gray-600 disabled:opacity-60" onClick={placeOrder} disabled={placingOrder || cartTotal <= 0 || !token}>
               {placingOrder ? 'Jarayon davom etmoqda...' : token ? 'Tezkor buyurtma' : "Tezkor buyurtma (faqat kirganlar uchun)"}
@@ -102,7 +108,7 @@ function CartItemRow({ item }: { item: CartItem }) {
   const productId = item.product?.id ?? item.variant?.product?.id;
   const liveQuantity = useCartQuantity(variantId);
   const displayedQuantity = variantId ? liveQuantity : item.quantity;
-  const title = item.product?.name ?? item.variant?.product?.name ?? item.box?.name ?? "Noma'lum";
+  const title = item.product?.name ?? item.variant?.product?.name ?? item.box?.name ?? 'Noma\u2019lum';
   const price = item.variant
     ? Number(item.variant.price)
     : Number(item.product?.price ?? item.box?.price ?? 0);

@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { api, authStorage } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
 import { formatMoneyUz } from '@/lib/format';
+import type { CartItem } from '@/lib/cart-store';
+import { enrichOrderLinesFromCart, saveLastOrderSnapshot } from '@/lib/last-order-storage';
 
 export default function CheckoutPage() {
   const [fullName, setFullName] = useState('');
@@ -24,7 +26,9 @@ export default function CheckoutPage() {
     setLoading(true);
     setError('');
     try {
-      await api.post(
+      const cartRes = await api.get<{ items: CartItem[] }>('/cart', token, true);
+      const enrich = enrichOrderLinesFromCart(cartRes.items ?? []);
+      const order = await api.post<unknown>(
         '/orders',
         {
           name: fullName.trim(),
@@ -33,6 +37,7 @@ export default function CheckoutPage() {
         },
         token,
       );
+      saveLastOrderSnapshot(order, enrich);
       setPlaced(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xatolik yuz berdi. Qayta urinib ko'ring");
@@ -51,8 +56,8 @@ export default function CheckoutPage() {
               <h1 className="text-2xl font-bold text-[#121212]">Rasmiylashtirish</h1>
             </div>
             <div className="mt-4 space-y-3 rounded-3xl bg-white p-4 shadow-sm">
-              <p className="text-sm font-semibold text-[#121212]">Yetkazib berish ma'lumotlari</p>
-              <input className="bb-input rounded-2xl border-none bg-[#F9FAFB]" placeholder="To'liq ism" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+              <p className="text-sm font-semibold text-[#121212]">{"Yetkazib berish ma'lumotlari"}</p>
+              <input className="bb-input rounded-2xl border-none bg-[#F9FAFB]" placeholder={"To'liq ism"} value={fullName} onChange={(e) => setFullName(e.target.value)} />
               <input className="bb-input rounded-2xl border-none bg-[#F9FAFB]" placeholder="Telefon raqam" value={phone} onChange={(e) => setPhone(e.target.value)} />
               <input className="bb-input rounded-2xl border-none bg-[#F9FAFB]" placeholder="Yetkazib berish manzili" value={address} onChange={(e) => setAddress(e.target.value)} />
               <input className="bb-input rounded-2xl border-none bg-[#F9FAFB]" placeholder="Xonadon / ofis (ixtiyoriy)" value={apartment} onChange={(e) => setApartment(e.target.value)} />
