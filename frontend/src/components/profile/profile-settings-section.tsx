@@ -57,24 +57,24 @@ export function ProfileSettingsSection({
   const tiles: Tile[] = extra ? [{ href: extra.href, label: extra.label, sub: extra.sub, icon: extra.icon }, ...BASE_TILES] : BASE_TILES;
 
   return (
-    <section id="settings" className="rounded-[20px] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.05)] ring-1 ring-slate-100">
-      <div className="border-b border-slate-100 px-4 py-3">
-        <p className="text-sm font-semibold text-[#0f172a]">Hisob sozlamalari</p>
-        <p className="text-xs text-slate-500">Ikkinchi darajali harakatlar</p>
+    <section id="settings" className="overflow-hidden rounded-2xl border border-[#ECECEC] bg-white shadow-sm">
+      <div className="border-b border-[#ECECEC] px-4 py-3">
+        <p className="text-sm font-semibold text-[#111827]">Hisob sozlamalari</p>
+        <p className="text-xs text-[#6B7280]">Ikkinchi darajali harakatlar</p>
       </div>
-      <div className="divide-y divide-slate-100">
+      <div className="divide-y divide-[#ECECEC]">
         {tiles.map((tile) => (
           <ProfileSettingsTile key={`${tile.label}-${tile.href ?? ''}`} {...tile} />
         ))}
         <button
           type="button"
           onClick={onLogout}
-          className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-rose-50/80 active:bg-rose-50"
+          className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition active:bg-[#FEF2F2]"
         >
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600 ring-1 ring-rose-100">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#FECACA] bg-[#FEF2F2] text-[#DC2626]">
             <LogOut className="h-4 w-4" />
           </span>
-          <span className="text-sm font-semibold text-rose-700">Chiqish</span>
+          <span className="text-sm font-medium text-[#B91C1C]">Chiqish</span>
         </button>
       </div>
     </section>
@@ -85,20 +85,20 @@ function ProfileSettingsTile(tile: Tile) {
   const Icon = tile.icon;
   const inner: ReactNode = (
     <>
-      <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 ring-1 ring-slate-100">
-        <Icon className="h-4 w-4 text-slate-700" />
+      <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#ECECEC] bg-[#FAFAFA]">
+        <Icon className="h-4 w-4 text-[#4B5563]" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium text-[#111827]">{tile.label}</span>
-        {tile.sub ? <span className="block text-[11px] text-slate-500">{tile.sub}</span> : null}
+        {tile.sub ? <span className="block text-[11px] text-[#6B7280]">{tile.sub}</span> : null}
       </span>
-      <span className="text-slate-300">›</span>
+      <span className="text-[#D1D5DB]">›</span>
     </>
   );
 
   if (tile.onClick) {
     return (
-      <button type="button" onClick={tile.onClick} className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-slate-50 active:bg-slate-50">
+      <button type="button" onClick={tile.onClick} className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition active:bg-[#FAFAFA]">
         {inner}
       </button>
     );
@@ -108,7 +108,7 @@ function ProfileSettingsTile(tile: Tile) {
       <Link
         href={tile.href}
         {...(tile.external ? { target: '_blank', rel: 'noreferrer' } : {})}
-        className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-slate-50 active:bg-slate-50"
+        className="flex items-center gap-3 px-4 py-3.5 transition active:bg-[#FAFAFA]"
       >
         {inner}
       </Link>

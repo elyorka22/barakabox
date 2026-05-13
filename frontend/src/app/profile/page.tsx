@@ -153,11 +153,11 @@ export default function ProfilePage() {
 
   if (!mounted) {
     return (
-      <main className="bb-page bg-[#F3F5F9]">
+      <main className="bb-page bg-[#F7F7F7]">
         <section className="bb-shell space-y-4 pb-28 pt-2">
           <div className="bb-skeleton h-8 w-40 rounded-xl" />
-          <div className="bb-skeleton h-44 w-full rounded-[22px]" />
-          <div className="bb-skeleton h-28 w-full rounded-[20px]" />
+          <div className="bb-skeleton h-32 w-full rounded-2xl" />
+          <div className="bb-skeleton h-24 w-full rounded-2xl" />
         </section>
         <MobileNav />
       </main>
@@ -165,44 +165,44 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className={`bb-page ${user ? 'bg-[#F3F5F9]' : 'bg-[#F6F8FC]'}`}>
+    <main className="bb-page bg-[#F7F7F7]">
       <section className={`bb-shell space-y-4 ${showFloating ? 'pb-32' : 'pb-28'} pt-1`}>
         {!user ? (
           <>
             <div className="flex items-end justify-between px-0.5 pb-1">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Xush kelibsiz</p>
-                <h1 className="text-xl font-bold tracking-tight text-[#0f172a]">Profil</h1>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-[#6B7280]">Xush kelibsiz</p>
+                <h1 className="text-xl font-semibold tracking-tight text-[#111827]">Profil</h1>
               </div>
             </div>
 
             <motion.div
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25 }}
-              className="relative overflow-hidden rounded-[22px] bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600 p-[1px] shadow-[0_16px_40px_rgba(15,23,42,0.12)]"
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden rounded-2xl border border-[#ECECEC] bg-white shadow-sm"
             >
-              <div className="relative rounded-[21px] bg-white p-5">
-                <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-emerald-500/15 blur-2xl" />
-                <div className="relative flex items-start gap-3">
-                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg">
-                    <UserRound className="h-7 w-7" strokeWidth={2} />
+              <div className="border-b border-[#ECECEC] bg-[#F4FBF6] px-4 py-3">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#ECECEC] bg-white text-[#16A34A]">
+                    <UserRound className="h-5 w-5" strokeWidth={2} />
                   </span>
                   <div>
-                    <p className="text-base font-bold text-[#0f172a]">
+                    <p className="text-base font-semibold text-[#111827]">
                       {mode === 'login' ? 'Hisobingizga kiring' : 'Akkaunt yarating'}
                     </p>
-                    <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                      Buyurtma, cashback va tezkor yetkazib berish — barchasi bir joyda.
+                    <p className="mt-1 text-xs leading-relaxed text-[#6B7280]">
+                      Buyurtma, cashback va yetkazib berish — barchasi bir joyda.
                     </p>
                   </div>
                 </div>
+              </div>
 
-                <div className="relative mt-5 space-y-3">
-                  <div className="inline-flex w-full rounded-2xl bg-slate-100 p-1 text-xs font-semibold">
+              <div className="space-y-3 p-4">
+                  <div className="inline-flex w-full rounded-xl border border-[#ECECEC] bg-[#FAFAFA] p-1 text-xs font-medium">
                     <button
                       type="button"
-                      className={`flex-1 rounded-xl py-2 ${mode === 'login' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}
+                      className={`flex-1 rounded-lg py-2 transition ${mode === 'login' ? 'bg-white text-[#16A34A] shadow-sm' : 'text-[#6B7280]'}`}
                       onClick={() => {
                         setMode('login');
                         setError('');
@@ -212,7 +212,7 @@ export default function ProfilePage() {
                     </button>
                     <button
                       type="button"
-                      className={`flex-1 rounded-xl py-2 ${mode === 'register' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}
+                      className={`flex-1 rounded-lg py-2 transition ${mode === 'register' ? 'bg-white text-[#16A34A] shadow-sm' : 'text-[#6B7280]'}`}
                       onClick={() => {
                         setMode('register');
                         setError('');
@@ -224,7 +224,7 @@ export default function ProfilePage() {
                   {mode === 'register' ? (
                     <div className="space-y-1">
                       <input
-                        className="bb-input w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 text-sm outline-none ring-emerald-500/20 focus:ring-2"
+                        className="bb-input rounded-xl border-[#ECECEC] bg-white px-4 py-3 text-sm outline-none focus:border-[#16A34A] focus:ring-1 focus:ring-[#16A34A]"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         onBlur={() => handleBlur('name')}
@@ -237,7 +237,7 @@ export default function ProfilePage() {
                   ) : null}
                   <div className="space-y-1">
                     <input
-                      className="bb-input w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 text-sm outline-none ring-emerald-500/20 focus:ring-2"
+                      className="bb-input rounded-xl border-[#ECECEC] bg-white px-4 py-3 text-sm outline-none focus:border-[#16A34A] focus:ring-1 focus:ring-[#16A34A]"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
@@ -250,7 +250,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="space-y-1">
                     <input
-                      className="bb-input w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 text-sm outline-none ring-emerald-500/20 focus:ring-2"
+                      className="bb-input rounded-xl border-[#ECECEC] bg-white px-4 py-3 text-sm outline-none focus:border-[#16A34A] focus:ring-1 focus:ring-[#16A34A]"
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -264,7 +264,7 @@ export default function ProfilePage() {
                   {mode === 'register' ? (
                     <div className="space-y-1">
                       <input
-                        className="bb-input w-full rounded-2xl border border-slate-200/80 bg-slate-50 px-4 py-3 text-sm outline-none ring-emerald-500/20 focus:ring-2"
+                        className="bb-input rounded-xl border-[#ECECEC] bg-white px-4 py-3 text-sm outline-none focus:border-[#16A34A] focus:ring-1 focus:ring-[#16A34A]"
                         type="password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
@@ -278,7 +278,7 @@ export default function ProfilePage() {
                   ) : null}
                   <button
                     type="button"
-                    className="w-full rounded-2xl bg-[#16A34A] py-3.5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(22,163,74,0.35)] transition active:scale-[0.99] disabled:opacity-60"
+                    className="bb-btn-primary w-full rounded-2xl py-3.5"
                     onClick={() => void handleSubmit()}
                     disabled={loading}
                   >
@@ -286,15 +286,15 @@ export default function ProfilePage() {
                   </button>
                   <Link
                     href="/"
-                    className="block w-full rounded-2xl border border-slate-200 py-3 text-center text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                    className="bb-btn-secondary block w-full rounded-2xl py-3 text-center text-sm font-medium"
                   >
                     Mehmon sifatida davom etish
                   </Link>
-                  <p className="text-center text-xs text-slate-500">
+                  <p className="text-center text-xs text-[#6B7280]">
                     {mode === 'login' ? "Hisobingiz yo‘qmi? " : "Akkauntingiz bormi? "}
                     <button
                       type="button"
-                      className="font-semibold text-emerald-600"
+                      className="font-medium text-[#16A34A]"
                       onClick={() => {
                         setMode(mode === 'login' ? 'register' : 'login');
                         setError('');
@@ -304,24 +304,23 @@ export default function ProfilePage() {
                     </button>
                   </p>
                   {error ? <p className="text-center text-sm text-red-600">{error}</p> : null}
-                </div>
               </div>
             </motion.div>
 
-            <div className="rounded-[20px] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-slate-100">
+            <div className="rounded-2xl border border-[#ECECEC] bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-amber-500" />
-                <p className="text-sm font-semibold text-[#0f172a]">Nimalar ochiladi</p>
+                <Sparkles className="h-4 w-4 text-[#16A34A]" />
+                <p className="text-sm font-semibold text-[#111827]">Nimalar ochiladi</p>
               </div>
-              <ul className="mt-3 space-y-2 text-xs leading-relaxed text-slate-600">
+              <ul className="mt-3 space-y-2 border-t border-[#ECECEC] pt-3 text-xs leading-relaxed text-[#6B7280]">
                 <li className="flex gap-2">
-                  <span className="text-emerald-600">✓</span> Buyurtmalar va qayta buyurtma
+                  <span className="text-[#16A34A]">✓</span> Buyurtmalar va qayta buyurtma
                 </li>
                 <li className="flex gap-2">
-                  <span className="text-emerald-600">✓</span> Cashback va aksiyalar
+                  <span className="text-[#16A34A]">✓</span> Cashback va aksiyalar
                 </li>
                 <li className="flex gap-2">
-                  <span className="text-emerald-600">✓</span> Tezkor manzil va to‘lov
+                  <span className="text-[#16A34A]">✓</span> Tezkor manzil va to‘lov
                 </li>
               </ul>
             </div>
@@ -332,8 +331,8 @@ export default function ProfilePage() {
           <>
             <div className="flex items-end justify-between px-0.5 pb-1">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Shaxsiy kabinet</p>
-                <h1 className="text-xl font-bold tracking-tight text-[#0f172a]">Profil</h1>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-[#6B7280]">Shaxsiy kabinet</p>
+                <h1 className="text-xl font-semibold tracking-tight text-[#111827]">Profil</h1>
               </div>
             </div>
 

@@ -19,7 +19,7 @@ export function ProfileFloatingTrackCta({ visible }: Props) {
     >
       <Link
         href="#active-order"
-        className="pointer-events-auto flex min-h-12 w-full max-w-sm items-center justify-center gap-2 rounded-2xl bg-[#0f172a] px-4 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(15,23,42,0.35)] ring-1 ring-white/10 transition active:scale-[0.99]"
+        className="pointer-events-auto flex min-h-12 w-full max-w-sm items-center justify-center gap-2 rounded-2xl border border-[#15803D] bg-[#16A34A] px-4 text-sm font-semibold text-white shadow-sm transition active:opacity-90"
       >
         <Truck className="h-4 w-4" />
         Joriy buyurtmani kuzatish

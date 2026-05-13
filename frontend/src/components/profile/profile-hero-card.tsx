@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Crown, Settings, Sparkles } from 'lucide-react';
+import { Settings, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { formatMoneyUz } from '@/lib/format';
 import type { ProfileLoyaltyDisplay } from '@/lib/profile-loyalty-storage';
@@ -12,66 +12,53 @@ type ProfileHeroProps = {
   loyalty: ProfileLoyaltyDisplay;
 };
 
-function tierAccent(tier: ProfileLoyaltyDisplay['tierKey']) {
-  if (tier === 'vip') {
-    return 'from-violet-600 via-fuchsia-600 to-rose-500';
-  }
-  if (tier === 'gold') {
-    return 'from-emerald-600 via-teal-500 to-cyan-500';
-  }
-  return 'from-slate-500 via-slate-400 to-emerald-500';
-}
-
 export function ProfileHeroCard({ fullName, email, loyalty }: ProfileHeroProps) {
-  const gradient = tierAccent(loyalty.tierKey);
+  const initial = fullName.trim().charAt(0).toUpperCase() || '?';
 
   return (
     <motion.section
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.28 }}
-      className="relative overflow-hidden rounded-[22px] shadow-[0_16px_40px_rgba(15,23,42,0.12)]"
+      transition={{ duration: 0.2 }}
+      className="overflow-hidden rounded-2xl border border-[#ECECEC] bg-white shadow-sm"
     >
-      <div className={`absolute inset-0 bg-gradient-to-br ${gradient}`} />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.35),transparent_55%)]" />
-      <div className="absolute inset-0 bg-white/10 backdrop-blur-[2px]" />
-
-      <div className="relative px-4 pb-5 pt-5 text-white">
-        <div className="flex items-start gap-4">
-          <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-2xl bg-white/20 text-3xl shadow-inner ring-2 ring-white/30">
-            {fullName.trim().charAt(0).toUpperCase() || '👤'}
+      <div className="border-b border-[#ECECEC] bg-[#F4FBF6] px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#ECECEC] bg-white text-sm font-semibold text-[#166534]">
+            {initial}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h2 className="truncate text-lg font-bold tracking-tight drop-shadow-sm">{fullName}</h2>
+            <div className="flex items-start gap-2">
+              <div className="min-w-0">
+                <h2 className="truncate text-base font-semibold text-[#111827]">{fullName}</h2>
+                <p className="truncate text-xs text-[#6B7280]">{email}</p>
+              </div>
               <Link
                 href="#settings"
-                className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white ring-1 ring-white/25 transition active:scale-95"
+                className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-[#ECECEC] bg-white text-[#374151] transition active:bg-[#F9FAFB]"
                 aria-label="Sozlamalar"
               >
-                <Settings className="h-[18px] w-[18px] opacity-95" />
+                <Settings className="h-4 w-4" strokeWidth={2} />
               </Link>
             </div>
-            <p className="mt-0.5 truncate text-sm text-white/85">{email}</p>
-            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-black/15 px-3 py-1 text-xs font-semibold text-white/95 ring-1 ring-white/20">
-              <Crown className="h-3.5 w-3.5" />
+            <p className="mt-2 inline-block rounded-full border border-[#DCFCE7] bg-[#F0FDF4] px-2.5 py-0.5 text-[11px] font-medium text-[#166534]">
               {loyalty.tierTitle}
-            </div>
+            </p>
           </div>
         </div>
+      </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <div className="rounded-2xl bg-black/15 p-3 ring-1 ring-white/15">
-            <div className="flex items-center gap-1.5 text-[11px] font-medium text-white/75">
-              <Sparkles className="h-3.5 w-3.5" />
-              Cashback
-            </div>
-            <p className="mt-1 text-lg font-bold tabular-nums tracking-tight">{formatMoneyUz(loyalty.cashbackSoM)}</p>
+      <div className="grid grid-cols-2 divide-x divide-[#ECECEC] px-1 py-1">
+        <div className="px-3 py-3">
+          <div className="flex items-center gap-1 text-[11px] font-medium text-[#6B7280]">
+            <Sparkles className="h-3 w-3 text-[#16A34A]" strokeWidth={2} />
+            Cashback
           </div>
-          <div className="rounded-2xl bg-black/15 p-3 ring-1 ring-white/15">
-            <p className="text-[11px] font-medium text-white/75">Bu oy tejadingiz</p>
-            <p className="mt-1 text-lg font-bold tabular-nums tracking-tight">{formatMoneyUz(loyalty.savedMonthSoM)}</p>
-          </div>
+          <p className="mt-0.5 text-sm font-semibold tabular-nums text-[#111827]">{formatMoneyUz(loyalty.cashbackSoM)}</p>
+        </div>
+        <div className="px-3 py-3">
+          <p className="text-[11px] font-medium text-[#6B7280]">Bu oy tejadingiz</p>
+          <p className="mt-0.5 text-sm font-semibold tabular-nums text-[#111827]">{formatMoneyUz(loyalty.savedMonthSoM)}</p>
         </div>
       </div>
     </motion.section>

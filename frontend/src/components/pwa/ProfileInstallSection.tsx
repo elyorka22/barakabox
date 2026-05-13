@@ -23,17 +23,17 @@ export function ProfileInstallSection() {
 
   if (isStandalone) {
     return (
-      <div className="mt-4 rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm">
+      <div className="mt-4 rounded-2xl border border-[#ECECEC] bg-white p-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#16C25B] text-white shadow-md">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#DCFCE7] bg-[#F0FDF4] text-[#16A34A]">
             <Smartphone className="h-5 w-5" strokeWidth={2} />
           </span>
           <div>
-            <p className="text-sm font-bold text-[#0f172a]">Ilovani o‘rnatish</p>
-            <span className="mt-1 inline-flex items-center rounded-full bg-emerald-600/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-emerald-800">
+            <p className="text-sm font-semibold text-[#111827]">Ilovani o‘rnatish</p>
+            <span className="mt-1 inline-flex items-center rounded-full border border-[#DCFCE7] bg-[#F0FDF4] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[#166534]">
               Ilova o‘rnatilgan
             </span>
-            <p className="mt-1 text-xs text-slate-600">Siz ilovadan asosiy ekran rejimidasiz.</p>
+            <p className="mt-1 text-xs text-[#6B7280]">Siz ilovadan asosiy ekran rejimidasiz.</p>
           </div>
         </div>
       </div>
@@ -56,9 +56,9 @@ export function ProfileInstallSection() {
   };
 
   return (
-    <div className="mt-4 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
-      <p className="text-sm font-bold text-[#0f172a]">Ilovani o‘rnatish</p>
-      <p className="mt-1 text-xs text-slate-600">
+    <div className="mt-4 rounded-2xl border border-[#ECECEC] bg-white p-4 shadow-sm">
+      <p className="text-sm font-semibold text-[#111827]">Ilovani o‘rnatish</p>
+      <p className="mt-1 text-xs text-[#6B7280]">
         {ios
           ? "iPhone’da Safari orqali asosiy ekranga qo‘shing."
           : android
@@ -73,7 +73,7 @@ export function ProfileInstallSection() {
             type="button"
             whileTap={{ scale: 0.98 }}
             onClick={() => void onPrimaryInstall()}
-            className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[#16C25B] text-sm font-semibold text-white shadow-[0_6px_16px_rgba(22,194,91,0.3)]"
+            className="bb-btn-primary flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl"
           >
             <Download className="h-4 w-4" />
             {ios ? "Qo‘llanmani ochish" : "O‘rnatish"}
@@ -86,7 +86,7 @@ export function ProfileInstallSection() {
             resetInstallHints();
             showToast({ type: "success", message: "Sozlamalar tiklandi. Bosh sahifada yana taklif ko‘rinadi." });
           }}
-          className="flex min-h-10 items-center justify-center gap-2 text-xs font-semibold text-slate-500"
+          className="flex min-h-10 items-center justify-center gap-2 text-xs font-medium text-[#6B7280]"
         >
           <RefreshCw className="h-3.5 w-3.5" />
           Qayta ko‘rsatma
