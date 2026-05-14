@@ -28,3 +28,6 @@ backend/prisma/dev.db
 
 # misc
 .turbo/
+
+# Playwright
+test-results/

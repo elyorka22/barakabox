@@ -36,6 +36,23 @@ export class UsersService {
     return this.prisma.user.findUnique({ where: { id } });
   }
 
+  /** Staff accounts must not share the same phone number. */
+  async assertStaffPhoneAvailable(phone: string | null | undefined, excludeUserId?: string): Promise<void> {
+    const normalized = phone?.trim() || '';
+    if (!normalized) return;
+    const staffRoles = [Role.SUPER_ADMIN, Role.ADMIN, Role.BUSINESS, Role.COURIER, Role.PICKER];
+    const found = await this.prisma.user.findFirst({
+      where: {
+        phone: normalized,
+        role: { in: staffRoles },
+        ...(excludeUserId ? { NOT: { id: excludeUserId } } : {}),
+      },
+    });
+    if (found) {
+      throw new ConflictException('Bu telefon raqami boshqa xodimda band');
+    }
+  }
+
   createUser(data: {
     email: string;
     fullName: string;
@@ -151,6 +168,10 @@ export class UsersService {
         where: { email: emailUpdate, NOT: { id } },
       });
       if (clash) throw new ConflictException('Bu login uchun email band');
+    }
+
+    if (data.phone !== undefined) {
+      await this.assertStaffPhoneAvailable(data.phone, id);
     }
 
     return this.prisma.user.update({

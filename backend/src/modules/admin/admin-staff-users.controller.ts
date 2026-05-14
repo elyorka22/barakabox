@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, ConflictException, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { Role } from '@prisma/client';
+import { Role, User } from '@prisma/client';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -33,9 +33,37 @@ export class AdminStaffUsersController {
     if (targetRole === Role.SUPER_ADMIN && r !== 'SUPER_ADMIN') {
       throw new ForbiddenException('Faqat super admin boshqa super admin yaratishi mumkin');
     }
+    if (targetRole === Role.ADMIN && r !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Faqat super admin ADMIN rolini tayinlashi mumkin');
+    }
     if (!STAFF_ROLES.includes(targetRole)) {
       throw new ForbiddenException('Noto‘g‘ri rol');
     }
+  }
+
+  /** ADMIN cannot manage SUPER_ADMIN / other ADMIN accounts; no self-service on destructive actions. */
+  private assertActorMayMutateStaff(actor: AuthUser, target: User, mode: 'edit-profile' | 'privileged') {
+    if (target.role === Role.CLIENT) {
+      return;
+    }
+    const ar = (actor.role ?? '').toUpperCase();
+    const tr = target.role;
+    if (actor.id === target.id) {
+      if (mode === 'privileged') {
+        throw new ForbiddenException('O‘z akkauntingiz uchun bu amal taqiqlangan');
+      }
+      return;
+    }
+    if (ar === 'SUPER_ADMIN') {
+      return;
+    }
+    if (ar === 'ADMIN') {
+      if (tr === Role.SUPER_ADMIN || tr === Role.ADMIN) {
+        throw new ForbiddenException('Faqat super admin boshqa adminlarni boshqarishi mumkin');
+      }
+      return;
+    }
+    throw new ForbiddenException('Insufficient permissions');
   }
 
   @Get()
@@ -66,6 +94,7 @@ export class AdminStaffUsersController {
       const bp = await this.prisma.businessProfile.findUnique({ where: { id: dto.businessScopeId } });
       if (!bp) throw new ForbiddenException('Biznes topilmadi');
     }
+    await this.usersService.assertStaffPhoneAvailable(dto.phone);
     const passwordHash = await bcrypt.hash(dto.password, 10);
     const user = await this.usersService.createUser({
       email,
@@ -84,6 +113,7 @@ export class AdminStaffUsersController {
   async update(@CurrentUser() actor: AuthUser, @Param('id') id: string, @Body() dto: AdminUpdateStaffUserDto) {
     const existing = await this.usersService.findById(id);
     if (!existing) throw new NotFoundException('Foydalanuvchi topilmadi');
+    this.assertActorMayMutateStaff(actor, existing, 'edit-profile');
     if (dto.role) this.assertCanAssignRole(actor, dto.role);
     const updated = await this.usersService.updateStaffProfile(id, {
       fullName: dto.fullName,
@@ -96,26 +126,42 @@ export class AdminStaffUsersController {
   }
 
   @Patch(':id/block')
-  async block(@Param('id') id: string) {
+  async block(@CurrentUser() actor: AuthUser, @Param('id') id: string) {
+    const existing = await this.usersService.findById(id);
+    if (!existing) throw new NotFoundException('Foydalanuvchi topilmadi');
+    this.assertActorMayMutateStaff(actor, existing, 'privileged');
     const u = await this.usersService.setStaffActive(id, false);
     return this.sanitize(u);
   }
 
   @Patch(':id/unblock')
-  async unblock(@Param('id') id: string) {
+  async unblock(@CurrentUser() actor: AuthUser, @Param('id') id: string) {
+    const existing = await this.usersService.findById(id);
+    if (!existing) throw new NotFoundException('Foydalanuvchi topilmadi');
+    this.assertActorMayMutateStaff(actor, existing, 'privileged');
     const u = await this.usersService.setStaffActive(id, true);
     return this.sanitize(u);
   }
 
   @Post(':id/reset-password')
-  async resetPassword(@Param('id') id: string, @Body() dto: AdminResetStaffPasswordDto) {
+  async resetPassword(
+    @CurrentUser() actor: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: AdminResetStaffPasswordDto,
+  ) {
+    const existing = await this.usersService.findById(id);
+    if (!existing) throw new NotFoundException('Foydalanuvchi topilmadi');
+    this.assertActorMayMutateStaff(actor, existing, 'privileged');
     const hash = await bcrypt.hash(dto.password, 10);
     const u = await this.usersService.setPasswordHash(id, hash);
     return this.sanitize(u);
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
+  async remove(@CurrentUser() actor: AuthUser, @Param('id') id: string) {
+    const existing = await this.usersService.findById(id);
+    if (!existing) throw new NotFoundException('Foydalanuvchi topilmadi');
+    this.assertActorMayMutateStaff(actor, existing, 'privileged');
     await this.usersService.removeStaffUser(id);
     return { ok: true };
   }

@@ -29,6 +29,22 @@ type BusinessOption = { id: string; displayName: string };
 
 const STAFF_ROLE_OPTIONS: StaffRole[] = ['SUPER_ADMIN', 'ADMIN', 'BUSINESS', 'COURIER', 'PICKER'];
 
+function roleOptionsForActor(actorRole: string | undefined): StaffRole[] {
+  const r = (actorRole ?? '').toUpperCase();
+  if (r === 'SUPER_ADMIN') return [...STAFF_ROLE_OPTIONS];
+  return STAFF_ROLE_OPTIONS.filter((role) => role !== 'SUPER_ADMIN' && role !== 'ADMIN');
+}
+
+function canManageUserRow(actorRole: string | undefined, row: AdminUserRow, actorId: string | undefined): boolean {
+  const ar = (actorRole ?? '').toUpperCase();
+  const tr = row.role;
+  if (tr === 'CLIENT') return true;
+  if (row.id === actorId) return false;
+  if (ar === 'SUPER_ADMIN') return true;
+  if (ar === 'ADMIN') return tr !== 'SUPER_ADMIN' && tr !== 'ADMIN';
+  return false;
+}
+
 function roleBadgeClass(role: string) {
   const r = role.toUpperCase();
   if (r === 'SUPER_ADMIN') return 'bg-violet-100 text-violet-800';
@@ -61,6 +77,10 @@ export default function AdminUsersPage() {
   const [resetPassword, setResetPassword] = useState('');
 
   const token = authStorage.getAccessToken();
+  const me = authStorage.getUser();
+  const actorRole = me?.role;
+  const actorId = me?.id;
+  const creatableRoles = useMemo(() => roleOptionsForActor(actorRole), [actorRole]);
 
   const loadUsers = useCallback(async () => {
     if (!token) return;
@@ -107,7 +127,7 @@ export default function AdminUsersPage() {
     setFormPhone('');
     setFormLogin('');
     setFormPassword('');
-    setFormRole('COURIER');
+    setFormRole(roleOptionsForActor(actorRole)[0] ?? 'COURIER');
     setFormBusinessScopeId('');
     setPanel('create');
   };
@@ -304,7 +324,9 @@ export default function AdminUsersPage() {
           {!loading && users.length === 0 ? (
             <p className="py-6 text-center text-sm text-slate-500">Natija yo‘q</p>
           ) : null}
-          {users.map((user) => (
+          {users.map((user) => {
+            const canManage = canManageUserRow(actorRole, user, actorId);
+            return (
             <div
               key={user.id}
               className="flex flex-col gap-3 rounded-lg border border-slate-100 p-3 md:flex-row md:items-center md:justify-between md:rounded-xl"
@@ -335,7 +357,7 @@ export default function AdminUsersPage() {
                 <p className="text-xs text-slate-400">Oxirgi kirish: {formatLastLogin(user.lastLoginAt)}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {user.role !== 'CLIENT' ? (
+                {user.role !== 'CLIENT' && canManage ? (
                   <button
                     type="button"
                     className="min-h-11 rounded-lg border border-slate-200 px-3 text-xs font-semibold md:min-h-10"
@@ -344,6 +366,7 @@ export default function AdminUsersPage() {
                     Tahrirlash
                   </button>
                 ) : null}
+                {canManage ? (
                 <button
                   type="button"
                   className="min-h-11 rounded-lg border border-slate-200 px-3 text-xs font-semibold md:min-h-10"
@@ -351,6 +374,8 @@ export default function AdminUsersPage() {
                 >
                   Parolni tiklash
                 </button>
+                ) : null}
+                {canManage ? (
                 <button
                   type="button"
                   className={`min-h-11 rounded-lg px-3 text-xs font-semibold md:min-h-10 ${
@@ -360,7 +385,8 @@ export default function AdminUsersPage() {
                 >
                   {user.isActive ? 'Bloklash' : 'Blokdan chiqarish'}
                 </button>
-                {user.role !== 'CLIENT' ? (
+                ) : null}
+                {user.role !== 'CLIENT' && canManage ? (
                   <button
                     type="button"
                     className="min-h-11 rounded-lg border border-rose-100 bg-rose-50 px-3 text-xs font-semibold text-rose-800 md:min-h-10"
@@ -371,7 +397,8 @@ export default function AdminUsersPage() {
                 ) : null}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -456,7 +483,7 @@ export default function AdminUsersPage() {
                       value={formRole}
                       onChange={(e) => setFormRole(e.target.value as StaffRole)}
                     >
-                      {STAFF_ROLE_OPTIONS.map((r) => (
+                      {creatableRoles.map((r) => (
                         <option key={r} value={r}>
                           {r}
                         </option>

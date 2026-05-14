@@ -26,6 +26,9 @@ const remoteImageHostnames = Array.from(
   ),
 );
 
+/** Monorepo root (contains `shared/`) so standalone output traces the alias import. */
+const tracingRoot = path.join(__dirname, "..");
+
 const withPWA = withPWAInit({
   dest: "public",
   disable: process.env.NODE_ENV === "development",
@@ -43,8 +46,10 @@ const withPWA = withPWAInit({
 });
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   compress: true,
   poweredByHeader: false,
+  outputFileTracingRoot: tracingRoot,
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,
