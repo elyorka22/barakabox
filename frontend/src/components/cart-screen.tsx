@@ -6,20 +6,18 @@ import { ShoppingBag } from 'lucide-react';
 import { api, authStorage } from '@/lib/api';
 import { formatMoneyUz } from '@/lib/format';
 import { MobileNav } from '@/components/app-nav';
+import { CartBottomSheet } from '@/components/cart-bottom-sheet';
 import { CartLineCard, CartLineSkeleton } from '@/components/cart-line-card';
-import { CartSummary, FreeDeliveryProgressLine } from '@/components/cart-summary';
 import type { CartSummaryRow } from '@/components/cart-summary';
 import { bootstrapCart, refreshCart } from '@/lib/cart-store';
 import { enrichOrderLinesFromCart, saveLastOrderSnapshot } from '@/lib/last-order-storage';
 import { useCartHydrated, useCartItems } from '@/lib/use-cart-store';
-import {
-  FREE_DELIVERY_THRESHOLD,
-  deliveryFeeFor,
-  type DeliverySpeed,
-} from '@/lib/delivery-pricing';
+import { deliveryFeeFor, type DeliverySpeed } from '@/lib/delivery-pricing';
 import { cartCashbackEarnEstimate, cartSubtotal, countCashbackOfferLines } from '@/lib/cart-totals';
 
-const STICKY_BOTTOM = 'calc(var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))';
+const NAV_BOTTOM = 'calc(var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))';
+/** Space for collapsed sheet (~138px) + small gap above nav */
+const SCROLL_PAD_COLLAPSED = 'calc(10rem + var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))';
 
 export function CartScreen() {
   const cartItems = useCartItems();
@@ -27,7 +25,7 @@ export function CartScreen() {
   const [token, setToken] = useState('');
   const [error, setError] = useState('');
   const [placingOrder, setPlacingOrder] = useState(false);
-  const speed: DeliverySpeed = 'STANDARD';
+  const [speed, setSpeed] = useState<DeliverySpeed>('STANDARD');
 
   useEffect(() => {
     const id = requestAnimationFrame(() => {
@@ -38,7 +36,7 @@ export function CartScreen() {
   }, []);
 
   const subtotal = useMemo(() => cartSubtotal(cartItems), [cartItems]);
-  const delivery = useMemo(() => deliveryFeeFor(speed, subtotal), [subtotal]);
+  const delivery = useMemo(() => deliveryFeeFor(speed, subtotal), [speed, subtotal]);
   const grandTotal = subtotal > 0 ? subtotal + delivery : 0;
   const earnEstimate = useMemo(() => cartCashbackEarnEstimate(cartItems), [cartItems]);
   const cashbackLines = useMemo(() => countCashbackOfferLines(cartItems), [cartItems]);
@@ -90,7 +88,7 @@ export function CartScreen() {
       <section
         className="mx-auto w-full max-w-lg px-4 pb-6 pt-3"
         style={{
-          paddingBottom: 'calc(14.5rem + var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))',
+          paddingBottom: empty ? undefined : SCROLL_PAD_COLLAPSED,
         }}
       >
         <header className="pt-1">
@@ -109,19 +107,17 @@ export function CartScreen() {
 
         {earnEstimate > 0 && !empty ? (
           <div className="mt-5 overflow-hidden rounded-[22px] bg-gradient-to-br from-emerald-50 via-white to-green-50/80 p-[1px] shadow-[0_6px_28px_rgba(22,163,74,0.12)]">
-            <div className="rounded-[21px] bg-white/90 px-4 py-4 backdrop-blur-sm">
-              <p className="text-[12px] font-semibold uppercase tracking-wide text-emerald-800/90">Yetkazilgach keshbek</p>
-              <p className="mt-1 text-[22px] font-extrabold tabular-nums text-[#15803d]">+{formatMoneyUz(earnEstimate)}</p>
+            <div className="rounded-[21px] bg-white/90 px-4 py-3 backdrop-blur-sm">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-800/90">Yetkazilgach keshbek</p>
+              <p className="mt-1 text-[20px] font-extrabold tabular-nums text-[#15803d]">+{formatMoneyUz(earnEstimate)}</p>
               {cashbackLines > 0 ? (
-                <p className="mt-2 text-[12px] text-slate-600">
-                  {cashbackLines} ta mahsulotda keshbek mavjud
-                </p>
+                <p className="mt-1.5 text-[11px] text-slate-600">{cashbackLines} ta mahsulotda keshbek mavjud</p>
               ) : null}
             </div>
           </div>
         ) : null}
 
-        <div className="mt-5 space-y-3">
+        <div className="mt-4 space-y-2">
           {showSkeleton ? (
             <>
               <CartLineSkeleton />
@@ -150,37 +146,19 @@ export function CartScreen() {
       </section>
 
       {!empty ? (
-        <div
-          className="fixed inset-x-0 z-20 border-t border-slate-100/90 bg-white/95 shadow-[0_-12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md transition-[transform,opacity] duration-200"
-          style={{ bottom: STICKY_BOTTOM }}
-        >
-          <div className="mx-auto w-full max-w-lg px-4 py-3">
-            <CartSummary rows={summaryRows} />
-            <div className="mt-3">
-              <FreeDeliveryProgressLine
-                subtotal={subtotal}
-                threshold={FREE_DELIVERY_THRESHOLD}
-                speed="STANDARD"
-              />
-            </div>
-            <Link
-              href="/checkout"
-              className={`mt-4 flex min-h-[52px] w-full items-center justify-center rounded-[18px] text-[16px] font-bold text-white shadow-lg transition active:scale-[0.99] ${
-                placingOrder || subtotal <= 0 ? 'pointer-events-none bg-green-300 shadow-none' : 'bg-[#16A34A] shadow-green-600/30'
-              }`}
-            >
-              Buyurtma berish
-            </Link>
-            <button
-              type="button"
-              className="mt-2.5 flex min-h-[48px] w-full items-center justify-center rounded-[18px] border border-slate-200 bg-white text-[14px] font-semibold text-slate-700 transition active:scale-[0.99] disabled:opacity-50"
-              onClick={placeOrder}
-              disabled={placingOrder || subtotal <= 0 || !token}
-            >
-              {placingOrder ? 'Jarayon…' : token ? 'Tezkor buyurtma' : 'Tezkor buyurtma (tizimga kiring)'}
-            </button>
-          </div>
-        </div>
+        <CartBottomSheet
+          bottom={NAV_BOTTOM}
+          speed={speed}
+          onSpeedChange={setSpeed}
+          subtotal={subtotal}
+          grandTotal={grandTotal}
+          earnEstimate={earnEstimate}
+          summaryRows={summaryRows}
+          placingOrder={placingOrder}
+          token={token}
+          onQuickOrder={placeOrder}
+          checkoutDisabled={placingOrder || subtotal <= 0}
+        />
       ) : null}
 
       <MobileNav />

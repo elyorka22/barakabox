@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { CheckCircle2, ChevronLeft, Loader2, MapPin } from 'lucide-react';
 import { api, authStorage } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
@@ -45,11 +46,18 @@ function buildOrderAddress(input: {
 }
 
 export function CheckoutScreen() {
+  const searchParams = useSearchParams();
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [apartment, setApartment] = useState('');
   const [deliverySpeed, setDeliverySpeed] = useState<DeliverySpeed>('STANDARD');
+
+  useEffect(() => {
+    const s = searchParams.get('speed');
+    if (s === 'EXPRESS') setDeliverySpeed('EXPRESS');
+    else if (s === 'STANDARD') setDeliverySpeed('STANDARD');
+  }, [searchParams]);
   const [placed, setPlaced] = useState(false);
   const [loading, setLoading] = useState(false);
   const [cartLoading, setCartLoading] = useState(true);

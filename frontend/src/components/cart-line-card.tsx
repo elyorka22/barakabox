@@ -65,69 +65,73 @@ export function CartLineCard({ item }: CartLineCardProps) {
   };
 
   return (
-    <article className="overflow-hidden rounded-[22px] bg-white shadow-[0_4px_24px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/90 transition-shadow duration-200 hover:shadow-[0_8px_28px_rgba(15,23,42,0.08)]">
-      <div className="flex gap-3 p-3.5 sm:gap-4 sm:p-4">
-        <div className="relative h-[5.25rem] w-[5.25rem] shrink-0 overflow-hidden rounded-2xl bg-slate-50 ring-1 ring-slate-100 sm:h-24 sm:w-24">
+    <article className="overflow-hidden rounded-[18px] bg-white shadow-[0_2px_14px_rgba(15,23,42,0.05)] ring-1 ring-slate-100/90 transition-shadow duration-200 active:shadow-[0_4px_18px_rgba(15,23,42,0.07)]">
+      <div className="flex gap-2.5 p-2.5">
+        <div className="relative h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-xl bg-slate-50 ring-1 ring-slate-100 sm:h-[5.25rem] sm:w-[5.25rem]">
           {img ? (
             <img src={img} alt={title} className="h-full w-full object-cover" loading="lazy" decoding="async" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-[10px] text-slate-400">Rasm yo&apos;q</div>
+            <div className="flex h-full w-full items-center justify-center text-[9px] text-slate-400">Rasm</div>
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start justify-between gap-1.5">
             <div className="min-w-0">
-              <h3 className="line-clamp-2 text-[15px] font-bold leading-tight text-[#121212]">{title}</h3>
+              <h3 className="line-clamp-2 text-[13px] font-bold leading-snug text-[#121212]">{title}</h3>
               {subtitle ? (
-                <p className="mt-0.5 line-clamp-1 text-[12px] font-medium text-slate-500">{subtitle}</p>
+                <p className="mt-0.5 line-clamp-1 text-[10px] font-medium text-slate-500">{subtitle}</p>
               ) : null}
             </div>
             {variantId && productId ? (
               <button
                 type="button"
                 onClick={handleRemove}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-400 transition active:scale-95 active:bg-rose-50 active:text-rose-600"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition active:bg-rose-50 active:text-rose-600"
                 aria-label="Savatdan olib tashlash"
               >
-                <Trash2 className="h-5 w-5" strokeWidth={2} />
+                <Trash2 className="h-4 w-4" strokeWidth={2} />
               </button>
             ) : null}
           </div>
-          <div className="mt-2 flex flex-col items-start gap-1">
-            {discountLabel ? (
-              <span className="inline-flex rounded-full bg-gradient-to-br from-rose-600 to-rose-700 px-2 py-0.5 text-[10px] font-bold leading-none text-white shadow-sm">
-                {discountLabel}
-              </span>
-            ) : null}
-            {cashbackType !== 'NONE' && cashbackValue > 0 ? (
-              <CashbackBadge cashbackType={cashbackType} cashbackValue={cashbackValue} variant="compact" />
-            ) : null}
-          </div>
-          <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
+
+          {(discountLabel || (cashbackType !== 'NONE' && cashbackValue > 0)) ? (
+            <div className="mt-1 flex flex-row flex-wrap items-center gap-1">
+              {discountLabel ? (
+                <span className="inline-flex rounded-full bg-gradient-to-br from-rose-600 to-rose-700 px-1.5 py-px text-[9px] font-bold leading-tight text-white">
+                  {discountLabel}
+                </span>
+              ) : null}
+              {cashbackType !== 'NONE' && cashbackValue > 0 ? (
+                <CashbackBadge cashbackType={cashbackType} cashbackValue={cashbackValue} variant="compact" />
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
               {item.variant && baseUnit > unitPrice ? (
-                <p className="text-[11px] font-medium text-slate-400 line-through">{formatMoneyUz(baseUnit)}</p>
+                <p className="text-[10px] font-medium leading-none text-slate-400 line-through">{formatMoneyUz(baseUnit)}</p>
               ) : null}
-              <p className="text-[13px] font-semibold tabular-nums text-slate-700">
+              <p className="text-[11px] font-semibold tabular-nums leading-tight text-slate-700">
                 {formatMoneyUz(unitPrice)}
-                <span className="ml-1 text-[11px] font-medium text-slate-500">/ {unitLabel}</span>
+                <span className="ml-0.5 text-[9px] font-medium text-slate-500">/{unitLabel}</span>
               </p>
             </div>
-            <div className="flex flex-col items-end gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               {variantId && productId ? (
                 <QuantitySelector
                   value={displayedQuantity}
                   onDecrease={handleDecrease}
                   onIncrease={handleIncrease}
                   pending={pending}
-                  size="lg"
+                  size="sm"
                 />
               ) : (
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
                   {displayedQuantity}×
                 </span>
               )}
-              <p className="text-[15px] font-bold tabular-nums text-[#121212]">{formatMoneyUz(lineTotal)}</p>
+              <p className="text-[13px] font-bold tabular-nums text-[#121212]">{formatMoneyUz(lineTotal)}</p>
             </div>
           </div>
         </div>
@@ -138,13 +142,16 @@ export function CartLineCard({ item }: CartLineCardProps) {
 
 export function CartLineSkeleton() {
   return (
-    <div className="animate-pulse overflow-hidden rounded-[22px] bg-white p-4 shadow-sm ring-1 ring-slate-100">
-      <div className="flex gap-4">
-        <div className="h-24 w-24 shrink-0 rounded-2xl bg-slate-100" />
-        <div className="flex-1 space-y-2">
-          <div className="h-4 w-[72%] max-w-[12rem] rounded bg-slate-100" />
-          <div className="h-3 w-[48%] max-w-[8rem] rounded bg-slate-100" />
-          <div className="h-8 w-32 rounded-full bg-slate-100" />
+    <div className="animate-pulse overflow-hidden rounded-[18px] bg-white p-2.5 shadow-sm ring-1 ring-slate-100">
+      <div className="flex gap-2.5">
+        <div className="h-[4.5rem] w-[4.5rem] shrink-0 rounded-xl bg-slate-100" />
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="h-3.5 w-[70%] rounded bg-slate-100" />
+          <div className="h-3 w-[40%] rounded bg-slate-100" />
+          <div className="flex justify-between gap-2 pt-1">
+            <div className="h-6 w-16 rounded bg-slate-100" />
+            <div className="h-7 w-24 rounded-full bg-slate-100" />
+          </div>
         </div>
       </div>
     </div>
