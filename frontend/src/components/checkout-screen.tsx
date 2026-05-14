@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle2, ChevronLeft, Loader2, MapPin } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, Loader2, Map, MapPin, Trash2 } from 'lucide-react';
 import { api, authStorage } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
 import { CartSummary, FreeDeliveryProgressLine } from '@/components/cart-summary';
@@ -20,18 +20,23 @@ import {
   type DeliverySpeed,
 } from '@/lib/delivery-pricing';
 import { cartCashbackEarnEstimate, cartSubtotal } from '@/lib/cart-totals';
+import { geolocationErrorMessageUz, insecureGeoMessageUz, reverseGeocodeOsm, shortenAddressLine } from '@/lib/checkout-geo';
 import { phoneDigitsForApi, isUzbekPhoneComplete, onPhoneUzInputChange } from '@/lib/phone-uz';
 
 const STICKY_BOTTOM = 'calc(var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))';
 
-type GeoState = 'idle' | 'loading' | 'ok' | 'denied' | 'error' | 'unsupported';
+type GeoState = 'idle' | 'loading' | 'ok' | 'denied' | 'error' | 'unsupported' | 'insecure' | 'timeout' | 'unavailable';
 
-function buildOrderAddress(input: {
-  speed: DeliverySpeed;
-  street: string;
-  apartment: string;
-  coords: { lat: number; lng: number } | null;
-}): string {
+export type SavedCustomerAddress = {
+  id: string;
+  label: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  isDefault: boolean;
+};
+
+function buildOrderAddress(input: { speed: DeliverySpeed; street: string; apartment: string }): string {
   const method =
     input.speed === 'EXPRESS'
       ? 'Tezkor yetkazish (15–30 daqiqa)'
@@ -40,7 +45,6 @@ function buildOrderAddress(input: {
     `[${method}]`,
     input.street.trim(),
     input.apartment.trim() ? `Xonadon / ofis: ${input.apartment.trim()}` : '',
-    input.coords ? `Koordinata: ${input.coords.lat.toFixed(5)}, ${input.coords.lng.toFixed(5)}` : '',
   ].filter(Boolean);
   return lines.join('\n');
 }
@@ -67,6 +71,13 @@ export function CheckoutScreen() {
   const [redeemInput, setRedeemInput] = useState('');
   const [geoState, setGeoState] = useState<GeoState>('idle');
   const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [formattedOsmAddress, setFormattedOsmAddress] = useState<string | null>(null);
+  const [reverseLoading, setReverseLoading] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState<SavedCustomerAddress[]>([]);
+  const [addressesLoading, setAddressesLoading] = useState(false);
+  const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null);
+  const [saveAddressChecked, setSaveAddressChecked] = useState(false);
+  const [saveAddressLabel, setSaveAddressLabel] = useState('Uy');
   const token = authStorage.getAccessToken();
 
   const subtotal = useMemo(() => cartSubtotal(cartItems), [cartItems]);
@@ -138,25 +149,116 @@ export function CheckoutScreen() {
     return () => window.clearTimeout(t);
   }, [phone]);
 
+  useEffect(() => {
+    if (!apiPhone) {
+      setSavedAddresses([]);
+      return;
+    }
+    let cancelled = false;
+    setAddressesLoading(true);
+    void (async () => {
+      try {
+        const list = await api.get<SavedCustomerAddress[]>(
+          `/customers/addresses?phone=${encodeURIComponent(apiPhone)}`,
+          token,
+        );
+        if (!cancelled) setSavedAddresses(Array.isArray(list) ? list : []);
+      } catch {
+        if (!cancelled) setSavedAddresses([]);
+      } finally {
+        if (!cancelled) setAddressesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [apiPhone, token]);
+
   const requestLocation = () => {
+    if (typeof window !== 'undefined' && window.isSecureContext === false) {
+      setGeoState('insecure');
+      setGeoCoords(null);
+      setFormattedOsmAddress(null);
+      return;
+    }
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       setGeoState('unsupported');
       return;
     }
+    setSelectedSavedId(null);
     setGeoState('loading');
+    setReverseLoading(false);
+    setFormattedOsmAddress(null);
     setError('');
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setGeoCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setGeoCoords({ lat, lng });
         setGeoState('ok');
+        setReverseLoading(true);
+        void (async () => {
+          const line = await reverseGeocodeOsm(lat, lng);
+          setFormattedOsmAddress(line);
+          setAddress((prev) => {
+            const p = prev.trim();
+            if (p.length >= 4) return prev;
+            return line ?? prev;
+          });
+          setReverseLoading(false);
+        })();
       },
-      (err) => {
+      (err: GeolocationPositionError) => {
         setGeoCoords(null);
-        if (err?.code === 1) setGeoState('denied');
+        setFormattedOsmAddress(null);
+        const c = err?.code;
+        if (c === 1) setGeoState('denied');
+        else if (c === 2) setGeoState('unavailable');
+        else if (c === 3) setGeoState('timeout');
         else setGeoState('error');
       },
-      { enableHighAccuracy: true, timeout: 14_000, maximumAge: 60_000 },
+      { enableHighAccuracy: true, timeout: 16_000, maximumAge: 30_000 },
     );
+  };
+
+  const applySavedAddress = (row: SavedCustomerAddress) => {
+    setSelectedSavedId(row.id);
+    setGeoCoords({ lat: row.latitude, lng: row.longitude });
+    setGeoState('ok');
+    setFormattedOsmAddress(row.address?.trim() ? row.address : null);
+    setAddress(row.address?.trim() ? row.address : '');
+    setReverseLoading(false);
+  };
+
+  const deleteSavedAddress = async (id: string) => {
+    if (!apiPhone) return;
+    try {
+      await api.delete<{ ok: boolean }>(
+        `/customers/addresses/${encodeURIComponent(id)}?phone=${encodeURIComponent(apiPhone)}`,
+        {},
+        token,
+      );
+      setSavedAddresses((prev) => prev.filter((a) => a.id !== id));
+      if (selectedSavedId === id) {
+        setSelectedSavedId(null);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const setDefaultSavedAddress = async (id: string) => {
+    if (!apiPhone) return;
+    try {
+      const next = await api.patch<SavedCustomerAddress[]>(
+        `/customers/addresses/${encodeURIComponent(id)}/default?phone=${encodeURIComponent(apiPhone)}`,
+        {},
+        token,
+      );
+      if (Array.isArray(next)) setSavedAddresses(next);
+    } catch {
+      // ignore
+    }
   };
 
   const addressOk = address.trim().length >= 4;
@@ -164,8 +266,17 @@ export function CheckoutScreen() {
   const geoOk = geoState === 'ok' && geoCoords !== null;
   const canSubmit = !loading && cartItems.length > 0 && phoneOk && addressOk && geoOk;
 
+  const orderAddressLabel = useMemo(() => {
+    if (selectedSavedId) {
+      const row = savedAddresses.find((a) => a.id === selectedSavedId);
+      return row?.label?.trim() || undefined;
+    }
+    if (saveAddressChecked && saveAddressLabel.trim()) return saveAddressLabel.trim();
+    return undefined;
+  }, [selectedSavedId, savedAddresses, saveAddressChecked, saveAddressLabel]);
+
   const placeOrder = async () => {
-    if (!canSubmit || !apiPhone) return;
+    if (!canSubmit || !apiPhone || !geoCoords) return;
     setLoading(true);
     setError('');
     try {
@@ -175,7 +286,6 @@ export function CheckoutScreen() {
         speed: deliverySpeed,
         street: address,
         apartment,
-        coords: geoCoords,
       });
       const order = await api.post<{
         id: string;
@@ -188,12 +298,36 @@ export function CheckoutScreen() {
           name: fullName.trim() || undefined,
           phone: apiPhone,
           address: composedAddress,
+          latitude: geoCoords.lat,
+          longitude: geoCoords.lng,
+          formattedAddress: formattedOsmAddress?.trim() || undefined,
+          deliveryNote: apartment.trim() || undefined,
+          addressLabel: orderAddressLabel,
           deliverySpeed,
           cashbackRedeemTiyin: redeemTiyin > 0 ? redeemTiyin : undefined,
         },
         token,
       );
       saveLastOrderSnapshot(order, enrich);
+      if (saveAddressChecked && apiPhone) {
+        const label = saveAddressLabel.trim() || 'Manzil';
+        try {
+          await api.post(
+            '/customers/addresses',
+            {
+              phone: apiPhone,
+              label,
+              address: address.trim(),
+              latitude: geoCoords.lat,
+              longitude: geoCoords.lng,
+              isDefault: savedAddresses.length === 0,
+            },
+            token,
+          );
+        } catch {
+          // duplicate or validation — ignore after successful order
+        }
+      }
       setPlaced(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xatolik yuz berdi. Qayta urinib ko'ring");
@@ -287,6 +421,67 @@ export function CheckoutScreen() {
                       <p className="mt-1 text-[11px] text-rose-600">To&apos;liq 12 raqamli raqam kiriting</p>
                     ) : null}
 
+                    {apiPhone && phoneOk ? (
+                      <div className="mt-4">
+                        <p className="text-[12px] font-semibold text-slate-800">Saqlangan manzillar</p>
+                        {addressesLoading ? (
+                          <p className="mt-2 text-[11px] text-slate-500">Yuklanmoqda…</p>
+                        ) : savedAddresses.length === 0 ? (
+                          <p className="mt-1 text-[11px] text-slate-500">Hozircha saqlangan manzil yo&apos;q</p>
+                        ) : (
+                          <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                            {savedAddresses.map((row) => (
+                              <div key={row.id} className="relative shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => applySavedAddress(row)}
+                                  className={`flex max-w-[10.5rem] flex-col rounded-[14px] border px-3 py-2 text-left transition active:scale-[0.98] ${
+                                    selectedSavedId === row.id
+                                      ? 'border-[#16A34A] bg-green-50 ring-2 ring-[#16A34A]/20'
+                                      : 'border-slate-200 bg-slate-50/90'
+                                  }`}
+                                >
+                                  <span className="text-[12px] font-bold text-[#121212]">
+                                    {row.label}
+                                    {row.isDefault ? (
+                                      <span className="ml-1 text-[10px] font-semibold text-emerald-700">· asosiy</span>
+                                    ) : null}
+                                  </span>
+                                  <span className="mt-0.5 line-clamp-2 text-[10px] text-slate-600">
+                                    {shortenAddressLine(row.address || `${row.latitude.toFixed(4)}, ${row.longitude.toFixed(4)}`, 72)}
+                                  </span>
+                                </button>
+                                <div className="absolute -right-1 -top-1 flex gap-0.5">
+                                  <button
+                                    type="button"
+                                    className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[10px] font-bold text-amber-600 shadow ring-1 ring-slate-200"
+                                    aria-label="Asosiy qilish"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void setDefaultSavedAddress(row.id);
+                                    }}
+                                  >
+                                    ★
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-500 shadow ring-1 ring-slate-200"
+                                    aria-label="O‘chirish"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void deleteSavedAddress(row.id);
+                                    }}
+                                  >
+                                    <Trash2 className="h-3 w-3" strokeWidth={2.2} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+
                     <p className="mt-5 text-[12px] font-semibold text-slate-800">
                       Joylashuv <span className="text-rose-600">*</span>
                     </p>
@@ -309,24 +504,70 @@ export function CheckoutScreen() {
                       )}
                     </button>
                     {geoState === 'ok' && geoCoords ? (
-                      <p className="mt-2 flex items-start gap-2 rounded-[14px] bg-emerald-50 px-3 py-2 text-[12px] font-medium text-emerald-900">
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                        Joylashuv olindi ({geoCoords.lat.toFixed(4)}, {geoCoords.lng.toFixed(4)})
-                      </p>
+                      <div className="mt-3 rounded-[16px] border border-emerald-100 bg-emerald-50/90 px-3 py-2.5">
+                        <div className="flex items-start gap-2">
+                          <Map className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" strokeWidth={2} aria-hidden />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[12px] font-bold text-emerald-900">Joylashuv aniqlandi</p>
+                            <p className="mt-0.5 text-[11px] font-medium leading-snug text-emerald-950/90">
+                              {reverseLoading
+                                ? 'Manzil matni yuklanmoqda…'
+                                : shortenAddressLine(
+                                    formattedOsmAddress ||
+                                      address.trim() ||
+                                      `${geoCoords.lat.toFixed(5)}, ${geoCoords.lng.toFixed(5)}`,
+                                    96,
+                                  )}
+                            </p>
+                          </div>
+                          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden />
+                        </div>
+                      </div>
                     ) : null}
                     {geoState === 'denied' ? (
-                      <p className="mt-2 rounded-[14px] bg-rose-50 px-3 py-2 text-[12px] text-rose-800">
-                        Ruxsat berilmadi. Brauzer sozlamalaridan joylashuvni yoqing.
-                      </p>
+                      <div className="mt-2 space-y-2 rounded-[14px] bg-rose-50 px-3 py-2 text-[12px] text-rose-800">
+                        <p>{geolocationErrorMessageUz(1)}</p>
+                        <button
+                          type="button"
+                          className="text-[12px] font-semibold text-rose-900 underline"
+                          onClick={requestLocation}
+                        >
+                          Qayta urinish
+                        </button>
+                      </div>
+                    ) : null}
+                    {geoState === 'timeout' ? (
+                      <div className="mt-2 space-y-2 rounded-[14px] bg-rose-50 px-3 py-2 text-[12px] text-rose-800">
+                        <p>{geolocationErrorMessageUz(3)}</p>
+                        <button type="button" className="font-semibold underline" onClick={requestLocation}>
+                          Qayta urinish
+                        </button>
+                      </div>
+                    ) : null}
+                    {geoState === 'unavailable' ? (
+                      <div className="mt-2 space-y-2 rounded-[14px] bg-rose-50 px-3 py-2 text-[12px] text-rose-800">
+                        <p>{geolocationErrorMessageUz(2)}</p>
+                        <button type="button" className="font-semibold underline" onClick={requestLocation}>
+                          Qayta urinish
+                        </button>
+                      </div>
                     ) : null}
                     {geoState === 'error' ? (
-                      <p className="mt-2 rounded-[14px] bg-rose-50 px-3 py-2 text-[12px] text-rose-800">
-                        Joylashuvni olishda xatolik. Qayta urinib ko&apos;ring.
-                      </p>
+                      <div className="mt-2 space-y-2 rounded-[14px] bg-rose-50 px-3 py-2 text-[12px] text-rose-800">
+                        <p>{geolocationErrorMessageUz(undefined)}</p>
+                        <button type="button" className="font-semibold underline" onClick={requestLocation}>
+                          Qayta urinish
+                        </button>
+                      </div>
                     ) : null}
                     {geoState === 'unsupported' ? (
                       <p className="mt-2 rounded-[14px] bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
                         Brauzeringiz joylashuvni qo&apos;llab-quvvatlamaydi.
+                      </p>
+                    ) : null}
+                    {geoState === 'insecure' ? (
+                      <p className="mt-2 rounded-[14px] bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
+                        {insecureGeoMessageUz()}
                       </p>
                     ) : null}
 
@@ -339,7 +580,10 @@ export function CheckoutScreen() {
                       className="mt-1.5 w-full resize-none rounded-[16px] border-2 border-slate-200 bg-white px-4 py-3 text-[15px] text-[#121212] outline-none transition focus:border-[#16A34A] focus:ring-2 focus:ring-[#16A34A]/20"
                       placeholder="Ko'cha, uy, orientir…"
                       value={address}
-                      onChange={(e) => setAddress(e.target.value)}
+                      onChange={(e) => {
+                        setAddress(e.target.value);
+                        setSelectedSavedId(null);
+                      }}
                     />
 
                     <label className="mt-4 block text-[12px] font-semibold text-slate-600" htmlFor="co-apt">
@@ -352,6 +596,32 @@ export function CheckoutScreen() {
                       value={apartment}
                       onChange={(e) => setApartment(e.target.value)}
                     />
+
+                    <div className="mt-4 rounded-[14px] border border-slate-100 bg-slate-50/80 px-3 py-3">
+                      <label className="flex cursor-pointer items-center gap-2">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-slate-300 text-[#16A34A] focus:ring-[#16A34A]"
+                          checked={saveAddressChecked}
+                          onChange={(e) => setSaveAddressChecked(e.target.checked)}
+                        />
+                        <span className="text-[13px] font-semibold text-[#121212]">Manzilni saqlash</span>
+                      </label>
+                      {saveAddressChecked ? (
+                        <div className="mt-2">
+                          <label className="text-[11px] font-medium text-slate-600" htmlFor="co-save-label">
+                            Sarlavha (Uy, Ofis…)
+                          </label>
+                          <input
+                            id="co-save-label"
+                            className="mt-1 w-full rounded-[12px] border border-slate-200 bg-white px-3 py-2 text-[14px] outline-none focus:ring-2 focus:ring-[#16A34A]/20"
+                            value={saveAddressLabel}
+                            onChange={(e) => setSaveAddressLabel(e.target.value)}
+                            placeholder="Uy"
+                          />
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
 
                   <div className="rounded-[22px] bg-white p-4 shadow-[0_6px_28px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/90">

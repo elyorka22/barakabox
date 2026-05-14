@@ -1,16 +1,16 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { ShoppingBag } from 'lucide-react';
-import { api, authStorage } from '@/lib/api';
+import { authStorage } from '@/lib/api';
 import { formatMoneyUz } from '@/lib/format';
 import { MobileNav } from '@/components/app-nav';
 import { CartBottomSheet } from '@/components/cart-bottom-sheet';
 import { CartLineCard, CartLineSkeleton } from '@/components/cart-line-card';
 import type { CartSummaryRow } from '@/components/cart-summary';
-import { bootstrapCart, refreshCart } from '@/lib/cart-store';
-import { enrichOrderLinesFromCart, saveLastOrderSnapshot } from '@/lib/last-order-storage';
+import { bootstrapCart } from '@/lib/cart-store';
 import { useCartHydrated, useCartItems } from '@/lib/use-cart-store';
 import { deliveryFeeFor, type DeliverySpeed } from '@/lib/delivery-pricing';
 import { cartCashbackEarnEstimate, cartSubtotal, countCashbackOfferLines } from '@/lib/cart-totals';
@@ -20,11 +20,11 @@ const NAV_BOTTOM = 'calc(var(--bb-mobile-nav-height) + env(safe-area-inset-botto
 const SCROLL_PAD_COLLAPSED = 'calc(10rem + var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))';
 
 export function CartScreen() {
+  const router = useRouter();
   const cartItems = useCartItems();
   const hydrated = useCartHydrated();
   const [token, setToken] = useState('');
   const [error, setError] = useState('');
-  const [placingOrder, setPlacingOrder] = useState(false);
   const [speed, setSpeed] = useState<DeliverySpeed>('STANDARD');
 
   useEffect(() => {
@@ -65,19 +65,9 @@ export function CartScreen() {
     [subtotal, delivery, earnEstimate, grandTotal],
   );
 
-  const placeOrder = async () => {
-    setPlacingOrder(true);
+  const goQuickCheckout = () => {
     setError('');
-    try {
-      const enrich = enrichOrderLinesFromCart(cartItems);
-      const order = await api.post<unknown>('/orders', {}, token);
-      saveLastOrderSnapshot(order, enrich);
-      await refreshCart();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "So'rov muvaffaqiyatsiz yakunlandi");
-    } finally {
-      setPlacingOrder(false);
-    }
+    router.push(speed === 'EXPRESS' ? '/checkout?speed=EXPRESS' : '/checkout');
   };
 
   const showSkeleton = !hydrated;
@@ -154,10 +144,9 @@ export function CartScreen() {
           grandTotal={grandTotal}
           earnEstimate={earnEstimate}
           summaryRows={summaryRows}
-          placingOrder={placingOrder}
           token={token}
-          onQuickOrder={placeOrder}
-          checkoutDisabled={placingOrder || subtotal <= 0}
+          onQuickOrder={goQuickCheckout}
+          checkoutDisabled={subtotal <= 0}
         />
       ) : null}
 

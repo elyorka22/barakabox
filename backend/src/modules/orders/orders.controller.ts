@@ -60,6 +60,11 @@ export class OrdersController {
       name: body?.name,
       phone: body?.phone,
       address: body?.address,
+      latitude: body?.latitude,
+      longitude: body?.longitude,
+      formattedAddress: body?.formattedAddress,
+      deliveryNote: body?.deliveryNote,
+      addressLabel: body?.addressLabel,
       deliverySpeed: body?.deliverySpeed ?? 'STANDARD',
       cashbackRedeemTiyin: body?.cashbackRedeemTiyin,
     });

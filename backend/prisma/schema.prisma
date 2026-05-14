@@ -129,6 +129,7 @@ model Customer {
   user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   orders           Order[]
   cashbackTransactions CashbackTransaction[]
+  addresses        CustomerAddress[]
 
   @@index([phone])
 }
@@ -333,6 +334,21 @@ model CartItem {
   @@index([boxId])
 }
 
+model CustomerAddress {
+  id         String   @id @default(cuid())
+  customerId String
+  label      String
+  address    String   @default("")
+  latitude   Float
+  longitude  Float
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+}
+
 model Order {
   id            String      @id @default(cuid())
   userId        String?
@@ -342,6 +358,11 @@ model Order {
   customerName  String
   customerPhone String
   deliveryAddress String
+  latitude      Float?
+  longitude     Float?
+  formattedAddress String?
+  deliveryNote  String?
+  addressLabel  String?
   status        OrderStatus @default(NEW)
   pickingAt     DateTime?
   readyAt       DateTime?

@@ -5,7 +5,16 @@ import { api, authStorage } from '@/lib/api';
 import { formatMoneyUz } from '@/lib/format';
 import { DesktopNav, MobileNav } from '@/components/app-nav';
 
-type Order = { id: string; status: 'READY' | 'DELIVERING' | 'DELIVERED'; totalAmount: string };
+type Order = {
+  id: string;
+  status: 'READY' | 'DELIVERING' | 'DELIVERED';
+  totalAmount: string;
+  deliveryAddress?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  formattedAddress?: string | null;
+  addressLabel?: string | null;
+};
 
 export default function CourierPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -45,6 +54,31 @@ export default function CourierPage() {
               <p className="font-semibold">#{order.id.slice(0, 8)}</p>
               <p className="bb-secondary">Status: {order.status}</p>
               <p className="bb-secondary">Jami: {formatMoneyUz(order.totalAmount)}</p>
+              {order.addressLabel ? (
+                <p className="mt-1 text-xs font-medium text-emerald-800">Yorliq: {order.addressLabel}</p>
+              ) : null}
+              {order.deliveryAddress ? <p className="mt-1 text-xs text-slate-600">{order.deliveryAddress}</p> : null}
+              {order.formattedAddress ? <p className="text-xs text-slate-500">{order.formattedAddress}</p> : null}
+              {order.latitude != null && order.longitude != null ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <a
+                    className="text-xs font-semibold text-[#16A34A] underline"
+                    href={`https://www.google.com/maps?q=${encodeURIComponent(`${order.latitude},${order.longitude}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Google Maps
+                  </a>
+                  <a
+                    className="text-xs font-semibold text-slate-600 underline"
+                    href={`https://yandex.uz/maps/?pt=${encodeURIComponent(`${order.longitude},${order.latitude}`)}&z=18`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Yandex
+                  </a>
+                </div>
+              ) : null}
               <div className="mt-2 flex gap-2">
                 <button className="bb-btn-secondary" onClick={() => updateStatus(order.id, 'start-delivery')}>
                   Yetkazishni boshlash

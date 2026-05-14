@@ -34,7 +34,6 @@ type CartBottomSheetProps = {
   grandTotal: number;
   earnEstimate: number;
   summaryRows: CartSummaryRow[];
-  placingOrder: boolean;
   token: string;
   onQuickOrder: () => void;
   checkoutDisabled: boolean;
@@ -48,7 +47,6 @@ export function CartBottomSheet({
   grandTotal,
   earnEstimate,
   summaryRows,
-  placingOrder,
   token,
   onQuickOrder,
   checkoutDisabled,
@@ -238,9 +236,9 @@ export function CartBottomSheet({
               type="button"
               className="flex min-h-[44px] w-full items-center justify-center rounded-[14px] border border-slate-200 bg-white text-[13px] font-semibold text-slate-700 transition active:scale-[0.99] disabled:opacity-50"
               onClick={onQuickOrder}
-              disabled={placingOrder || subtotal <= 0 || !token}
+              disabled={subtotal <= 0 || !token}
             >
-              {placingOrder ? 'Jarayon…' : token ? 'Tezkor buyurtma' : 'Tezkor buyurtma (tizimga kiring)'}
+              {token ? 'Tezkor buyurtma' : 'Tezkor buyurtma (tizimga kiring)'}
             </button>
           </div>
         </div>

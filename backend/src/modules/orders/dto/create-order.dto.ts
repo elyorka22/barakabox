@@ -1,5 +1,5 @@
-import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 
 export class CreateOrderDto {
   @IsOptional()
@@ -13,6 +13,33 @@ export class CreateOrderDto {
   @IsString()
   @IsNotEmpty()
   address!: string;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-90)
+  @Max(90)
+  latitude!: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(-180)
+  @Max(180)
+  longitude!: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  formattedAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  deliveryNote?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  addressLabel?: string;
 
   @IsOptional()
   @IsIn(['STANDARD', 'EXPRESS'])

@@ -49,10 +49,29 @@ export class OrdersService {
       name?: string;
       phone?: string;
       address?: string;
+      latitude?: number;
+      longitude?: number;
+      formattedAddress?: string;
+      deliveryNote?: string;
+      addressLabel?: string;
       deliverySpeed?: 'STANDARD' | 'EXPRESS';
       cashbackRedeemTiyin?: number;
     },
   ) {
+    const lat = deliveryInfo?.latitude;
+    const lng = deliveryInfo?.longitude;
+    if (
+      lat === undefined ||
+      lng === undefined ||
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      lat < -90 ||
+      lat > 90 ||
+      lng < -180 ||
+      lng > 180
+    ) {
+      throw new BadRequestException('Joylashuv koordinatalari majburiy');
+    }
     const cart = await this.cartService.getCart(userId);
     if (!cart || cart.items.length === 0) {
       throw new BadRequestException('Cart is empty');
@@ -205,6 +224,11 @@ export class OrdersService {
           customerName: deliveryInfo?.name?.trim() || user.fullName,
           customerPhone,
           deliveryAddress: deliveryInfo?.address?.trim() || 'N/A',
+          latitude: lat,
+          longitude: lng,
+          formattedAddress: deliveryInfo?.formattedAddress?.trim() || null,
+          deliveryNote: deliveryInfo?.deliveryNote?.trim() || null,
+          addressLabel: deliveryInfo?.addressLabel?.trim() || null,
           idempotencyKey,
           subtotalAmount: subtotal,
           deliveryFee,

@@ -12,11 +12,22 @@ type Order = {
   customerName: string;
   customerPhone: string;
   deliveryAddress: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  formattedAddress?: string | null;
+  deliveryNote?: string | null;
+  addressLabel?: string | null;
   assignedPicker?: { fullName: string } | null;
   assignedCourier?: { fullName: string } | null;
 };
 
 const STATUS_OPTIONS: OrderStatus[] = ['NEW', 'PICKING', 'READY', 'DELIVERING', 'DELIVERED', 'CANCELLED'];
+
+function mapsLinks(lat: number, lng: number) {
+  const g = `https://www.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}`;
+  const y = `https://yandex.uz/maps/?pt=${encodeURIComponent(`${lng},${lat}`)}&z=18`;
+  return { g, y };
+}
 
 export default function AdminOrdersPage() {
   const token = authStorage.getAccessToken();
@@ -50,7 +61,11 @@ export default function AdminOrdersPage() {
       orders.filter((order) => {
         const statusMatch = statusFilter === 'ALL' || order.status === statusFilter;
         const q = search.trim().toLowerCase();
-        const searchMatch = q.length === 0 || order.customerName.toLowerCase().includes(q) || order.customerPhone.includes(q);
+        const searchMatch =
+          q.length === 0 ||
+          order.customerName.toLowerCase().includes(q) ||
+          order.customerPhone.includes(q) ||
+          (order.formattedAddress?.toLowerCase().includes(q) ?? false);
         return statusMatch && searchMatch;
       }),
     [orders, statusFilter, search],
@@ -67,8 +82,17 @@ export default function AdminOrdersPage() {
         <h2 className="text-lg font-semibold">Orders</h2>
         <p className="text-sm text-slate-500">Status timeline, filtering va detail drawer.</p>
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          <input className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="Mijoz qidirish" value={search} onChange={(e) => setSearch(e.target.value)} />
-          <select className="rounded-xl border border-slate-200 px-3 py-2 text-sm" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as 'ALL' | OrderStatus)}>
+          <input
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            placeholder="Mijoz qidirish"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select
+            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as 'ALL' | OrderStatus)}
+          >
             <option value="ALL">Barcha status</option>
             {STATUS_OPTIONS.map((status) => (
               <option key={status} value={status}>
@@ -84,14 +108,29 @@ export default function AdminOrdersPage() {
 
       <div className="space-y-3">
         {loading ? <div className="bb-skeleton h-64 w-full" /> : null}
-        {!loading && visible.length === 0 ? <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">Buyurtma topilmadi</p> : null}
+        {!loading && visible.length === 0 ? (
+          <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">Buyurtma topilmadi</p>
+        ) : null}
         {visible.map((order) => (
           <div key={order.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="font-semibold">#{order.id.slice(0, 8)}</p>
-                <p className="text-xs text-slate-500">{order.customerName} · {order.customerPhone}</p>
+                <p className="text-xs text-slate-500">
+                  {order.customerName} · {order.customerPhone}
+                </p>
+                {order.addressLabel ? (
+                  <p className="text-xs font-medium text-emerald-800">Yorliq: {order.addressLabel}</p>
+                ) : null}
                 <p className="text-xs text-slate-500">{order.deliveryAddress}</p>
+                {order.formattedAddress ? (
+                  <p className="text-xs text-slate-600">OSM: {order.formattedAddress}</p>
+                ) : null}
+                {order.latitude != null && order.longitude != null ? (
+                  <p className="text-xs font-mono text-slate-700">
+                    {Number(order.latitude).toFixed(6)}, {Number(order.longitude).toFixed(6)}
+                  </p>
+                ) : null}
               </div>
               <div className="text-right">
                 <p className="text-sm font-semibold">{formatMoneyUz(order.totalAmount)}</p>
@@ -100,7 +139,11 @@ export default function AdminOrdersPage() {
               </div>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <select className="rounded-lg border border-slate-200 px-2 py-1 text-xs" value={order.status} onChange={(e) => void updateStatus(order.id, e.target.value as OrderStatus)}>
+              <select
+                className="rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                value={order.status}
+                onChange={(e) => void updateStatus(order.id, e.target.value as OrderStatus)}
+              >
                 {STATUS_OPTIONS.map((status) => (
                   <option key={status} value={status}>
                     {status}
@@ -110,6 +153,26 @@ export default function AdminOrdersPage() {
               <button className="rounded-lg border border-slate-300 px-2 py-1 text-xs" onClick={() => setSelected(order)}>
                 Detail
               </button>
+              {order.latitude != null && order.longitude != null ? (
+                <>
+                  <a
+                    href={mapsLinks(Number(order.latitude), Number(order.longitude)).g}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg bg-[#16A34A] px-2 py-1 text-xs font-semibold text-white"
+                  >
+                    Google Maps
+                  </a>
+                  <a
+                    href={mapsLinks(Number(order.latitude), Number(order.longitude)).y}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700"
+                  >
+                    Yandex
+                  </a>
+                </>
+              ) : null}
             </div>
           </div>
         ))}
@@ -117,7 +180,7 @@ export default function AdminOrdersPage() {
 
       {selected ? (
         <div className="fixed inset-0 z-50 flex items-end bg-black/40 p-3 sm:items-center sm:justify-end">
-          <div className="w-full max-w-xl rounded-2xl bg-white p-4">
+          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold">Order details</h3>
               <button className="rounded-lg border border-slate-200 px-2 py-1 text-xs" onClick={() => setSelected(null)}>
@@ -129,7 +192,37 @@ export default function AdminOrdersPage() {
               <p>Status timeline: NEW → PICKING → READY → DELIVERING → DELIVERED/CANCELLED</p>
               <p>Mijoz: {selected.customerName}</p>
               <p>Telefon: {selected.customerPhone}</p>
-              <p>Manzil: {selected.deliveryAddress}</p>
+              {selected.addressLabel ? <p>Yorliq: {selected.addressLabel}</p> : null}
+              <p>Manzil (yuborilgan): {selected.deliveryAddress}</p>
+              {selected.formattedAddress ? <p>OSM manzil: {selected.formattedAddress}</p> : null}
+              {selected.deliveryNote ? <p>Izoh: {selected.deliveryNote}</p> : null}
+              {selected.latitude != null && selected.longitude != null ? (
+                <>
+                  <p className="font-mono text-xs">
+                    Koordinata: {Number(selected.latitude).toFixed(6)}, {Number(selected.longitude).toFixed(6)}
+                  </p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <a
+                      href={mapsLinks(Number(selected.latitude), Number(selected.longitude)).g}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-lg bg-[#16A34A] px-3 py-1.5 text-xs font-semibold text-white"
+                    >
+                      Google Maps ochish
+                    </a>
+                    <a
+                      href={mapsLinks(Number(selected.latitude), Number(selected.longitude)).y}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-800"
+                    >
+                      Yandex ochish
+                    </a>
+                  </div>
+                </>
+              ) : (
+                <p className="text-amber-800">Koordinatalar yo&apos;q (eski buyurtma)</p>
+              )}
               <p>Jami: {formatMoneyUz(selected.totalAmount)}</p>
             </div>
           </div>
