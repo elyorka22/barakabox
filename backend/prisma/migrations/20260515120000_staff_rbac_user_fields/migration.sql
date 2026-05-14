@@ -1,4 +1,6 @@
--- AlterEnum: add SUPER_ADMIN (PostgreSQL)
+-- AlterEnum: add SUPER_ADMIN (PostgreSQL).
+-- Do not reference the new enum value in this migration: PostgreSQL requires the enum
+-- change to be committed before SUPER_ADMIN can appear in UPDATE/INSERT (see next migration).
 ALTER TYPE "Role" ADD VALUE 'SUPER_ADMIN';
 
 -- User staff / RBAC fields
@@ -12,6 +14,3 @@ CREATE UNIQUE INDEX IF NOT EXISTS "User_staffLogin_key" ON "User"("staffLogin");
 
 ALTER TABLE "User" DROP CONSTRAINT IF EXISTS "User_businessScopeId_fkey";
 ALTER TABLE "User" ADD CONSTRAINT "User_businessScopeId_fkey" FOREIGN KEY ("businessScopeId") REFERENCES "BusinessProfile"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- Promote legacy admin seed user to SUPER_ADMIN (idempotent)
-UPDATE "User" SET role = 'SUPER_ADMIN' WHERE email = 'admin@barakabox.local' AND role = 'ADMIN';
