@@ -53,13 +53,14 @@ export class OrdersController {
     @Body() body?: CreateOrderDto,
   ) {
     const actor = await this.resolveActor(authorization, guestId);
-    if (actor.isGuest && (!body?.name || !body?.phone || !body?.address)) {
-      throw new BadRequestException('Guest checkout requires name, phone and address');
+    if (actor.isGuest && (!body?.phone || !body?.address)) {
+      throw new BadRequestException('Guest checkout requires phone and address');
     }
     return this.ordersService.createFromCart(actor.userId, {
       name: body?.name,
       phone: body?.phone,
       address: body?.address,
+      deliverySpeed: body?.deliverySpeed ?? 'STANDARD',
       cashbackRedeemTiyin: body?.cashbackRedeemTiyin,
     });
   }

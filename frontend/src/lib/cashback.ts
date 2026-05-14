@@ -29,6 +29,22 @@ export function getCashbackPromoLabel(cashbackType: string, cashbackValue: numbe
   return null;
 }
 
+/** Compact cart-line labels: "5%" or "+500 so'm" (no "keshbek", no extra %). */
+export function getCashbackCartBadgeLabel(cashbackType: string, cashbackValue: number): CashbackPromo | null {
+  if (cashbackType === 'NONE' || !cashbackValue) return null;
+  if (cashbackType === 'PERCENT') {
+    const p = Math.min(100, Math.max(0, cashbackValue));
+    return { kind: 'percent', label: `${p}%` };
+  }
+  if (cashbackType === 'FIXED_AMOUNT') {
+    return {
+      kind: 'fixed',
+      label: `+${Math.round(cashbackValue).toLocaleString('uz-UZ')} so'm`,
+    };
+  }
+  return null;
+}
+
 export function cashbackBadgeText(cashbackType: string, cashbackValue: number): string | null {
   return getCashbackPromoLabel(cashbackType, cashbackValue)?.label ?? null;
 }

@@ -1,10 +1,10 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
+import { IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateOrderDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  name!: string;
+  name?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -13,6 +13,10 @@ export class CreateOrderDto {
   @IsString()
   @IsNotEmpty()
   address!: string;
+
+  @IsOptional()
+  @IsIn(['STANDARD', 'EXPRESS'])
+  deliverySpeed?: 'STANDARD' | 'EXPRESS';
 
   @IsOptional()
   @Type(() => Number)

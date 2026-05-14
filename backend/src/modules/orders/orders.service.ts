@@ -49,6 +49,7 @@ export class OrdersService {
       name?: string;
       phone?: string;
       address?: string;
+      deliverySpeed?: 'STANDARD' | 'EXPRESS';
       cashbackRedeemTiyin?: number;
     },
   ) {
@@ -147,7 +148,14 @@ export class OrdersService {
     const subtotal = preparedLines.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const threshold = Number(this.configService.get('FREE_DELIVERY_THRESHOLD') ?? 30000);
     const deliveryFeeValue = Number(this.configService.get('DELIVERY_FEE') ?? 3000);
-    const deliveryFee = subtotal >= threshold ? 0 : deliveryFeeValue;
+    const expressDeliveryFee = Number(this.configService.get('EXPRESS_DELIVERY_FEE') ?? 15000);
+    const speed = deliveryInfo?.deliverySpeed === 'EXPRESS' ? 'EXPRESS' : 'STANDARD';
+    const deliveryFee =
+      speed === 'EXPRESS'
+        ? expressDeliveryFee
+        : subtotal >= threshold
+          ? 0
+          : deliveryFeeValue;
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
