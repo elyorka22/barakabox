@@ -23,7 +23,7 @@ export function getCashbackPromoLabel(cashbackType: string, cashbackValue: numbe
   if (cashbackType === 'FIXED_AMOUNT') {
     return {
       kind: 'fixed',
-      label: `+${Math.round(cashbackValue).toLocaleString('uz-UZ')} so'm keshbek`,
+      label: `+${Math.round(cashbackValue).toLocaleString('uz-UZ')} so'm`,
     };
   }
   return null;

@@ -161,13 +161,13 @@ function ProductCardBase({
               ))}
             </div>
             {discountPercent || cashbackPromo ? (
-              <div className="pointer-events-none absolute left-2 top-2 z-[5] flex max-w-[58%] flex-col items-start gap-1.5">
+              <div className="pointer-events-none absolute left-2 top-2 z-[5] flex max-w-[min(calc(100%-3.5rem),7.5rem)] flex-col items-stretch gap-1">
                 {discountPercent ? (
-                  <span className="inline-flex items-center rounded-full bg-gradient-to-br from-rose-600 via-rose-500 to-rose-700 px-2 py-1 text-[10px] font-extrabold leading-none tracking-tight text-white shadow-md shadow-rose-600/40 ring-1 ring-white/30">
+                  <span className="inline-flex w-max max-w-full shrink-0 items-center rounded-full bg-gradient-to-br from-rose-600 via-rose-500 to-rose-700 px-1.5 py-0.5 text-[10px] font-extrabold leading-none tracking-tight text-white shadow-md shadow-rose-600/40 ring-1 ring-white/30">
                     -{discountPercent}%
                   </span>
                 ) : null}
-                <CashbackBadge cashbackType={cashbackType} cashbackValue={cashbackValue} />
+                <CashbackBadge cashbackType={cashbackType} cashbackValue={cashbackValue} className="w-full min-w-0" />
               </div>
             ) : null}
             {effectiveVariants.length > 1 ? (

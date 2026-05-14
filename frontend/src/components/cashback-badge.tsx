@@ -1,6 +1,5 @@
 'use client';
 
-import { Gift, Percent } from 'lucide-react';
 import { getCashbackPromoLabel } from '@/lib/cashback';
 
 type CashbackBadgeProps = {
@@ -10,32 +9,22 @@ type CashbackBadgeProps = {
   className?: string;
 };
 
-const pillBase =
-  'inline-flex max-w-full items-center gap-0.5 rounded-full px-2 py-1 text-[10px] font-extrabold leading-none tracking-tight text-white shadow-md ring-1 ring-white/30';
-
+/** Lighter promo pill than discount; single-line text, ellipsis on narrow cards. */
 export function CashbackBadge({ cashbackType, cashbackValue, className = '' }: CashbackBadgeProps) {
   const promo = getCashbackPromoLabel(cashbackType ?? 'NONE', Number(cashbackValue ?? 0));
   if (!promo) return null;
 
-  if (promo.kind === 'percent') {
-    return (
-      <span
-        className={`${pillBase} bg-gradient-to-br from-amber-400 via-orange-500 to-orange-600 shadow-[0_3px_10px_rgba(234,88,12,0.42)] ${className}`.trim()}
-        title={promo.label}
-      >
-        <Percent className="h-2.5 w-2.5 shrink-0 drop-shadow-sm" strokeWidth={2.8} aria-hidden />
-        <span className="min-w-0 truncate drop-shadow-sm">{promo.label}</span>
-      </span>
-    );
-  }
+  const tone =
+    promo.kind === 'percent'
+      ? 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-900 ring-amber-200/90 shadow-sm shadow-amber-900/5'
+      : 'bg-gradient-to-r from-teal-50 to-emerald-50 text-teal-900 ring-teal-200/90 shadow-sm shadow-teal-900/5';
 
   return (
     <span
-      className={`${pillBase} bg-gradient-to-br from-emerald-500 via-teal-500 to-teal-700 shadow-[0_3px_10px_rgba(20,184,166,0.4)] ${className}`.trim()}
+      className={`inline-block min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap rounded-full px-1.5 py-0.5 text-[9px] font-semibold leading-none ring-1 ${tone} ${className}`.trim()}
       title={promo.label}
     >
-      <Gift className="h-2.5 w-2.5 shrink-0 drop-shadow-sm" strokeWidth={2.3} aria-hidden />
-      <span className="min-w-0 truncate drop-shadow-sm">{promo.label}</span>
+      {promo.label}
     </span>
   );
 }
