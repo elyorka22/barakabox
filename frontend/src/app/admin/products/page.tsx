@@ -537,13 +537,15 @@ export default function AdminProductsPage() {
               </button>
             </div>
           </div>
-          <button
-            className="w-full min-w-0 max-w-full rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-            onClick={() => void save()}
-            disabled={Object.values(uploadingVariantImages).some(Boolean)}
-          >
-            {form.id ? 'Yangilash' : 'Yaratish'}
-          </button>
+          <div className="sticky bottom-0 z-10 -mx-3 mt-3 border-t border-slate-200 bg-white/95 px-3 py-2 shadow-[0_-6px_16px_rgba(15,23,42,0.06)] backdrop-blur-sm md:static md:z-0 md:mx-0 md:mt-2 md:border-0 md:bg-transparent md:p-0 md:shadow-none md:backdrop-blur-none">
+            <button
+              className="flex min-h-11 w-full min-w-0 max-w-full items-center justify-center rounded-xl bg-emerald-600 px-3 text-sm font-semibold text-white disabled:opacity-50"
+              onClick={() => void save()}
+              disabled={Object.values(uploadingVariantImages).some(Boolean)}
+            >
+              {form.id ? 'Yangilash' : 'Yaratish'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -579,10 +581,18 @@ export default function AdminProductsPage() {
                 {item.stockQuantity > 0 ? `In stock: ${item.stockQuantity}` : 'Out of stock'}
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
-                <button className="rounded-lg border border-slate-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-slate-300" onClick={() => edit(item)}>
+                <button
+                  type="button"
+                  className="min-h-11 rounded-lg border border-slate-300 px-3 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  onClick={() => edit(item)}
+                >
                   Edit
                 </button>
-                <button className="rounded-lg border border-rose-300 px-2 py-1 text-xs text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300" onClick={() => void remove(item.id)}>
+                <button
+                  type="button"
+                  className="min-h-11 rounded-lg border border-rose-300 px-3 text-xs font-medium text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300"
+                  onClick={() => void remove(item.id)}
+                >
                   Delete
                 </button>
               </div>

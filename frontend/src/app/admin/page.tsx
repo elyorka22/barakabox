@@ -77,43 +77,54 @@ export default function AdminPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+    <div className="space-y-3 md:space-y-6">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
         {[
           { label: 'Total orders', value: stats?.totalOrders ?? 0, icon: ShoppingCart },
           { label: 'Total revenue', value: formatMoneyUz(stats?.totalRevenue ?? 0), icon: DollarSign },
           { label: 'Active products', value: stats?.activeProducts ?? 0, icon: Package },
           { label: 'Approved businesses', value: approvedBusinesses, icon: Building2 },
           { label: 'Users count', value: Math.max(businesses.length + 30, 30), icon: Users },
-        ].map((card) => (
-          <div key={card.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-slate-500">{card.label}</p>
-              <card.icon className="h-4 w-4 text-slate-500" />
+        ].map((card, index, arr) => (
+          <div
+            key={card.label}
+            className={`rounded-xl border border-slate-200 bg-white p-3 shadow-sm ${
+              index === arr.length - 1 ? 'col-span-2 lg:col-span-1' : ''
+            }`}
+          >
+            <div className="flex items-center justify-between gap-1">
+              <p className="text-[10px] font-medium leading-tight text-slate-500 sm:text-xs">{card.label}</p>
+              <card.icon className="h-3.5 w-3.5 shrink-0 text-slate-400 sm:h-4 sm:w-4" />
             </div>
-            {loading ? <div className="bb-skeleton mt-3 h-7 w-20" /> : <p className="mt-3 text-2xl font-semibold">{card.value}</p>}
-            <p className="mt-1 text-xs text-emerald-600">+12% oylik trend</p>
+            {loading ? (
+              <div className="bb-skeleton mt-2 h-6 w-16 sm:mt-3 sm:h-7 sm:w-20" />
+            ) : (
+              <p className="mt-1.5 truncate text-lg font-semibold sm:mt-3 sm:text-2xl">{card.value}</p>
+            )}
+            <p className="mt-0.5 text-[10px] text-emerald-600 sm:mt-1 sm:text-xs">+12% oylik</p>
           </div>
         ))}
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:col-span-2">
+      <div className="grid gap-3 md:gap-4 xl:grid-cols-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm md:p-4 xl:col-span-2">
           <p className="text-sm font-semibold">Revenue & Orders chart</p>
           <p className="text-xs text-slate-500">So‘nggi 6 oy</p>
-          <div className="mt-4 h-72">{loading ? <div className="bb-skeleton h-full w-full" /> : <DashboardCharts orders={orders} />}</div>
+          <div className="mt-3 h-52 md:mt-4 md:h-72">
+            {loading ? <div className="bb-skeleton h-full w-full" /> : <DashboardCharts orders={orders} />}
+          </div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm md:p-4">
           <p className="text-sm font-semibold">Recent activity</p>
-          <div className="mt-3 space-y-3">
-            {loading ? <div className="bb-skeleton h-40 w-full" /> : null}
+          <div className="mt-2 space-y-2 md:mt-3 md:space-y-3">
+            {loading ? <div className="bb-skeleton h-32 w-full md:h-40" /> : null}
             {!loading &&
               recentActivity.map((activity) => (
-                <div key={activity.id} className="flex items-start gap-2 rounded-xl border border-slate-100 p-3">
-                  <Activity className="mt-0.5 h-4 w-4 text-emerald-600" />
-                  <div>
-                    <p className="text-sm">{activity.text}</p>
-                    <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusClass(activity.status)}`}>
+                <div key={activity.id} className="flex items-start gap-2 rounded-lg border border-slate-100 p-2.5 md:rounded-xl md:p-3">
+                  <Activity className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm">{activity.text}</p>
+                    <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium sm:text-xs ${statusClass(activity.status)}`}>
                       {activity.status}
                     </span>
                   </div>
@@ -123,41 +134,47 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2">
-          <div className="mb-3 flex items-center justify-between">
+      <div className="grid gap-3 md:gap-4 lg:grid-cols-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm md:p-4 lg:col-span-2">
+          <div className="mb-2 flex items-center justify-between gap-2 md:mb-3">
             <p className="text-sm font-semibold">Recent orders</p>
-            <Link href="/admin/orders" className="text-xs font-medium text-emerald-700">
-              Barchasini ko‘rish
+            <Link href="/admin/orders" className="shrink-0 text-xs font-medium text-emerald-700">
+              Barchasi
             </Link>
           </div>
-          <div className="space-y-3">
-            {loading ? <div className="bb-skeleton h-48 w-full" /> : null}
+          <div className="space-y-2 md:space-y-3">
+            {loading ? <div className="bb-skeleton h-40 w-full md:h-48" /> : null}
             {!loading &&
               recentOrders.map((order) => (
-                <div key={order.id} className="rounded-xl border border-slate-100 p-3">
-                  <div className="flex items-center justify-between">
+                <div key={order.id} className="rounded-lg border border-slate-100 p-2.5 md:rounded-xl md:p-3">
+                  <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-semibold">#{order.id.slice(0, 8)}</p>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusClass(order.status)}`}>{order.status}</span>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium sm:text-xs ${statusClass(order.status)}`}>
+                      {order.status}
+                    </span>
                   </div>
-                  <p className="mt-1 text-sm text-slate-600">{order.customerName}</p>
+                  <p className="mt-0.5 text-xs text-slate-600 sm:text-sm">{order.customerName}</p>
                   <p className="text-sm font-semibold">{formatMoneyUz(order.totalAmount)}</p>
                 </div>
               ))}
           </div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm md:p-4">
           <p className="text-sm font-semibold">Quick actions</p>
-          <div className="mt-3 space-y-2">
+          <div className="mt-2 space-y-1.5 md:mt-3 md:space-y-2">
             {[
               { href: '/admin/products', label: 'Yangi mahsulot qo‘shish' },
               { href: '/admin/businesses', label: 'Bizneslarni boshqarish' },
               { href: '/admin/orders', label: 'Buyurtmalarni tekshirish' },
               { href: '/admin/uploads', label: 'Upload jobs monitoring' },
             ].map((action) => (
-              <Link key={action.href} href={action.href} className="flex items-center justify-between rounded-xl border border-slate-200 p-3 text-sm hover:bg-slate-50">
-                <span>{action.label}</span>
-                <ArrowUpRight className="h-4 w-4 text-slate-500" />
+              <Link
+                key={action.href}
+                href={action.href}
+                className="flex min-h-11 items-center justify-between gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50 md:rounded-xl"
+              >
+                <span className="min-w-0 flex-1 leading-snug">{action.label}</span>
+                <ArrowUpRight className="h-4 w-4 shrink-0 text-slate-500" />
               </Link>
             ))}
           </div>

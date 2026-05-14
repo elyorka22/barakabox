@@ -7,15 +7,15 @@ const coupons = [
 
 export default function AdminCouponsPage() {
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-lg font-semibold">Coupons</h2>
-        <p className="text-sm text-slate-500">Promo-kod boshqaruvi (UI tayyor, backend endpoint keyingi bosqichda).</p>
+    <div className="space-y-3">
+      <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm md:rounded-2xl md:p-4">
+        <h2 className="text-base font-semibold md:text-lg">Coupons</h2>
+        <p className="text-xs text-slate-500 md:text-sm">Promo-kod boshqaruvi (UI tayyor, backend endpoint keyingi bosqichda).</p>
       </div>
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="space-y-3">
+      <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm md:rounded-2xl md:p-4">
+        <div className="space-y-2 md:space-y-3">
           {coupons.map((coupon) => (
-            <div key={coupon.id} className="flex items-center justify-between rounded-xl border border-slate-100 p-3">
+            <div key={coupon.id} className="flex items-center justify-between gap-2 rounded-lg border border-slate-100 p-2.5 md:rounded-xl md:p-3">
               <div>
                 <p className="font-semibold">{coupon.id}</p>
                 <p className="text-xs text-slate-500">Discount: {coupon.discount}</p>

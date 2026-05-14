@@ -32,11 +32,39 @@ export default function AdminCustomersPage() {
   }, [token]);
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Mijozlar (telefon)</h1>
-      <p className="text-sm text-slate-600">Keshbek va buyurtmalar telefon bo‘yicha yig‘iladi.</p>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+    <div className="space-y-3">
+      <div>
+        <h1 className="text-lg font-semibold md:text-xl">Mijozlar (telefon)</h1>
+        <p className="text-xs text-slate-600 md:text-sm">Keshbek va buyurtmalar telefon bo‘yicha yig‘iladi.</p>
+      </div>
+      {error ? <p className="rounded-lg border border-rose-200 bg-rose-50 p-2 text-sm text-red-700">{error}</p> : null}
+
+      <div className="md:hidden">
+        <div className="space-y-2">
+          {rows.map((c) => (
+            <div key={c.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+              <p className="font-mono text-sm font-semibold text-slate-900">{c.phone}</p>
+              <p className="mt-0.5 text-sm text-slate-700">{c.name ?? '—'}</p>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p className="text-slate-500">Keshbek</p>
+                  <p className="font-medium">{formatMoneyUz(c.cashbackBalance)}</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Sarflangan</p>
+                  <p className="font-medium">{formatMoneyUz(c.totalSpent)}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-slate-500">Buyurtmalar</p>
+                  <p className="font-medium">{c.totalOrders}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white md:block">
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-600">
             <tr>

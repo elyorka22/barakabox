@@ -77,19 +77,19 @@ export default function AdminOrdersPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-lg font-semibold">Orders</h2>
-        <p className="text-sm text-slate-500">Status timeline, filtering va detail drawer.</p>
+    <div className="space-y-3 md:space-y-4">
+      <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm md:rounded-2xl md:p-4">
+        <h2 className="text-base font-semibold md:text-lg">Orders</h2>
+        <p className="text-xs text-slate-500 md:text-sm">Status timeline, filtering va detail drawer.</p>
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           <input
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm md:rounded-xl"
             placeholder="Mijoz qidirish"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           <select
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm md:rounded-xl"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as 'ALL' | OrderStatus)}
           >
@@ -100,7 +100,11 @@ export default function AdminOrdersPage() {
               </option>
             ))}
           </select>
-          <button className="rounded-xl border border-slate-200 px-3 py-2 text-sm" onClick={() => void load()}>
+          <button
+            type="button"
+            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm font-medium md:rounded-xl"
+            onClick={() => void load()}
+          >
             Yangilash
           </button>
         </div>
@@ -112,7 +116,7 @@ export default function AdminOrdersPage() {
           <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">Buyurtma topilmadi</p>
         ) : null}
         {visible.map((order) => (
-          <div key={order.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div key={order.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm md:p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <p className="font-semibold">#{order.id.slice(0, 8)}</p>
@@ -140,7 +144,7 @@ export default function AdminOrdersPage() {
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <select
-                className="rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                className="min-h-11 min-w-[8.5rem] rounded-lg border border-slate-200 px-2 text-xs md:min-h-10"
                 value={order.status}
                 onChange={(e) => void updateStatus(order.id, e.target.value as OrderStatus)}
               >
