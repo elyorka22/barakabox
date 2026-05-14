@@ -1,4 +1,4 @@
-import { ProductUnit } from '@prisma/client';
+import { ProductUnit, CashbackType } from '@prisma/client';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { UploadService } from '../upload/upload.service';
@@ -77,6 +77,8 @@ export class ProductsService {
       price: number;
       stockQuantity: number;
       unit: ProductUnit;
+      cashbackType?: CashbackType;
+      cashbackValue?: number;
       categoryId?: string;
       imageUrl?: string;
       imageKey?: string;
@@ -122,6 +124,8 @@ export class ProductsService {
           imageCardKey: data.imageCardKey,
           imageThumbUrl: data.imageThumbUrl,
           imageThumbKey: data.imageThumbKey,
+          cashbackType: data.cashbackType ?? 'NONE',
+          cashbackValue: data.cashbackValue ?? 0,
           variants: {
             create: (data.variants?.length
               ? data.variants
@@ -187,6 +191,8 @@ export class ProductsService {
       price?: number;
       stockQuantity?: number;
       unit?: ProductUnit;
+      cashbackType?: CashbackType;
+      cashbackValue?: number;
       categoryId?: string;
       imageUrl?: string;
       imageKey?: string;
@@ -286,6 +292,8 @@ export class ProductsService {
           price: data.price,
           stockQuantity: data.stockQuantity,
           ...(data.unit !== undefined ? { unit: data.unit } : {}),
+          ...(data.cashbackType !== undefined ? { cashbackType: data.cashbackType } : {}),
+          ...(data.cashbackValue !== undefined ? { cashbackValue: data.cashbackValue } : {}),
           categoryId: data.categoryId,
           imageUrl: data.imageUrl,
           imageKey: data.imageKey,

@@ -12,6 +12,7 @@ import {
 } from '@onlinebozor/product-units';
 import { SafeImage } from '@/components/safe-image';
 import { incrementCart } from '@/lib/cart-store';
+import { cashbackBadgeText } from '@/lib/cashback';
 import { useCartPending, useCartQuantity } from '@/lib/use-cart-store';
 
 type Variant = {
@@ -32,6 +33,8 @@ type ProductCardProps = {
   variants?: Variant[];
   href?: string;
   imageUrl?: string | null;
+  cashbackType?: string | null;
+  cashbackValue?: number | null;
 };
 
 function stopLinkNavigation(event: React.SyntheticEvent) {
@@ -46,7 +49,10 @@ function ProductCardBase({
   unit: unitProp,
   href,
   variants,
+  cashbackType,
+  cashbackValue,
 }: ProductCardProps) {
+  const cashbackLabel = cashbackBadgeText(cashbackType ?? 'NONE', Number(cashbackValue ?? 0));
   const unitType =
     normalizeIncomingProductUnit(unitProp) ?? DEFAULT_PRODUCT_UNIT;
   const effectiveVariants = variants ?? EMPTY_VARIANTS;
@@ -223,6 +229,11 @@ function ProductCardBase({
         )}
         <div className="px-3 pb-3 pt-2.5 sm:px-3.5">
           <h3 className="line-clamp-1 text-[13px] font-semibold text-[#121212]">{name}</h3>
+          {cashbackLabel ? (
+            <p className="mt-1 inline-block rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
+              {cashbackLabel}
+            </p>
+          ) : null}
           <p className="mt-0.5 line-clamp-1 min-h-4 text-[11px] font-medium text-slate-600">{activeVariant?.flavor ?? ''}</p>
           {activeVariant ? (
             activeDiscountPrice ? (
@@ -283,6 +294,8 @@ function arePropsEqual(prev: ProductCardProps, next: ProductCardProps): boolean 
   if (prev.id !== next.id) return false;
   if (prev.name !== next.name) return false;
   if (prev.price !== next.price) return false;
+  if ((prev.cashbackType ?? '') !== (next.cashbackType ?? '')) return false;
+  if ((prev.cashbackValue ?? 0) !== (next.cashbackValue ?? 0)) return false;
   if ((prev.unit ?? '') !== (next.unit ?? '')) return false;
   if ((prev.imageUrl ?? '') !== (next.imageUrl ?? '')) return false;
   return areVariantsEqual(prev.variants, next.variants);

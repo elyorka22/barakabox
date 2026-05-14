@@ -12,6 +12,8 @@ export type CartItem = {
     price: string;
     unit?: string | null;
     unitType?: string | null;
+    cashbackType?: string | null;
+    cashbackValue?: number | null;
   } | null;
   variant?: {
     id: string;
@@ -20,7 +22,14 @@ export type CartItem = {
     description?: string | null;
     imageUrl?: string | null;
     price: number;
-    product?: { id: string; name: string; unit?: string | null; unitType?: string | null } | null;
+    product?: {
+      id: string;
+      name: string;
+      unit?: string | null;
+      unitType?: string | null;
+      cashbackType?: string | null;
+      cashbackValue?: number | null;
+    } | null;
   } | null;
   box?: {
     id: string;

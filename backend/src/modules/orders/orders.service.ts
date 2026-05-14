@@ -1,11 +1,13 @@
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { CartService } from '../cart/cart.service';
+import { CustomersService } from '../customers/customers.service';
 import { QueueService } from '../../infrastructure/queue/queue.service';
 import { EventEmitterService } from '../../infrastructure/events/event-emitter.service';
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
 import { OrderStatus, Prisma, UnitType } from '@prisma/client';
+import { canLinkCustomerFromPhone, cashbackPendingForLine } from '../customers/customers.utils';
 
 const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   NEW: ['PICKING', 'CANCELLED'],
@@ -16,11 +18,26 @@ const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   CANCELLED: [],
 };
 
+type PreparedLine = {
+  type: 'variant' | 'product' | 'box';
+  entityId: string;
+  productId: string | null;
+  title: string;
+  flavor: string | null;
+  size: string | null;
+  sku: string | null;
+  price: number;
+  quantity: number;
+  unitType: UnitType;
+  cashbackPendingTiyin: number;
+};
+
 @Injectable()
 export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cartService: CartService,
+    private readonly customersService: CustomersService,
     private readonly queueService: QueueService,
     private readonly events: EventEmitterService,
     private readonly configService: ConfigService,
@@ -28,58 +45,85 @@ export class OrdersService {
 
   async createFromCart(
     userId: string,
-    deliveryInfo?: { name?: string; phone?: string; address?: string },
+    deliveryInfo?: {
+      name?: string;
+      phone?: string;
+      address?: string;
+      cashbackRedeemTiyin?: number;
+    },
   ) {
     const cart = await this.cartService.getCart(userId);
     if (!cart || cart.items.length === 0) {
       throw new BadRequestException('Cart is empty');
     }
 
-    const normalizedItems = cart.items.map((item) => {
+    const preparedLines: PreparedLine[] = [];
+    for (const item of cart.items) {
       if (item.variant) {
-        const unitType = (item.variant.product?.unit ?? 'dona') as UnitType;
-        return {
-          type: 'variant' as const,
+        const p = item.variant.product;
+        const unitType = (p?.unit ?? 'dona') as UnitType;
+        const price = Number(item.variant.discountPrice ?? item.variant.price);
+        const quantity = item.quantity;
+        const lineSubtotal = price * quantity;
+        const pending = p
+          ? cashbackPendingForLine(lineSubtotal, p.cashbackType, p.cashbackValue)
+          : 0;
+        preparedLines.push({
+          type: 'variant',
           entityId: item.variant.id,
           productId: item.variant.productId,
           title: item.variant.title || item.product?.name || 'Variant',
           flavor: item.variant.flavor ?? null,
           size: item.variant.size ?? null,
           sku: item.variant.sku ?? null,
-          price: Number(item.variant.discountPrice ?? item.variant.price),
-          quantity: item.quantity,
+          price,
+          quantity,
           unitType,
-        };
-      }
-      if (item.product) {
-        return {
-          type: 'product' as const,
+          cashbackPendingTiyin: pending,
+        });
+      } else if (item.product) {
+        const p = item.product;
+        const unitType = (p.unit ?? 'dona') as UnitType;
+        const price = Number(p.price);
+        const quantity = item.quantity;
+        const lineSubtotal = price * quantity;
+        const pending = cashbackPendingForLine(lineSubtotal, p.cashbackType, p.cashbackValue);
+        preparedLines.push({
+          type: 'product',
           entityId: item.product.id,
           productId: item.product.id,
           title: item.product.name,
           flavor: null,
           size: null,
           sku: null,
-          price: Number(item.product.price),
-          quantity: item.quantity,
-          unitType: (item.product.unit ?? 'dona') as UnitType,
-        };
-      }
-      if (item.box) {
-        return {
-          type: 'box' as const,
+          price,
+          quantity,
+          unitType,
+          cashbackPendingTiyin: pending,
+        });
+      } else if (item.box) {
+        preparedLines.push({
+          type: 'box',
           entityId: item.box.id,
+          productId: null,
           title: item.box.name,
+          flavor: null,
+          size: null,
+          sku: null,
           price: Number(item.box.price),
           quantity: item.quantity,
           unitType: 'dona' as UnitType,
-        };
+          cashbackPendingTiyin: 0,
+        });
+      } else {
+        throw new BadRequestException('Invalid cart item');
       }
-      throw new BadRequestException('Invalid cart item');
-    });
+    }
+
+    const cashbackRedeemRequested = Math.max(0, Math.floor(deliveryInfo?.cashbackRedeemTiyin ?? 0));
 
     const idempotencyKey = createHash('sha256')
-      .update(`${userId}:${JSON.stringify(normalizedItems)}`)
+      .update(`${userId}:${cashbackRedeemRequested}:${JSON.stringify(preparedLines)}`)
       .digest('hex');
 
     const duplicateWindowSeconds = Number(
@@ -100,33 +144,67 @@ export class OrdersService {
       throw new ConflictException('Duplicate order attempt detected');
     }
 
-    const subtotal = normalizedItems.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0,
-    );
-    const threshold = Number(this.configService.get('FREE_DELIVERY_THRESHOLD') ?? 30);
-    const deliveryFeeValue = Number(this.configService.get('DELIVERY_FEE') ?? 3);
+    const subtotal = preparedLines.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const threshold = Number(this.configService.get('FREE_DELIVERY_THRESHOLD') ?? 30000);
+    const deliveryFeeValue = Number(this.configService.get('DELIVERY_FEE') ?? 3000);
     const deliveryFee = subtotal >= threshold ? 0 : deliveryFeeValue;
-    const total = subtotal + deliveryFee;
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new BadRequestException('User not found');
     }
 
+    const customerPhone = deliveryInfo?.phone?.trim() || 'N/A';
+    const canLink = canLinkCustomerFromPhone(deliveryInfo?.phone);
+
+    let redeem = cashbackRedeemRequested;
+    if (redeem > subtotal) {
+      redeem = subtotal;
+    }
+
+    const cashbackEarnedSnapshotTiyin = preparedLines.reduce((s, l) => s + l.cashbackPendingTiyin, 0);
+
     const order = await this.prisma.$transaction(async (tx) => {
+      let customerId: string | undefined;
+      if (canLink && deliveryInfo?.phone) {
+        const customer = await this.customersService.upsertByPhoneOnOrder(
+          deliveryInfo.phone,
+          deliveryInfo.name,
+          tx,
+        );
+        customerId = customer.id;
+        if (redeem > 0) {
+          const dec = await tx.customer.updateMany({
+            where: { id: customer.id, cashbackBalance: { gte: redeem } },
+            data: { cashbackBalance: { decrement: redeem } },
+          });
+          if (dec.count !== 1) {
+            throw new BadRequestException('Keshbek balansi yetarli emas');
+          }
+        }
+      } else if (redeem > 0) {
+        throw new BadRequestException('Keshbek ishlatish uchun telefon raqam kiriting');
+      } else {
+        redeem = 0;
+      }
+
+      const totalAmount = Math.max(0, subtotal + deliveryFee - redeem);
+
       const createdOrder = await tx.order.create({
         data: {
           userId,
+          customerId,
           customerName: deliveryInfo?.name?.trim() || user.fullName,
-          customerPhone: deliveryInfo?.phone?.trim() || 'N/A',
+          customerPhone,
           deliveryAddress: deliveryInfo?.address?.trim() || 'N/A',
           idempotencyKey,
           subtotalAmount: subtotal,
           deliveryFee,
-          totalAmount: total,
+          totalAmount,
+          cashbackRedeemTiyin: redeem,
+          cashbackEarnedSnapshotTiyin,
           items: {
-            create: normalizedItems.map((item) => ({
+            create: preparedLines.map((item) => ({
               productId: item.type === 'product' ? item.entityId : null,
               variantId: item.type === 'variant' ? item.entityId : null,
               boxId: item.type === 'box' ? item.entityId : null,
@@ -138,17 +216,31 @@ export class OrdersService {
               variantSnapshotSku: item.type === 'variant' ? item.sku : null,
               quantity: item.quantity,
               price: item.price,
+              cashbackPendingTiyin: item.cashbackPendingTiyin,
             })),
           },
         },
         include: { items: true },
       });
 
-      for (const item of normalizedItems) {
+      if (redeem > 0 && customerId) {
+        await tx.cashbackTransaction.create({
+          data: {
+            customerId,
+            orderId: createdOrder.id,
+            amount: redeem,
+            type: 'SPENT',
+            status: 'COMPLETED',
+          },
+        });
+      }
+
+      for (const item of preparedLines) {
         if (item.type !== 'product' && item.type !== 'variant') {
           continue;
         }
         const productId = item.productId;
+        if (!productId) continue;
         if (item.type === 'variant') {
           const variant = await tx.productVariant.findUnique({
             where: { id: item.entityId },
@@ -200,6 +292,78 @@ export class OrdersService {
     return order;
   }
 
+  private async finalizeDeliveredCashback(tx: Prisma.TransactionClient, orderId: string) {
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        customerId: true,
+        totalAmount: true,
+        cashbackEarnedSnapshotTiyin: true,
+        cashbackCreditedAt: true,
+      },
+    });
+    if (!order?.customerId || order.cashbackCreditedAt) {
+      return;
+    }
+    const earned = order.cashbackEarnedSnapshotTiyin;
+    if (earned > 0) {
+      await tx.customer.update({
+        where: { id: order.customerId },
+        data: {
+          cashbackBalance: { increment: earned },
+          totalSpent: { increment: order.totalAmount },
+          totalOrders: { increment: 1 },
+        },
+      });
+      await tx.cashbackTransaction.create({
+        data: {
+          customerId: order.customerId,
+          orderId: order.id,
+          amount: earned,
+          type: 'EARNED',
+          status: 'COMPLETED',
+        },
+      });
+    } else {
+      await tx.customer.update({
+        where: { id: order.customerId },
+        data: {
+          totalSpent: { increment: order.totalAmount },
+          totalOrders: { increment: 1 },
+        },
+      });
+    }
+    await tx.order.update({
+      where: { id: orderId },
+      data: { cashbackCreditedAt: new Date() },
+    });
+  }
+
+  private async refundOrderCashbackSpend(tx: Prisma.TransactionClient, orderId: string) {
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, customerId: true, cashbackRedeemTiyin: true },
+    });
+    if (!order?.customerId || !order.cashbackRedeemTiyin || order.cashbackRedeemTiyin <= 0) {
+      return;
+    }
+    const amt = order.cashbackRedeemTiyin;
+    await tx.customer.update({
+      where: { id: order.customerId },
+      data: { cashbackBalance: { increment: amt } },
+    });
+    await tx.cashbackTransaction.create({
+      data: {
+        customerId: order.customerId,
+        orderId: order.id,
+        amount: amt,
+        type: 'REFUND',
+        status: 'COMPLETED',
+      },
+    });
+  }
+
   private async applyStatus(orderId: string, nextStatus: OrderStatus, actor: { role: 'PICKER' | 'COURIER' | 'ADMIN'; userId: string }) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
@@ -242,6 +406,22 @@ export class OrdersService {
       updateData.cancelledAt = now;
     }
 
+    if (nextStatus === 'DELIVERED' || nextStatus === 'CANCELLED') {
+      return this.prisma.$transaction(async (tx) => {
+        const updated = await tx.order.update({
+          where: { id: orderId },
+          data: updateData,
+        });
+        if (nextStatus === 'DELIVERED') {
+          await this.finalizeDeliveredCashback(tx, orderId);
+        }
+        if (nextStatus === 'CANCELLED') {
+          await this.refundOrderCashbackSpend(tx, orderId);
+        }
+        return updated;
+      });
+    }
+
     return this.prisma.order.update({
       where: { id: orderId },
       data: updateData,
@@ -275,7 +455,13 @@ export class OrdersService {
   listPickerQueue() {
     return this.prisma.order.findMany({
       where: { status: { in: ['NEW', 'PICKING'] } },
-      include: { items: { include: { product: true, variant: true } }, user: true, assignedPicker: true, assignedCourier: true },
+      include: {
+        items: { include: { product: true, variant: true } },
+        user: true,
+        assignedPicker: true,
+        assignedCourier: true,
+        customer: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -283,14 +469,26 @@ export class OrdersService {
   listCourierQueue() {
     return this.prisma.order.findMany({
       where: { status: 'READY' },
-      include: { items: { include: { product: true, variant: true } }, user: true, assignedPicker: true, assignedCourier: true },
+      include: {
+        items: { include: { product: true, variant: true } },
+        user: true,
+        assignedPicker: true,
+        assignedCourier: true,
+        customer: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   listAll() {
     return this.prisma.order.findMany({
-      include: { items: { include: { product: true, variant: true } }, user: true, assignedPicker: true, assignedCourier: true },
+      include: {
+        items: { include: { product: true, variant: true } },
+        user: true,
+        assignedPicker: true,
+        assignedCourier: true,
+        customer: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
   }

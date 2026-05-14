@@ -16,6 +16,8 @@ type Product = {
   unitType?: string | null;
   imageUrl?: string | null;
   imageCardUrl?: string | null;
+  cashbackType?: string | null;
+  cashbackValue?: number | null;
   variants?: Array<{
     id: string;
     flavor?: string | null;
@@ -117,6 +119,8 @@ export default function DiscountsPage() {
                 }))}
                 href={`/products/${product.id}`}
                 imageUrl={product.imageCardUrl ?? product.imageUrl}
+                cashbackType={product.cashbackType ?? undefined}
+                cashbackValue={product.cashbackValue ?? undefined}
               />
             </motion.div>
           ))}

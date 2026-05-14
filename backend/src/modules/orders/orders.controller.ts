@@ -60,6 +60,7 @@ export class OrdersController {
       name: body?.name,
       phone: body?.phone,
       address: body?.address,
+      cashbackRedeemTiyin: body?.cashbackRedeemTiyin,
     });
   }
 

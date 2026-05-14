@@ -16,6 +16,8 @@ type Product = {
   unitType?: string | null;
   imageUrl?: string | null;
   imageCardUrl?: string | null;
+  cashbackType?: string | null;
+  cashbackValue?: number | null;
   variants?: Array<{
     id: string;
     flavor?: string | null;
@@ -141,6 +143,8 @@ export default function CategoryProductsClientPage() {
                   }))}
                   href={`/products/${item.id}`}
                   imageUrl={item.imageCardUrl ?? item.imageUrl}
+                  cashbackType={item.cashbackType ?? undefined}
+                  cashbackValue={item.cashbackValue ?? undefined}
                 />
               ))
             ) : (

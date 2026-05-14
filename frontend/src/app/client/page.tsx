@@ -20,6 +20,7 @@ import {
   formatQuantityWithUnit,
   normalizedProductSaleUnit,
 } from '@onlinebozor/product-units';
+import { estimateLineCashbackTiyin } from '@/lib/cashback';
 
 export default function ClientPage() {
   const deliveryFee = 15000;
@@ -60,12 +61,46 @@ export default function ClientPage() {
     }, 0);
   }, [cartItems]);
 
+  const cartCashbackEarnEstimate = useMemo(() => {
+    return cartItems.reduce((sum, item) => {
+      if (item.variant?.product) {
+        const line = Number(item.variant.price) * item.quantity;
+        return (
+          sum +
+          estimateLineCashbackTiyin(
+            line,
+            item.variant.product.cashbackType ?? 'NONE',
+            Number(item.variant.product.cashbackValue ?? 0),
+          )
+        );
+      }
+      if (item.product) {
+        const line = Number(item.product.price) * item.quantity;
+        return (
+          sum +
+          estimateLineCashbackTiyin(
+            line,
+            item.product.cashbackType ?? 'NONE',
+            Number(item.product.cashbackValue ?? 0),
+          )
+        );
+      }
+      return sum;
+    }, 0);
+  }, [cartItems]);
+
   return (
     <main className="bb-page">
       <section className="bb-shell">
         <h1 className="text-2xl font-bold text-[#121212]">Savat</h1>
         <p className="mt-1 text-sm text-gray-500">Mahsulotlarni tekshiring va rasmiylashtiring.</p>
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
+        {cartCashbackEarnEstimate > 0 && cartItems.length > 0 ? (
+          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-900">
+            <span className="font-semibold">Yetkazilgach keshbek (taxminan):</span>{' '}
+            +{formatMoneyUz(cartCashbackEarnEstimate)}
+          </div>
+        ) : null}
         <div className="mt-4 space-y-3">
           {cartItems.length === 0 ? (
             <div className="rounded-3xl bg-white p-5 text-center shadow-sm">

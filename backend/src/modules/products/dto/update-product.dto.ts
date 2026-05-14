@@ -1,4 +1,4 @@
-import { ProductUnit } from '@prisma/client';
+import { ProductUnit, CashbackType } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import { IsArray, IsEnum, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 
@@ -103,6 +103,16 @@ export class UpdateProductDto {
   @IsOptional()
   @IsString()
   imageThumbKey?: string;
+
+  @IsOptional()
+  @IsEnum(CashbackType)
+  cashbackType?: CashbackType;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  cashbackValue?: number;
 
   @IsOptional()
   @IsArray()

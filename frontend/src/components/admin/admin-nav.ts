@@ -3,6 +3,7 @@ import {
   Building2,
   ChartLine,
   ClipboardList,
+  Gift,
   Image as ImageIcon,
   LayoutDashboard,
   Logs,
@@ -13,6 +14,7 @@ import {
   Tags,
   UploadCloud,
   Users,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -28,6 +30,8 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: '/admin/businesses', label: 'Businesses', icon: Building2, group: 'Boshqaruv' },
   { href: '/admin/products', label: 'Products', icon: Package, group: 'Boshqaruv' },
   { href: '/admin/orders', label: 'Orders', icon: ClipboardList, group: 'Boshqaruv' },
+  { href: '/admin/customers', label: 'Customers', icon: Wallet, group: 'Boshqaruv' },
+  { href: '/admin/cashback-transactions', label: 'Cashback', icon: Gift, group: 'Boshqaruv' },
   { href: '/admin/users', label: 'Users', icon: Users, group: 'Boshqaruv' },
   { href: '/admin/categories', label: 'Categories', icon: Tags, group: 'Boshqaruv' },
   { href: '/admin/banners', label: 'Banners', icon: ImageIcon, group: 'Boshqaruv' },

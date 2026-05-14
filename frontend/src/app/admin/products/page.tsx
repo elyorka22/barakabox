@@ -36,6 +36,8 @@ type Product = {
     stock: number;
     imageUrl?: string | null;
   }>;
+  cashbackType?: string | null;
+  cashbackValue?: number | null;
 };
 
 type Business = { id: string; displayName: string };
@@ -56,6 +58,8 @@ export default function AdminProductsPage() {
     unit: DEFAULT_PRODUCT_UNIT as ProductUnitCode,
     businessId: '',
     categoryId: '',
+    cashbackType: 'NONE' as 'NONE' | 'PERCENT' | 'FIXED_AMOUNT',
+    cashbackValue: '0',
     variants: [
       { id: '', flavor: '', description: '', price: '1000', discountPrice: '', discountPercent: '', stock: '0', imageUrl: '' },
     ],
@@ -165,6 +169,8 @@ export default function AdminProductsPage() {
       price: aggregatePrice,
       stockQuantity: aggregateStock,
       unit: form.unit,
+      cashbackType: form.cashbackType,
+      cashbackValue: Math.max(0, Math.floor(Number(form.cashbackValue) || 0)),
       ...(form.categoryId ? { categoryId: form.categoryId } : {}),
       variants: normalizedVariants,
     };
@@ -187,6 +193,8 @@ export default function AdminProductsPage() {
         id: '',
         name: '',
         unit: DEFAULT_PRODUCT_UNIT,
+        cashbackType: 'NONE',
+        cashbackValue: '0',
         variants: [{ id: '', flavor: '', description: '', price: '1000', discountPrice: '', discountPercent: '', stock: '0', imageUrl: '' }],
       }));
       setUploadingVariantImages({});
@@ -205,6 +213,8 @@ export default function AdminProductsPage() {
       unit: normalizeIncomingProductUnit(item.unit ?? item.unitType) ?? DEFAULT_PRODUCT_UNIT,
       businessId: item.businessId,
       categoryId: item.category?.id ?? '',
+      cashbackType: (item.cashbackType as 'NONE' | 'PERCENT' | 'FIXED_AMOUNT') ?? 'NONE',
+      cashbackValue: String(item.cashbackValue ?? 0),
       variants:
         item.variants?.map((variant) => ({
           id: variant.id ?? '',
@@ -310,6 +320,36 @@ export default function AdminProductsPage() {
               ))}
             </select>
             <p className="mt-1 text-[11px] text-slate-500">Faqat ro‘yxatdagi birliklar saqlanadi (standart: dona).</p>
+          </div>
+          <div className="min-w-0 max-w-full sm:col-span-2 lg:col-span-3">
+            <label className="mb-1 block text-xs font-medium text-slate-700">Keshbek</label>
+            <div className="flex flex-wrap gap-2">
+              <select
+                className="min-w-[140px] flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                value={form.cashbackType}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    cashbackType: e.target.value as 'NONE' | 'PERCENT' | 'FIXED_AMOUNT',
+                  }))
+                }
+              >
+                <option value="NONE">O‘chiq</option>
+                <option value="PERCENT">Foiz</option>
+                <option value="FIXED_AMOUNT">Fikslangan summa</option>
+              </select>
+              <input
+                className="w-32 min-w-0 rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                type="number"
+                min={0}
+                placeholder={form.cashbackType === 'PERCENT' ? '%' : 'Summa'}
+                value={form.cashbackValue}
+                onChange={(e) => setForm((prev) => ({ ...prev, cashbackValue: e.target.value }))}
+              />
+            </div>
+            <p className="mt-1 text-[11px] text-slate-500">
+              Foiz: 1–100. Fikslangan: mahsulot qatori bo‘yicha yuqori chegara (xuddi narx birligi bilan).
+            </p>
           </div>
           <div className="min-w-0 max-w-full">
             <label className="mb-1 block text-xs font-medium text-slate-700">Do'kon</label>
