@@ -48,7 +48,7 @@ export class AdminStaffUsersController {
     }
     const ar = (actor.role ?? '').toUpperCase();
     const tr = target.role;
-    if (actor.id === target.id) {
+    if (actor.sub === target.id) {
       if (mode === 'privileged') {
         throw new ForbiddenException('O‘z akkauntingiz uchun bu amal taqiqlangan');
       }
