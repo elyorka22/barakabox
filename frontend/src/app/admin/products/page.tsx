@@ -160,21 +160,27 @@ export default function AdminProductsPage() {
     const aggregatePrice = firstVariant.price;
     const aggregateStock = normalizedVariants.reduce((sum, variant) => sum + variant.stock, 0);
 
-    const payload = {
-      businessId: form.businessId,
+    const basePayload = {
       name: form.name.trim(),
       price: aggregatePrice,
       stockQuantity: aggregateStock,
       unit: form.unit,
-      categoryId: form.categoryId || undefined,
+      ...(form.categoryId ? { categoryId: form.categoryId } : {}),
       variants: normalizedVariants,
     };
-    if (!payload.businessId || !payload.name || payload.price <= 0) return;
+
+    if (!basePayload.name || basePayload.price <= 0) return;
+
     try {
       if (form.id) {
-        await api.patch(`/products/${form.id}`, payload, token);
+        // PATCH: whitelist-only DTO — do not send businessId or other non-DTO fields.
+        console.debug('[admin products] PATCH', { path: `/products/${form.id}`, body: basePayload });
+        await api.patch(`/products/${form.id}`, basePayload, token);
       } else {
-        await api.post('/products', payload, token);
+        if (!form.businessId) return;
+        const createPayload = { ...basePayload, businessId: form.businessId };
+        console.debug('[admin products] POST', { path: '/products', body: createPayload });
+        await api.post('/products', createPayload, token);
       }
       setForm((prev) => ({
         ...prev,
