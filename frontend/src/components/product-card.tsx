@@ -12,7 +12,8 @@ import {
 } from '@onlinebozor/product-units';
 import { SafeImage } from '@/components/safe-image';
 import { incrementCart } from '@/lib/cart-store';
-import { cashbackBadgeText } from '@/lib/cashback';
+import { getCashbackPromoLabel } from '@/lib/cashback';
+import { CashbackBadge } from '@/components/cashback-badge';
 import { useCartPending, useCartQuantity } from '@/lib/use-cart-store';
 
 type Variant = {
@@ -52,7 +53,7 @@ function ProductCardBase({
   cashbackType,
   cashbackValue,
 }: ProductCardProps) {
-  const cashbackLabel = cashbackBadgeText(cashbackType ?? 'NONE', Number(cashbackValue ?? 0));
+  const cashbackPromo = getCashbackPromoLabel(cashbackType ?? 'NONE', Number(cashbackValue ?? 0));
   const unitType =
     normalizeIncomingProductUnit(unitProp) ?? DEFAULT_PRODUCT_UNIT;
   const effectiveVariants = variants ?? EMPTY_VARIANTS;
@@ -159,10 +160,15 @@ function ProductCardBase({
                 </div>
               ))}
             </div>
-            {discountPercent ? (
-              <span className="absolute left-2 top-2 rounded-lg bg-rose-600/90 px-2 py-1 text-[10px] font-semibold text-white shadow-sm backdrop-blur-sm">
-                -{discountPercent}%
-              </span>
+            {discountPercent || cashbackPromo ? (
+              <div className="pointer-events-none absolute left-2 top-2 z-[5] flex max-w-[58%] flex-col items-start gap-1.5">
+                {discountPercent ? (
+                  <span className="inline-flex items-center rounded-full bg-gradient-to-br from-rose-600 via-rose-500 to-rose-700 px-2 py-1 text-[10px] font-extrabold leading-none tracking-tight text-white shadow-md shadow-rose-600/40 ring-1 ring-white/30">
+                    -{discountPercent}%
+                  </span>
+                ) : null}
+                <CashbackBadge cashbackType={cashbackType} cashbackValue={cashbackValue} />
+              </div>
             ) : null}
             {effectiveVariants.length > 1 ? (
               <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1">
@@ -229,11 +235,6 @@ function ProductCardBase({
         )}
         <div className="px-3 pb-3 pt-2.5 sm:px-3.5">
           <h3 className="line-clamp-1 text-[13px] font-semibold text-[#121212]">{name}</h3>
-          {cashbackLabel ? (
-            <p className="mt-1 inline-block rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800">
-              {cashbackLabel}
-            </p>
-          ) : null}
           <p className="mt-0.5 line-clamp-1 min-h-4 text-[11px] font-medium text-slate-600">{activeVariant?.flavor ?? ''}</p>
           {activeVariant ? (
             activeDiscountPrice ? (
