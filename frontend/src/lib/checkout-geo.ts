@@ -16,7 +16,31 @@ export function insecureGeoMessageUz(): string {
   return 'Joylashuv faqat xavfsiz (HTTPS) sahifada ishlaydi. Ilova yoki brauzer HTTPS rejimida ochilganini tekshiring.';
 }
 
-/** OpenStreetMap reverse geocode via same-origin Next.js proxy. */
+/** Forward geocode from free text (Nominatim via app proxy). */
+export async function forwardGeocodeOsm(query: string): Promise<{
+  lat: number;
+  lon: number;
+  displayName: string | null;
+} | null> {
+  const q = query.trim();
+  if (q.length < 4) return null;
+  try {
+    const res = await fetch(`/api/geocode/search?q=${encodeURIComponent(q)}`);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { lat?: number | null; lon?: number | null; displayName?: string | null };
+    if (data.lat == null || data.lon == null || !Number.isFinite(data.lat) || !Number.isFinite(data.lon)) {
+      return null;
+    }
+    return {
+      lat: data.lat,
+      lon: data.lon,
+      displayName: typeof data.displayName === 'string' && data.displayName.trim() ? data.displayName.trim() : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function reverseGeocodeOsm(lat: number, lng: number): Promise<string | null> {
   try {
     const res = await fetch(

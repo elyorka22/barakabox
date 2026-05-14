@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle2, ChevronLeft, Loader2, Map, MapPin, Trash2 } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, Loader2, MapPin, Trash2 } from 'lucide-react';
 import { api, authStorage } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
 import { CartSummary, FreeDeliveryProgressLine } from '@/components/cart-summary';
@@ -20,7 +20,13 @@ import {
   type DeliverySpeed,
 } from '@/lib/delivery-pricing';
 import { cartCashbackEarnEstimate, cartSubtotal } from '@/lib/cart-totals';
-import { geolocationErrorMessageUz, insecureGeoMessageUz, reverseGeocodeOsm, shortenAddressLine } from '@/lib/checkout-geo';
+import {
+  forwardGeocodeOsm,
+  geolocationErrorMessageUz,
+  insecureGeoMessageUz,
+  reverseGeocodeOsm,
+  shortenAddressLine,
+} from '@/lib/checkout-geo';
 import { phoneDigitsForApi, isUzbekPhoneComplete, onPhoneUzInputChange } from '@/lib/phone-uz';
 
 const STICKY_BOTTOM = 'calc(var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))';
@@ -36,16 +42,12 @@ export type SavedCustomerAddress = {
   isDefault: boolean;
 };
 
-function buildOrderAddress(input: { speed: DeliverySpeed; street: string; apartment: string }): string {
+function buildOrderAddress(input: { speed: DeliverySpeed; street: string }): string {
   const method =
     input.speed === 'EXPRESS'
       ? 'Tezkor yetkazish (15–30 daqiqa)'
       : 'Oddiy yetkazish (1–2 soat)';
-  const lines = [
-    `[${method}]`,
-    input.street.trim(),
-    input.apartment.trim() ? `Xonadon / ofis: ${input.apartment.trim()}` : '',
-  ].filter(Boolean);
+  const lines = [`[${method}]`, input.street.trim()].filter(Boolean);
   return lines.join('\n');
 }
 
@@ -54,7 +56,12 @@ export function CheckoutScreen() {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
-  const [apartment, setApartment] = useState('');
+  const [locationMode, setLocationMode] = useState<'AUTO' | 'MANUAL'>('AUTO');
+  const [autoAddressEditOpen, setAutoAddressEditOpen] = useState(false);
+  const autoAddressEditOpenRef = useRef(false);
+  const [manualGeocodeLoading, setManualGeocodeLoading] = useState(false);
+  const [manualGeocodeError, setManualGeocodeError] = useState<string | null>(null);
+  const manualGeocodeSeq = useRef(0);
   const [deliverySpeed, setDeliverySpeed] = useState<DeliverySpeed>('STANDARD');
 
   useEffect(() => {
@@ -174,6 +181,81 @@ export function CheckoutScreen() {
     };
   }, [apiPhone, token]);
 
+  useEffect(() => {
+    autoAddressEditOpenRef.current = autoAddressEditOpen;
+  }, [autoAddressEditOpen]);
+
+  useEffect(() => {
+    if (locationMode !== 'MANUAL') {
+      manualGeocodeSeq.current += 1;
+      return;
+    }
+    const q = address.trim();
+    if (q.length < 6) {
+      manualGeocodeSeq.current += 1;
+      setManualGeocodeLoading(false);
+      setManualGeocodeError(null);
+      setGeoCoords(null);
+      setFormattedOsmAddress(null);
+      setGeoState('idle');
+      return;
+    }
+    const seq = (manualGeocodeSeq.current += 1);
+    const t = window.setTimeout(() => {
+      void (async () => {
+        setManualGeocodeLoading(true);
+        setManualGeocodeError(null);
+        const r = await forwardGeocodeOsm(q);
+        if (manualGeocodeSeq.current !== seq) return;
+        setManualGeocodeLoading(false);
+        if (r) {
+          setGeoCoords({ lat: r.lat, lng: r.lon });
+          setFormattedOsmAddress(r.displayName);
+          setGeoState('ok');
+          setManualGeocodeError(null);
+        } else {
+          setGeoCoords(null);
+          setFormattedOsmAddress(null);
+          setGeoState('idle');
+          setManualGeocodeError(
+            'Manzil bazadan topilmadi. Batafsilroq yozing yoki «Avtomatik aniqlash»dan foydalaning.',
+          );
+        }
+      })();
+    }, 650);
+    return () => {
+      window.clearTimeout(t);
+    };
+  }, [address, locationMode]);
+
+  const pickLocationModeAuto = () => {
+    setLocationMode('AUTO');
+    setManualGeocodeError(null);
+    setManualGeocodeLoading(false);
+    setGeoState('idle');
+    setGeoCoords(null);
+    setFormattedOsmAddress(null);
+    setAddress('');
+    setReverseLoading(false);
+    setAutoAddressEditOpen(false);
+    autoAddressEditOpenRef.current = false;
+    setSelectedSavedId(null);
+  };
+
+  const pickLocationModeManual = () => {
+    setLocationMode('MANUAL');
+    setAutoAddressEditOpen(false);
+    autoAddressEditOpenRef.current = false;
+    setGeoState('idle');
+    setGeoCoords(null);
+    setFormattedOsmAddress(null);
+    setAddress('');
+    setReverseLoading(false);
+    setManualGeocodeError(null);
+    setManualGeocodeLoading(false);
+    setSelectedSavedId(null);
+  };
+
   const requestLocation = () => {
     if (typeof window !== 'undefined' && window.isSecureContext === false) {
       setGeoState('insecure');
@@ -185,7 +267,10 @@ export function CheckoutScreen() {
       setGeoState('unsupported');
       return;
     }
+    setLocationMode('AUTO');
     setSelectedSavedId(null);
+    autoAddressEditOpenRef.current = false;
+    setAutoAddressEditOpen(false);
     setGeoState('loading');
     setReverseLoading(false);
     setFormattedOsmAddress(null);
@@ -194,17 +279,15 @@ export function CheckoutScreen() {
       (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
+        const coordStr = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
         setGeoCoords({ lat, lng });
         setGeoState('ok');
+        setAddress(coordStr);
         setReverseLoading(true);
         void (async () => {
           const line = await reverseGeocodeOsm(lat, lng);
           setFormattedOsmAddress(line);
-          setAddress((prev) => {
-            const p = prev.trim();
-            if (p.length >= 4) return prev;
-            return line ?? prev;
-          });
+          setAddress((prev) => (autoAddressEditOpenRef.current ? prev : line ?? coordStr));
           setReverseLoading(false);
         })();
       },
@@ -222,12 +305,18 @@ export function CheckoutScreen() {
   };
 
   const applySavedAddress = (row: SavedCustomerAddress) => {
+    setLocationMode('AUTO');
+    setAutoAddressEditOpen(false);
+    autoAddressEditOpenRef.current = false;
     setSelectedSavedId(row.id);
     setGeoCoords({ lat: row.latitude, lng: row.longitude });
     setGeoState('ok');
+    const addrText = row.address?.trim() || `${row.latitude.toFixed(5)}, ${row.longitude.toFixed(5)}`;
     setFormattedOsmAddress(row.address?.trim() ? row.address : null);
-    setAddress(row.address?.trim() ? row.address : '');
+    setAddress(addrText);
     setReverseLoading(false);
+    setManualGeocodeError(null);
+    setManualGeocodeLoading(false);
   };
 
   const deleteSavedAddress = async (id: string) => {
@@ -263,8 +352,13 @@ export function CheckoutScreen() {
 
   const addressOk = address.trim().length >= 4;
   const phoneOk = isUzbekPhoneComplete(phone);
-  const geoOk = geoState === 'ok' && geoCoords !== null;
+  const geoOk =
+    geoCoords !== null &&
+    geoState === 'ok' &&
+    (locationMode === 'MANUAL' ? !manualGeocodeLoading : true);
   const canSubmit = !loading && cartItems.length > 0 && phoneOk && addressOk && geoOk;
+
+  const canOfferSave = phoneOk && addressOk && geoOk && !selectedSavedId;
 
   const orderAddressLabel = useMemo(() => {
     if (selectedSavedId) {
@@ -285,7 +379,6 @@ export function CheckoutScreen() {
       const composedAddress = buildOrderAddress({
         speed: deliverySpeed,
         street: address,
-        apartment,
       });
       const order = await api.post<{
         id: string;
@@ -301,7 +394,7 @@ export function CheckoutScreen() {
           latitude: geoCoords.lat,
           longitude: geoCoords.lng,
           formattedAddress: formattedOsmAddress?.trim() || undefined,
-          deliveryNote: apartment.trim() || undefined,
+          deliveryNote: undefined,
           addressLabel: orderAddressLabel,
           deliverySpeed,
           cashbackRedeemTiyin: redeemTiyin > 0 ? redeemTiyin : undefined,
@@ -345,7 +438,9 @@ export function CheckoutScreen() {
       <section
         className="mx-auto w-full max-w-lg px-4 pb-6 pt-2"
         style={{
-          paddingBottom: placed ? undefined : 'calc(11rem + var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))',
+          paddingBottom: placed
+            ? undefined
+            : 'calc(12.5rem + var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))',
         }}
       >
         {!placed ? (
@@ -363,10 +458,10 @@ export function CheckoutScreen() {
             <p className="mt-1 pl-1 text-[13px] font-medium text-slate-500">Yetkazib berish ma&apos;lumotlari va to&apos;lov</p>
 
             {cartLoading ? (
-              <div className="mt-5 space-y-3">
-                <div className="h-40 animate-pulse rounded-[22px] bg-white shadow-sm ring-1 ring-slate-100" />
-                <div className="h-52 animate-pulse rounded-[22px] bg-white shadow-sm ring-1 ring-slate-100" />
-                <div className="h-36 animate-pulse rounded-[22px] bg-white shadow-sm ring-1 ring-slate-100" />
+              <div className="mt-3 space-y-2.5">
+                <div className="h-28 animate-pulse rounded-2xl bg-white shadow-sm ring-1 ring-slate-100" />
+                <div className="h-44 animate-pulse rounded-2xl bg-white shadow-sm ring-1 ring-slate-100" />
+                <div className="h-32 animate-pulse rounded-2xl bg-white shadow-sm ring-1 ring-slate-100" />
               </div>
             ) : cartItems.length === 0 ? (
               <div className="mt-8 rounded-[22px] bg-white p-6 text-center shadow-sm ring-1 ring-slate-100">
@@ -387,10 +482,10 @@ export function CheckoutScreen() {
                   </div>
                 ) : null}
 
-                <div className="mt-5 space-y-4">
-                  <div className="rounded-[22px] bg-white p-4 shadow-[0_6px_28px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/90">
+                <div className="mt-3 space-y-3">
+                  <div className="rounded-2xl bg-white p-3 shadow-[0_4px_20px_rgba(15,23,42,0.05)] ring-1 ring-slate-100/90">
                     <h2 className="text-[15px] font-bold text-[#121212]">Yetkazib berish</h2>
-                    <p className="mt-0.5 text-[12px] text-slate-500">Manzil va aloqa</p>
+                    <p className="text-[11px] text-slate-500">Manzil va aloqa</p>
 
                     <label className="mt-4 block text-[12px] font-semibold text-slate-600" htmlFor="co-name">
                       Ism
@@ -482,152 +577,223 @@ export function CheckoutScreen() {
                       </div>
                     ) : null}
 
-                    <p className="mt-5 text-[12px] font-semibold text-slate-800">
-                      Joylashuv <span className="text-rose-600">*</span>
-                    </p>
-                    <button
-                      type="button"
-                      onClick={requestLocation}
-                      disabled={geoState === 'loading'}
-                      className="mt-2 flex min-h-[3.5rem] w-full items-center justify-center gap-2 rounded-[18px] bg-[#16A34A] px-4 text-[15px] font-bold text-white shadow-lg shadow-green-600/25 transition active:scale-[0.99] disabled:opacity-70"
-                    >
-                      {geoState === 'loading' ? (
-                        <>
-                          <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-                          Aniqlanmoqda…
-                        </>
-                      ) : (
-                        <>
-                          <MapPin className="h-5 w-5" strokeWidth={2.2} aria-hidden />
-                          Joylashuvni aniqlash
-                        </>
-                      )}
-                    </button>
-                    {geoState === 'ok' && geoCoords ? (
-                      <div className="mt-3 rounded-[16px] border border-emerald-100 bg-emerald-50/90 px-3 py-2.5">
-                        <div className="flex items-start gap-2">
-                          <Map className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" strokeWidth={2} aria-hidden />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[12px] font-bold text-emerald-900">Joylashuv aniqlandi</p>
-                            <p className="mt-0.5 text-[11px] font-medium leading-snug text-emerald-950/90">
-                              {reverseLoading
-                                ? 'Manzil matni yuklanmoqda…'
-                                : shortenAddressLine(
-                                    formattedOsmAddress ||
-                                      address.trim() ||
-                                      `${geoCoords.lat.toFixed(5)}, ${geoCoords.lng.toFixed(5)}`,
-                                    96,
-                                  )}
-                            </p>
-                          </div>
-                          <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" aria-hidden />
-                        </div>
-                      </div>
-                    ) : null}
-                    {geoState === 'denied' ? (
-                      <div className="mt-2 space-y-2 rounded-[14px] bg-rose-50 px-3 py-2 text-[12px] text-rose-800">
-                        <p>{geolocationErrorMessageUz(1)}</p>
+                    <div className="mt-3" role="tablist" aria-label="Manzil kiritish rejimi">
+                      <div className="flex rounded-xl bg-slate-100/90 p-0.5">
                         <button
                           type="button"
-                          className="text-[12px] font-semibold text-rose-900 underline"
-                          onClick={requestLocation}
+                          role="tab"
+                          aria-selected={locationMode === 'AUTO'}
+                          onClick={pickLocationModeAuto}
+                          className={`flex min-h-[40px] flex-1 items-center justify-center rounded-[11px] px-1.5 text-[11px] font-bold leading-tight transition sm:text-[12px] ${
+                            locationMode === 'AUTO'
+                              ? 'bg-white text-[#121212] shadow-sm ring-1 ring-slate-200/80'
+                              : 'text-slate-600'
+                          }`}
                         >
-                          Qayta urinish
+                          <span className="text-center">📍 Avtomatik aniqlash</span>
+                        </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={locationMode === 'MANUAL'}
+                          onClick={pickLocationModeManual}
+                          className={`flex min-h-[40px] flex-1 items-center justify-center rounded-[11px] px-1.5 text-[11px] font-bold leading-tight transition sm:text-[12px] ${
+                            locationMode === 'MANUAL'
+                              ? 'bg-white text-[#121212] shadow-sm ring-1 ring-slate-200/80'
+                              : 'text-slate-600'
+                          }`}
+                        >
+                          <span className="text-center">✍️ Qo‘lda kiritish</span>
                         </button>
                       </div>
-                    ) : null}
-                    {geoState === 'timeout' ? (
-                      <div className="mt-2 space-y-2 rounded-[14px] bg-rose-50 px-3 py-2 text-[12px] text-rose-800">
-                        <p>{geolocationErrorMessageUz(3)}</p>
-                        <button type="button" className="font-semibold underline" onClick={requestLocation}>
-                          Qayta urinish
-                        </button>
-                      </div>
-                    ) : null}
-                    {geoState === 'unavailable' ? (
-                      <div className="mt-2 space-y-2 rounded-[14px] bg-rose-50 px-3 py-2 text-[12px] text-rose-800">
-                        <p>{geolocationErrorMessageUz(2)}</p>
-                        <button type="button" className="font-semibold underline" onClick={requestLocation}>
-                          Qayta urinish
-                        </button>
-                      </div>
-                    ) : null}
-                    {geoState === 'error' ? (
-                      <div className="mt-2 space-y-2 rounded-[14px] bg-rose-50 px-3 py-2 text-[12px] text-rose-800">
-                        <p>{geolocationErrorMessageUz(undefined)}</p>
-                        <button type="button" className="font-semibold underline" onClick={requestLocation}>
-                          Qayta urinish
-                        </button>
-                      </div>
-                    ) : null}
-                    {geoState === 'unsupported' ? (
-                      <p className="mt-2 rounded-[14px] bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
-                        Brauzeringiz joylashuvni qo&apos;llab-quvvatlamaydi.
-                      </p>
-                    ) : null}
-                    {geoState === 'insecure' ? (
-                      <p className="mt-2 rounded-[14px] bg-amber-50 px-3 py-2 text-[12px] text-amber-900">
-                        {insecureGeoMessageUz()}
-                      </p>
-                    ) : null}
+                    </div>
 
-                    <label className="mt-5 block text-[12px] font-semibold text-slate-800" htmlFor="co-addr">
-                      Manzil <span className="text-rose-600">*</span>
-                    </label>
-                    <textarea
-                      id="co-addr"
-                      rows={3}
-                      className="mt-1.5 w-full resize-none rounded-[16px] border-2 border-slate-200 bg-white px-4 py-3 text-[15px] text-[#121212] outline-none transition focus:border-[#16A34A] focus:ring-2 focus:ring-[#16A34A]/20"
-                      placeholder="Ko'cha, uy, orientir…"
-                      value={address}
-                      onChange={(e) => {
-                        setAddress(e.target.value);
-                        setSelectedSavedId(null);
-                      }}
-                    />
+                    {locationMode === 'AUTO' ? (
+                      <div className="mt-2 space-y-2">
+                        {geoState === 'ok' && geoCoords ? (
+                          <div className="rounded-xl border border-emerald-100 bg-emerald-50/90 px-2.5 py-2">
+                            <div className="flex items-start gap-2">
+                              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[11px] font-bold text-emerald-900">Joylashuv aniqlandi</p>
+                                <p className="mt-0.5 text-[12px] font-medium leading-snug text-emerald-950/90">
+                                  {reverseLoading
+                                    ? 'Manzil yuklanmoqda…'
+                                    : shortenAddressLine(
+                                        formattedOsmAddress ||
+                                          address.trim() ||
+                                          `${geoCoords.lat.toFixed(5)}, ${geoCoords.lng.toFixed(5)}`,
+                                        120,
+                                      )}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-emerald-100/80 pt-2">
+                              <button
+                                type="button"
+                                className="text-[11px] font-semibold text-emerald-800 underline"
+                                onClick={requestLocation}
+                              >
+                                Qayta aniqlash
+                              </button>
+                              <button
+                                type="button"
+                                className="text-[11px] font-semibold text-emerald-800 underline"
+                                onClick={() => {
+                                  setAutoAddressEditOpen((v) => {
+                                    const nv = !v;
+                                    autoAddressEditOpenRef.current = nv;
+                                    return nv;
+                                  });
+                                }}
+                              >
+                                {autoAddressEditOpen ? 'Tahrirlashni yopish' : 'Manzilni tahrirlash'}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={requestLocation}
+                            disabled={geoState === 'loading'}
+                            className="flex min-h-[2.75rem] w-full items-center justify-center gap-2 rounded-xl bg-[#16A34A] px-3 text-[14px] font-bold text-white shadow-md shadow-green-600/20 transition active:scale-[0.99] disabled:opacity-70"
+                          >
+                            {geoState === 'loading' ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                                Aniqlanmoqda…
+                              </>
+                            ) : (
+                              <>
+                                <MapPin className="h-4 w-4" strokeWidth={2.2} aria-hidden />
+                                Joylashuvni aniqlash
+                              </>
+                            )}
+                          </button>
+                        )}
 
-                    <label className="mt-4 block text-[12px] font-semibold text-slate-600" htmlFor="co-apt">
-                      Xonadon / ofis
-                    </label>
-                    <input
-                      id="co-apt"
-                      className="mt-1.5 w-full rounded-[16px] border border-slate-200 bg-slate-50/80 px-4 py-3.5 text-[15px] text-[#121212] outline-none transition focus:border-[#16A34A] focus:bg-white focus:ring-2 focus:ring-[#16A34A]/20"
-                      placeholder="Ixcham ofis, qavat (ixtiyoriy)"
-                      value={apartment}
-                      onChange={(e) => setApartment(e.target.value)}
-                    />
+                        {geoState === 'denied' ? (
+                          <div className="rounded-xl bg-rose-50 px-2.5 py-2 text-[11px] leading-snug text-rose-800">
+                            <p>{geolocationErrorMessageUz(1)}</p>
+                            <button
+                              type="button"
+                              className="mt-1 text-[11px] font-semibold text-rose-900 underline"
+                              onClick={requestLocation}
+                            >
+                              Qayta urinish
+                            </button>
+                          </div>
+                        ) : null}
+                        {geoState === 'timeout' ? (
+                          <div className="rounded-xl bg-rose-50 px-2.5 py-2 text-[11px] text-rose-800">
+                            <p>{geolocationErrorMessageUz(3)}</p>
+                            <button type="button" className="mt-1 font-semibold underline" onClick={requestLocation}>
+                              Qayta urinish
+                            </button>
+                          </div>
+                        ) : null}
+                        {geoState === 'unavailable' ? (
+                          <div className="rounded-xl bg-rose-50 px-2.5 py-2 text-[11px] text-rose-800">
+                            <p>{geolocationErrorMessageUz(2)}</p>
+                            <button type="button" className="mt-1 font-semibold underline" onClick={requestLocation}>
+                              Qayta urinish
+                            </button>
+                          </div>
+                        ) : null}
+                        {geoState === 'error' ? (
+                          <div className="rounded-xl bg-rose-50 px-2.5 py-2 text-[11px] text-rose-800">
+                            <p>{geolocationErrorMessageUz(undefined)}</p>
+                            <button type="button" className="mt-1 font-semibold underline" onClick={requestLocation}>
+                              Qayta urinish
+                            </button>
+                          </div>
+                        ) : null}
+                        {geoState === 'unsupported' ? (
+                          <p className="rounded-xl bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
+                            Brauzeringiz joylashuvni qo&apos;llab-quvvatlamaydi.
+                          </p>
+                        ) : null}
+                        {geoState === 'insecure' ? (
+                          <p className="rounded-xl bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
+                            {insecureGeoMessageUz()}
+                          </p>
+                        ) : null}
 
-                    <div className="mt-4 rounded-[14px] border border-slate-100 bg-slate-50/80 px-3 py-3">
-                      <label className="flex cursor-pointer items-center gap-2">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded border-slate-300 text-[#16A34A] focus:ring-[#16A34A]"
-                          checked={saveAddressChecked}
-                          onChange={(e) => setSaveAddressChecked(e.target.checked)}
+                        {autoAddressEditOpen ? (
+                          <textarea
+                            id="co-addr-auto-edit"
+                            rows={2}
+                            className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-[14px] text-[#121212] outline-none transition focus:border-[#16A34A] focus:ring-2 focus:ring-[#16A34A]/15"
+                            placeholder="Manzilni tuzating…"
+                            value={address}
+                            onChange={(e) => {
+                              setAddress(e.target.value);
+                              setSelectedSavedId(null);
+                            }}
+                          />
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="mt-2 space-y-1.5">
+                        <textarea
+                          id="co-addr-manual"
+                          rows={3}
+                          className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[14px] text-[#121212] outline-none transition focus:border-[#16A34A] focus:ring-2 focus:ring-[#16A34A]/15"
+                          placeholder="Ko‘cha, uy, mo‘ljal..."
+                          value={address}
+                          onChange={(e) => {
+                            setAddress(e.target.value);
+                            setSelectedSavedId(null);
+                          }}
                         />
-                        <span className="text-[13px] font-semibold text-[#121212]">Manzilni saqlash</span>
-                      </label>
-                      {saveAddressChecked ? (
-                        <div className="mt-2">
-                          <label className="text-[11px] font-medium text-slate-600" htmlFor="co-save-label">
-                            Sarlavha (Uy, Ofis…)
-                          </label>
+                        {manualGeocodeLoading ? (
+                          <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                            <Loader2 className="h-3 w-3 animate-spin shrink-0" aria-hidden />
+                            Manzil tekshirilmoqda…
+                          </p>
+                        ) : null}
+                        {manualGeocodeError && address.trim().length >= 6 ? (
+                          <p className="text-[11px] leading-snug text-amber-800">{manualGeocodeError}</p>
+                        ) : null}
+                        {locationMode === 'MANUAL' &&
+                        address.trim().length >= 6 &&
+                        !manualGeocodeLoading &&
+                        geoState === 'ok' &&
+                        geoCoords ? (
+                          <p className="text-[11px] font-medium text-emerald-700">✓ Manzil xaritada topildi</p>
+                        ) : null}
+                      </div>
+                    )}
+
+                    {canOfferSave ? (
+                      <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50/70 px-2.5 py-2">
+                        <label className="flex cursor-pointer items-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 shrink-0 rounded border-slate-300 text-[#16A34A] focus:ring-[#16A34A]"
+                            checked={saveAddressChecked}
+                            onChange={(e) => setSaveAddressChecked(e.target.checked)}
+                          />
+                          <span className="text-[12px] font-semibold text-[#121212]">Manzilni saqlash</span>
+                        </label>
+                        {saveAddressChecked ? (
                           <input
                             id="co-save-label"
-                            className="mt-1 w-full rounded-[12px] border border-slate-200 bg-white px-3 py-2 text-[14px] outline-none focus:ring-2 focus:ring-[#16A34A]/20"
+                            className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[13px] outline-none focus:ring-2 focus:ring-[#16A34A]/15"
                             value={saveAddressLabel}
                             onChange={(e) => setSaveAddressLabel(e.target.value)}
-                            placeholder="Uy"
+                            placeholder="Uy / Ofis"
+                            aria-label="Saqlangan manzil sarlavhasi"
                           />
-                        </div>
-                      ) : null}
-                    </div>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
 
-                  <div className="rounded-[22px] bg-white p-4 shadow-[0_6px_28px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/90">
+                  <div className="rounded-2xl bg-white p-3 shadow-[0_4px_20px_rgba(15,23,42,0.05)] ring-1 ring-slate-100/90">
                     <h2 className="text-[15px] font-bold text-[#121212]">Yetkazish turi</h2>
-                    <p className="mt-0.5 text-[12px] text-slate-500">Narx darhol yangilanadi</p>
-                    <div className="mt-4 space-y-3">
+                    <p className="text-[11px] text-slate-500">Narx darhol yangilanadi</p>
+                    <div className="mt-3 space-y-2.5">
                       <DeliveryMethodCard
                         speed="EXPRESS"
                         selected={deliverySpeed === 'EXPRESS'}
@@ -648,7 +814,7 @@ export function CheckoutScreen() {
                     </div>
                   </div>
 
-                  <div className="rounded-[22px] bg-white p-4 shadow-[0_6px_28px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/90">
+                  <div className="rounded-2xl bg-white p-3 shadow-[0_4px_20px_rgba(15,23,42,0.05)] ring-1 ring-slate-100/90">
                     <h2 className="text-[15px] font-bold text-[#121212]">Xulosa</h2>
                     <div className="mt-3">
                       <CartSummary rows={summaryRows} />
