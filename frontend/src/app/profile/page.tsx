@@ -19,12 +19,13 @@ import { isActiveDeliveryStatus, readLastOrderSnapshot } from '@/lib/last-order-
 import type { LastOrderSnapshot } from '@/lib/last-order-storage';
 import { getProfileLoyaltyDisplay } from '@/lib/profile-loyalty-storage';
 import { getProfileNotifCounts } from '@/lib/profile-notifications-storage';
-import { normalizeProfileRole } from '@/lib/profile-role';
+import { normalizeProfileRole, staffDashboardPath } from '@/lib/profile-role';
+import type { StoredUser } from '@/lib/api';
 
 type LoginResponse = {
   accessToken: string;
   refreshToken: string;
-  user: { id: string; email: string; role: string; fullName: string };
+  user: StoredUser;
 };
 
 export default function ProfilePage() {
@@ -41,7 +42,7 @@ export default function ProfilePage() {
   const [touched, setTouched] = useState<
     Partial<Record<'name' | 'email' | 'password' | 'confirmPassword', boolean>>
   >({});
-  const [user, setUser] = useState<LoginResponse['user'] | null>(null);
+  const [user, setUser] = useState<StoredUser | null>(null);
   const [loading, setLoading] = useState(false);
   const [lastOrder, setLastOrder] = useState<LastOrderSnapshot | null>(null);
   const [notifCounts, setNotifCounts] = useState(getProfileNotifCounts());
@@ -54,11 +55,11 @@ export default function ProfilePage() {
   useEffect(() => {
     const id = requestAnimationFrame(() => {
       setMounted(true);
-      setUser(authStorage.getUser() as LoginResponse['user'] | null);
+      setUser(authStorage.getUser());
       syncStored();
     });
     const onAuth = () => {
-      setUser(authStorage.getUser() as LoginResponse['user'] | null);
+      setUser(authStorage.getUser());
       syncStored();
     };
     window.addEventListener(authEvents.changedEventName, onAuth);
@@ -76,10 +77,15 @@ export default function ProfilePage() {
     if (mode === 'register') {
       if (!name.trim()) next.name = 'Ismni kiriting';
     }
-    if (!email.trim()) {
-      next.email = 'Emailni kiriting';
-    } else if (!emailRegex.test(email.trim())) {
-      next.email = 'To‘g‘ri email kiriting';
+    const idValue = email.trim();
+    if (!idValue) {
+      next.email = mode === 'login' ? 'Email yoki login kiriting' : 'Emailni kiriting';
+    } else if (mode === 'register' || idValue.includes('@')) {
+      if (!emailRegex.test(idValue)) {
+        next.email = 'To‘g‘ri email kiriting';
+      }
+    } else if (idValue.length < 3) {
+      next.email = 'Login kamida 3 belgi bo‘lishi kerak';
     }
     if (!password) {
       next.password = 'Parolni kiriting';
@@ -109,18 +115,23 @@ export default function ProfilePage() {
     setLoading(true);
     try {
       if (mode === 'login') {
-        const data = await api.post<LoginResponse>('/auth/login', { email: email.trim(), password });
+        const data = await api.post<LoginResponse>('/auth/login', { login: email.trim(), password });
         authStorage.setAccessToken(data.accessToken);
         authStorage.setRefreshToken(data.refreshToken);
         authStorage.setUser(data.user);
         setUser(data.user);
+        const dash = staffDashboardPath(data.user.role);
+        if (dash) {
+          window.location.href = dash;
+          return;
+        }
       } else {
         await api.post('/auth/register', {
           email: email.trim(),
           fullName: name.trim(),
           password,
         });
-        const data = await api.post<LoginResponse>('/auth/login', { email: email.trim(), password });
+        const data = await api.post<LoginResponse>('/auth/login', { login: email.trim(), password });
         authStorage.setAccessToken(data.accessToken);
         authStorage.setRefreshToken(data.refreshToken);
         authStorage.setUser(data.user);
@@ -238,11 +249,12 @@ export default function ProfilePage() {
                   <div className="space-y-1">
                     <input
                       className="bb-input rounded-xl border-[#ECECEC] bg-white px-4 py-3 text-sm outline-none focus:border-[#16A34A] focus:ring-1 focus:ring-[#16A34A]"
-                      type="email"
+                      type={mode === 'login' ? 'text' : 'email'}
+                      autoComplete={mode === 'login' ? 'username' : 'email'}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       onBlur={() => handleBlur('email')}
-                      placeholder="Email"
+                      placeholder={mode === 'login' ? 'Email yoki login (masalan: courier)' : 'Email'}
                     />
                     {touched.email && fieldErrors.email ? (
                       <p className="text-xs text-red-600">{fieldErrors.email}</p>
@@ -289,6 +301,9 @@ export default function ProfilePage() {
                     className="bb-btn-secondary block w-full rounded-2xl py-3 text-center text-sm font-medium"
                   >
                     Mehmon sifatida davom etish
+                  </Link>
+                  <Link href="/staff/login" className="block text-center text-xs font-medium text-[#16A34A]">
+                    Xodimlar uchun alohida kirish
                   </Link>
                   <p className="text-center text-xs text-[#6B7280]">
                     {mode === 'login' ? "Hisobingiz yo‘qmi? " : "Akkauntingiz bormi? "}

@@ -3,20 +3,28 @@ import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
-async function createUser(email: string, fullName: string, role: Role) {
+async function createUser(
+  email: string,
+  fullName: string,
+  role: Role,
+  options?: { staffLogin?: string | null },
+) {
   const passwordHash = await bcrypt.hash('password123', 10);
+  const staffLogin = options?.staffLogin?.trim().toLowerCase() ?? null;
   return prisma.user.upsert({
     where: { email },
-    update: { fullName, role, passwordHash },
-    create: { email, fullName, role, passwordHash },
+    update: { fullName, role, passwordHash, staffLogin, isActive: true },
+    create: { email, fullName, role, passwordHash, staffLogin, isActive: true },
   });
 }
 
 async function main() {
-  const admin = await createUser('admin@barakabox.local', 'Admin', Role.ADMIN);
-  const businessUser = await createUser('business@barakabox.local', 'Business Owner', Role.BUSINESS);
-  const courier = await createUser('courier@barakabox.local', 'Courier', Role.COURIER);
-  const picker = await createUser('picker@barakabox.local', 'Picker', Role.PICKER);
+  const admin = await createUser('admin@barakabox.local', 'Admin', Role.SUPER_ADMIN, { staffLogin: 'admin' });
+  const businessUser = await createUser('business@barakabox.local', 'Business Owner', Role.BUSINESS, {
+    staffLogin: 'business',
+  });
+  const courier = await createUser('courier@barakabox.local', 'Courier', Role.COURIER, { staffLogin: 'courier' });
+  const picker = await createUser('picker@barakabox.local', 'Picker', Role.PICKER, { staffLogin: 'picker' });
   const client = await createUser('client@barakabox.local', 'Client User', Role.CLIENT);
 
   const businessProfile = await prisma.businessProfile.upsert({
@@ -173,9 +181,12 @@ async function main() {
 
   console.log({
     admin: admin.email,
+    adminLogin: admin.staffLogin,
     business: businessUser.email,
     courier: courier.email,
+    courierLogin: courier.staffLogin,
     picker: picker.email,
+    pickerLogin: picker.staffLogin,
     client: client.email,
   });
 }

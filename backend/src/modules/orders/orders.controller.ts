@@ -14,6 +14,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthUser } from '../../common/decorators/current-user.decorator';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -73,15 +74,15 @@ export class OrdersController {
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('BUSINESS', 'ADMIN')
-  listAll() {
-    return this.ordersService.listAll();
+  listAll(@CurrentUser() user: AuthUser) {
+    return this.ordersService.listForActor(user.sub, user.role);
   }
 
   @Get('picker')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('PICKER')
-  listPickerOrders() {
-    return this.ordersService.listPickerQueue();
+  listPickerOrders(@CurrentUser() user: AuthUser) {
+    return this.ordersService.listPickerQueue(user.sub);
   }
 
   @Patch(':orderId/start-picking')
@@ -101,8 +102,8 @@ export class OrdersController {
   @Get('courier')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('COURIER')
-  listCourierOrders() {
-    return this.ordersService.listCourierQueue();
+  listCourierOrders(@CurrentUser() user: AuthUser) {
+    return this.ordersService.listCourierQueue(user.sub);
   }
 
   @Patch(':orderId/start-delivery')

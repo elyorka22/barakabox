@@ -16,7 +16,7 @@ export class AuthService {
   async register(email: string, fullName: string, password: string): Promise<{
     accessToken: string;
     refreshToken: string;
-    user: Pick<User, 'id' | 'email' | 'fullName' | 'role'>;
+    user: ReturnType<typeof this.serializeUser>;
   }> {
     const existing = await this.usersService.findByEmail(email);
     if (existing) {
@@ -33,9 +33,15 @@ export class AuthService {
     return this.issueTokens(user);
   }
 
-  async login(email: string, password: string) {
-    const user = await this.usersService.findByEmail(email);
+  async login(identifier: string, password: string) {
+    const user = await this.usersService.findByStaffLoginOrEmail(identifier);
     if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account disabled');
+    }
+    if (user.passwordHash === 'guest-account') {
       throw new UnauthorizedException('Invalid credentials');
     }
 
@@ -44,6 +50,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    await this.usersService.updateLastLogin(user.id);
     return this.issueTokens(user);
   }
 
@@ -75,6 +82,10 @@ export class AuthService {
         }),
       );
       throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account disabled');
     }
 
     const refreshTokenMatches = await bcrypt.compare(refreshToken, user.refreshToken);
@@ -128,6 +139,19 @@ export class AuthService {
     return { success: true };
   }
 
+  private serializeUser(user: User) {
+    return {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role,
+      staffLogin: user.staffLogin ?? null,
+      phone: user.phone ?? null,
+      businessScopeId: user.businessScopeId ?? null,
+      isActive: user.isActive,
+    };
+  }
+
   private async issueTokens(user: User) {
     const payload = { sub: user.id, role: user.role, email: user.email };
     const accessToken = await this.jwtService.signAsync(payload, {
@@ -151,12 +175,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
-      },
+      user: this.serializeUser(user),
     };
   }
 }

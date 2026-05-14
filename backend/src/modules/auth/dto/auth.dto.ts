@@ -12,11 +12,14 @@ export class RegisterDto {
   password!: string;
 }
 
+/** Staff / internal login: `staffLogin` or email address. */
 export class LoginDto {
-  @IsEmail()
-  email!: string;
+  @IsString()
+  @MinLength(3)
+  login!: string;
 
   @IsString()
+  @MinLength(6)
   password!: string;
 }
 

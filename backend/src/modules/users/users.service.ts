@@ -1,13 +1,35 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { Role, User } from '@prisma/client';
+
+const STAFF_EMAIL_DOMAIN = 'staff.barakabox.local';
+
+export function staffEmailFromLogin(login: string): string {
+  const normalized = login.trim().toLowerCase();
+  return `${normalized}@${STAFF_EMAIL_DOMAIN}`;
+}
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   findByEmail(email: string): Promise<User | null> {
-    return this.prisma.user.findUnique({ where: { email } });
+    return this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
+  }
+
+  findByStaffLogin(login: string): Promise<User | null> {
+    const key = login.trim().toLowerCase();
+    if (!key) return Promise.resolve(null);
+    return this.prisma.user.findUnique({ where: { staffLogin: key } });
+  }
+
+  async findByStaffLoginOrEmail(identifier: string): Promise<User | null> {
+    const raw = identifier.trim();
+    if (!raw) return null;
+    const lower = raw.toLowerCase();
+    const byLogin = await this.findByStaffLogin(lower);
+    if (byLogin) return byLogin;
+    return this.findByEmail(lower.includes('@') ? lower : staffEmailFromLogin(lower));
   }
 
   findById(id: string): Promise<User | null> {
@@ -19,13 +41,21 @@ export class UsersService {
     fullName: string;
     passwordHash: string;
     role?: Role;
+    staffLogin?: string | null;
+    phone?: string | null;
+    businessScopeId?: string | null;
+    isActive?: boolean;
   }): Promise<User> {
     return this.prisma.user.create({
       data: {
-        email: data.email,
-        fullName: data.fullName,
+        email: data.email.trim().toLowerCase(),
+        fullName: data.fullName.trim(),
         passwordHash: data.passwordHash,
         role: data.role ?? Role.CLIENT,
+        staffLogin: data.staffLogin?.trim().toLowerCase() ?? null,
+        phone: data.phone?.trim() || null,
+        businessScopeId: data.businessScopeId ?? null,
+        isActive: data.isActive ?? true,
       },
     });
   }
@@ -34,6 +64,13 @@ export class UsersService {
     return this.prisma.user.update({
       where: { id: userId },
       data: { refreshToken },
+    });
+  }
+
+  updateLastLogin(userId: string): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { lastLoginAt: new Date() },
     });
   }
 
@@ -47,8 +84,113 @@ export class UsersService {
         fullName: `Guest ${normalizedGuestId.slice(0, 8)}`,
         passwordHash: 'guest-account',
         role: Role.CLIENT,
+        isActive: true,
       },
       update: {},
     });
+  }
+
+  async listStaffForAdmin(params: { role?: Role; search?: string; includeClients?: boolean }) {
+    const search = params.search?.trim().toLowerCase();
+    const roleFilter = params.role;
+    const where: import('@prisma/client').Prisma.UserWhereInput = {};
+
+    if (roleFilter) {
+      where.role = roleFilter;
+    } else if (!params.includeClients) {
+      where.role = { in: [Role.SUPER_ADMIN, Role.ADMIN, Role.BUSINESS, Role.COURIER, Role.PICKER] };
+    }
+
+    if (search) {
+      where.OR = [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { staffLogin: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    return this.prisma.user.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        email: true,
+        staffLogin: true,
+        phone: true,
+        fullName: true,
+        role: true,
+        isActive: true,
+        lastLoginAt: true,
+        businessScopeId: true,
+        createdAt: true,
+        businessProfile: { select: { id: true, displayName: true } },
+        businessScope: { select: { id: true, displayName: true } },
+      },
+    });
+  }
+
+  async updateStaffProfile(
+    id: string,
+    data: {
+      fullName?: string;
+      phone?: string | null;
+      role?: Role;
+      businessScopeId?: string | null;
+      staffLogin?: string | null;
+    },
+  ): Promise<User> {
+    const existing = await this.prisma.user.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('User not found');
+
+    const nextLogin = data.staffLogin !== undefined ? data.staffLogin?.trim().toLowerCase() || null : undefined;
+    let emailUpdate: string | undefined;
+    if (nextLogin !== undefined && nextLogin && nextLogin !== existing.staffLogin) {
+      emailUpdate = staffEmailFromLogin(nextLogin);
+      const clash = await this.prisma.user.findFirst({
+        where: { email: emailUpdate, NOT: { id } },
+      });
+      if (clash) throw new ConflictException('Bu login uchun email band');
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        ...(data.fullName !== undefined ? { fullName: data.fullName.trim() } : {}),
+        ...(data.phone !== undefined ? { phone: data.phone?.trim() || null } : {}),
+        ...(data.role !== undefined ? { role: data.role } : {}),
+        ...(data.businessScopeId !== undefined ? { businessScopeId: data.businessScopeId } : {}),
+        ...(nextLogin !== undefined ? { staffLogin: nextLogin } : {}),
+        ...(emailUpdate ? { email: emailUpdate } : {}),
+      },
+    });
+  }
+
+  async setStaffActive(id: string, isActive: boolean): Promise<User> {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        isActive,
+        refreshToken: isActive ? user.refreshToken : null,
+      },
+    });
+  }
+
+  async setPasswordHash(id: string, passwordHash: string): Promise<User> {
+    return this.prisma.user.update({
+      where: { id },
+      data: { passwordHash, refreshToken: null },
+    });
+  }
+
+  async removeStaffUser(id: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.role === Role.CLIENT) {
+      throw new ConflictException('Mijoz akkauntini staff panelidan o‘chirib bo‘lmaydi');
+    }
+    await this.setStaffActive(id, false);
   }
 }

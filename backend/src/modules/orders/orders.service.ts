@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { CartService } from '../cart/cart.service';
 import { CustomersService } from '../customers/customers.service';
@@ -396,10 +396,14 @@ export class OrdersService {
     });
   }
 
-  private async applyStatus(orderId: string, nextStatus: OrderStatus, actor: { role: 'PICKER' | 'COURIER' | 'ADMIN'; userId: string }) {
+  private async applyStatus(
+    orderId: string,
+    nextStatus: OrderStatus,
+    actor: { role: 'PICKER' | 'COURIER' | 'ADMIN'; userId: string },
+  ) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, assignedPickerId: true, assignedCourierId: true },
     });
 
     if (!order) {
@@ -407,6 +411,16 @@ export class OrdersService {
     }
 
     const currentStatus = order.status;
+    if (actor.role === 'PICKER' && currentStatus === 'PICKING' && nextStatus === 'READY') {
+      if (order.assignedPickerId !== actor.userId) {
+        throw new ForbiddenException('Bu buyurtma sizga biriktirilmagan');
+      }
+    }
+    if (actor.role === 'COURIER' && currentStatus === 'DELIVERING' && nextStatus === 'DELIVERED') {
+      if (order.assignedCourierId !== actor.userId) {
+        throw new ForbiddenException('Bu yetkazuv sizga biriktirilmagan');
+      }
+    }
     const allowedByRole: Record<'PICKER' | 'COURIER' | 'ADMIN', OrderStatus[]> = {
       PICKER: ['PICKING', 'READY'],
       COURIER: ['DELIVERING', 'DELIVERED'],
@@ -484,9 +498,11 @@ export class OrdersService {
     return this.applyStatus(orderId, status, { role: 'ADMIN', userId });
   }
 
-  listPickerQueue() {
+  listPickerQueue(pickerUserId: string) {
     return this.prisma.order.findMany({
-      where: { status: { in: ['NEW', 'PICKING'] } },
+      where: {
+        OR: [{ status: 'NEW' }, { status: 'PICKING', assignedPickerId: pickerUserId }],
+      },
       include: {
         items: { include: { product: true, variant: true } },
         user: true,
@@ -498,9 +514,11 @@ export class OrdersService {
     });
   }
 
-  listCourierQueue() {
+  listCourierQueue(courierUserId: string) {
     return this.prisma.order.findMany({
-      where: { status: 'READY' },
+      where: {
+        OR: [{ status: 'READY' }, { status: 'DELIVERING', assignedCourierId: courierUserId }],
+      },
       include: {
         items: { include: { product: true, variant: true } },
         user: true,
@@ -510,6 +528,42 @@ export class OrdersService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  listForBusiness(businessProfileId: string) {
+    return this.prisma.order.findMany({
+      where: {
+        items: {
+          some: {
+            OR: [
+              { product: { businessId: businessProfileId } },
+              { variant: { product: { businessId: businessProfileId } } },
+            ],
+          },
+        },
+      },
+      include: {
+        items: { include: { product: true, variant: true } },
+        user: true,
+        assignedPicker: true,
+        assignedCourier: true,
+        customer: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async listForActor(userId: string, role: string) {
+    const r = role.toUpperCase();
+    if (r === 'ADMIN' || r === 'SUPER_ADMIN') {
+      return this.listAll();
+    }
+    if (r === 'BUSINESS') {
+      const bp = await this.prisma.businessProfile.findUnique({ where: { userId } });
+      if (!bp) return [];
+      return this.listForBusiness(bp.id);
+    }
+    throw new ForbiddenException('Buyurtmalar ro‘yxatiga ruxsat yo‘q');
   }
 
   listAll() {

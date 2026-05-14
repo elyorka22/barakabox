@@ -26,10 +26,22 @@ export class RolesGuard implements CanActivate {
     const userRole = (user?.role ?? '').toUpperCase();
     const normalizedRequiredRoles = requiredRoles.map((role) => role.toUpperCase());
 
-    if (!userRole || !normalizedRequiredRoles.includes(userRole)) {
+    if (!userRole) {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+
+    const allowed = normalizedRequiredRoles.some((required) => this.roleMatches(userRole, required));
+    if (!allowed) {
       throw new ForbiddenException('Insufficient permissions');
     }
 
     return true;
+  }
+
+  /** SUPER_ADMIN inherits ADMIN. ADMIN decorator matches ADMIN or SUPER_ADMIN. */
+  private roleMatches(userRole: string, required: string): boolean {
+    if (userRole === required) return true;
+    if (required === 'ADMIN' && (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN')) return true;
+    return false;
   }
 }

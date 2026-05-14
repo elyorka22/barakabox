@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthUser } from '../../common/decorators/current-user.decorator';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
@@ -29,21 +30,33 @@ export class ProductsController {
   @Get('me')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('BUSINESS')
-  listMine(@CurrentUser() user: { sub: string }) {
+  listMine(@CurrentUser() user: AuthUser) {
     return this.productsService.listMine(user.sub);
   }
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  updateByAdmin(@Param('id') id: string, @Body() body: UpdateProductDto) {
+  @Roles('ADMIN', 'BUSINESS')
+  update(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: UpdateProductDto,
+  ) {
+    const r = (user.role ?? '').toUpperCase();
+    if (r === 'BUSINESS') {
+      return this.productsService.updateByBusinessOwner(id, user.sub, body);
+    }
     return this.productsService.updateByAdmin(id, body);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  removeByAdmin(@Param('id') id: string) {
+  @Roles('ADMIN', 'BUSINESS')
+  remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const r = (user.role ?? '').toUpperCase();
+    if (r === 'BUSINESS') {
+      return this.productsService.removeByBusinessOwner(id, user.sub);
+    }
     return this.productsService.removeByAdmin(id);
   }
 }

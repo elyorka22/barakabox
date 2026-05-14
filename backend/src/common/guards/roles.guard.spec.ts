@@ -23,4 +23,16 @@ describe('RolesGuard', () => {
     const guard = new RolesGuard(reflector);
     expect(() => guard.canActivate(makeContext('PICKER'))).toThrow(ForbiddenException);
   });
+
+  it('allows SUPER_ADMIN for ADMIN routes', () => {
+    const reflector = { getAllAndOverride: jest.fn().mockReturnValue(['ADMIN']) } as unknown as Reflector;
+    const guard = new RolesGuard(reflector);
+    expect(guard.canActivate(makeContext('SUPER_ADMIN'))).toBe(true);
+  });
+
+  it('allows ADMIN for ADMIN routes', () => {
+    const reflector = { getAllAndOverride: jest.fn().mockReturnValue(['ADMIN']) } as unknown as Reflector;
+    const guard = new RolesGuard(reflector);
+    expect(guard.canActivate(makeContext('ADMIN'))).toBe(true);
+  });
 });

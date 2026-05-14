@@ -32,7 +32,7 @@ type BusinessStats = {
 
 export default function BusinessPage() {
   const [token, setToken] = useState('');
-  const [email, setEmail] = useState('business@barakabox.local');
+  const [staffLogin, setStaffLogin] = useState('business');
   const [password, setPassword] = useState('password123');
   const [products, setProducts] = useState<Product[]>([]);
   const [stats, setStats] = useState<BusinessStats | null>(null);
@@ -54,7 +54,7 @@ export default function BusinessPage() {
 
   const login = async () => {
     await runAction(async () => {
-      const data = await api.post<{ accessToken: string }>('/auth/login', { email, password });
+      const data = await api.post<{ accessToken: string }>('/auth/login', { login: staffLogin, password });
       setToken(data.accessToken);
       setMessage('Tizimga kirildi');
       await loadMyProducts(data.accessToken);
@@ -85,7 +85,13 @@ export default function BusinessPage() {
       <DesktopNav />
       <h1 className="text-2xl font-bold">Biznes</h1>
       <div className="grid gap-2 sm:grid-cols-3">
-        <input className="rounded-xl border border-gray-200 p-2" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input
+          className="rounded-xl border border-gray-200 p-2 font-mono text-sm"
+          value={staffLogin}
+          onChange={(e) => setStaffLogin(e.target.value)}
+          placeholder="Login"
+          autoComplete="username"
+        />
         <input className="rounded-xl border border-gray-200 p-2" value={password} onChange={(e) => setPassword(e.target.value)} />
         <button className="bb-btn-secondary" onClick={login} disabled={loading}>
           {loading ? 'Yuklanmoqda...' : 'Kirish'}

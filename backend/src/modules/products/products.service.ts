@@ -2,6 +2,7 @@ import { ProductUnit, CashbackType } from '@prisma/client';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { UploadService } from '../upload/upload.service';
+import type { UpdateProductDto } from './dto/update-product.dto';
 
 @Injectable()
 export class ProductsService {
@@ -314,6 +315,24 @@ export class ProductsService {
       }
       return updated;
     });
+  }
+
+  async updateByBusinessOwner(productId: string, userId: string, data: UpdateProductDto) {
+    const business = await this.requireApprovedBusiness(userId);
+    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    if (!product || product.businessId !== business.id) {
+      throw new ForbiddenException('Bu mahsulot sizning do‘koningizga tegishli emas');
+    }
+    return this.updateByAdmin(productId, data);
+  }
+
+  async removeByBusinessOwner(productId: string, userId: string) {
+    const business = await this.requireApprovedBusiness(userId);
+    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    if (!product || product.businessId !== business.id) {
+      throw new ForbiddenException('Bu mahsulot sizning do‘koningizga tegishli emas');
+    }
+    return this.removeByAdmin(productId);
   }
 
   async removeByAdmin(productId: string) {

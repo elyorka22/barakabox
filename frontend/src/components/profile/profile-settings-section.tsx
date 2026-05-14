@@ -42,6 +42,7 @@ const ROLE_EXTRAS: Record<ProfileRole, { href: string; label: string; sub: strin
   client: null,
   business: { href: '/business', label: 'Biznes paneli', sub: 'Do‘kon boshqaruvi', icon: Building2 },
   admin: { href: '/admin', label: 'Admin panel', sub: 'Boshqaruv', icon: LayoutDashboard },
+  super_admin: { href: '/admin', label: 'Super admin', sub: 'To‘liq boshqaruv', icon: LayoutDashboard },
   courier: { href: '/courier', label: 'Kuryer paneli', sub: 'Yetkazib berish', icon: Truck },
   picker: { href: '/picker', label: 'Picker paneli', sub: 'Buyurtmalar', icon: PackageSearch },
 };

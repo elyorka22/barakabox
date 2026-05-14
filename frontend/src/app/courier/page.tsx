@@ -1,14 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api, authStorage } from '@/lib/api';
 import { formatMoneyUz } from '@/lib/format';
-import { DesktopNav, MobileNav } from '@/components/app-nav';
+
+type OrderStatus = 'NEW' | 'PICKING' | 'READY' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED';
 
 type Order = {
   id: string;
-  status: 'READY' | 'DELIVERING' | 'DELIVERED';
-  totalAmount: string;
+  status: OrderStatus;
+  totalAmount: number | string;
+  customerPhone: string;
+  customerName?: string;
   deliveryAddress?: string;
   latitude?: number | null;
   longitude?: number | null;
@@ -19,8 +22,9 @@ type Order = {
 export default function CourierPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     try {
       const token = authStorage.getAccessToken();
       const data = await api.get<Order[]>('/orders/courier', token);
@@ -28,8 +32,14 @@ export default function CourierPage() {
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : "Buyurtmalarni yuklab bo'lmadi");
+    } finally {
+      setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void loadOrders();
+  }, [loadOrders]);
 
   const updateStatus = async (orderId: string, action: 'start-delivery' | 'delivered') => {
     try {
@@ -41,57 +51,96 @@ export default function CourierPage() {
     }
   };
 
+  const mapsHref =
+    (lat: number, lng: number) =>
+      `https://www.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}`;
+
   return (
-    <main className="bb-page">
-      <section className="bb-shell">
-        <DesktopNav />
-        <h1 className="text-2xl font-bold">Kuryer paneli</h1>
-        <button className="bb-btn-primary mt-4" onClick={loadOrders}>Buyurtmalarni yuklash</button>
-        {error ? <p className="mt-3 text-red-600">{error}</p> : null}
-        <ul className="mt-4 space-y-3">
-          {orders.map((order) => (
-            <li key={order.id} className="rounded-xl border border-gray-200 p-3">
-              <p className="font-semibold">#{order.id.slice(0, 8)}</p>
-              <p className="bb-secondary">Status: {order.status}</p>
-              <p className="bb-secondary">Jami: {formatMoneyUz(order.totalAmount)}</p>
-              {order.addressLabel ? (
-                <p className="mt-1 text-xs font-medium text-emerald-800">Yorliq: {order.addressLabel}</p>
-              ) : null}
-              {order.deliveryAddress ? <p className="mt-1 text-xs text-slate-600">{order.deliveryAddress}</p> : null}
-              {order.formattedAddress ? <p className="text-xs text-slate-500">{order.formattedAddress}</p> : null}
-              {order.latitude != null && order.longitude != null ? (
-                <div className="mt-2 flex flex-wrap gap-2">
+    <div className="px-3 pb-28 pt-2">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <p className="text-sm font-medium text-slate-600">Mening yetkazib berishlarim</p>
+        <button
+          type="button"
+          className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800 active:bg-slate-50"
+          onClick={() => {
+            setLoading(true);
+            void loadOrders();
+          }}
+        >
+          Yangilash
+        </button>
+      </div>
+      {loading ? <p className="text-center text-sm text-slate-500">Yuklanmoqda…</p> : null}
+      {error ? <p className="mb-3 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p> : null}
+      {!loading && orders.length === 0 ? (
+        <p className="rounded-2xl bg-white py-10 text-center text-sm text-slate-500 shadow-sm">Navbatda buyurtma yo‘q</p>
+      ) : null}
+      <ul className="space-y-4">
+        {orders.map((order) => {
+          const lat = order.latitude ?? null;
+          const lng = order.longitude ?? null;
+          const isReady = order.status === 'READY';
+          const isRoad = order.status === 'DELIVERING';
+
+          return (
+            <li key={order.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-100 bg-slate-50 px-4 py-3">
+                <p className="text-lg font-bold text-slate-900">#{order.id.slice(0, 8)}</p>
+                <p className="text-xs text-slate-500">
+                  {isReady ? 'Kutmoqda' : null}
+                  {isRoad ? 'Yo‘lda' : null}
+                  {!isReady && !isRoad ? order.status : null}
+                </p>
+              </div>
+              <div className="space-y-2 px-4 py-3 text-sm">
+                <a href={`tel:${order.customerPhone}`} className="block text-lg font-bold text-emerald-700 underline-offset-2">
+                  {order.customerPhone}
+                </a>
+                {order.customerName ? <p className="text-slate-700">{order.customerName}</p> : null}
+                <p className="font-semibold text-slate-900">{formatMoneyUz(order.totalAmount)}</p>
+                {order.addressLabel ? <p className="text-xs font-medium text-amber-900">{order.addressLabel}</p> : null}
+                {order.deliveryAddress ? <p className="text-xs leading-relaxed text-slate-600">{order.deliveryAddress}</p> : null}
+                {order.formattedAddress ? <p className="text-xs text-slate-500">{order.formattedAddress}</p> : null}
+                {lat != null && lng != null ? (
                   <a
-                    className="text-xs font-semibold text-[#16A34A] underline"
-                    href={`https://www.google.com/maps?q=${encodeURIComponent(`${order.latitude},${order.longitude}`)}`}
+                    className="inline-flex min-h-12 items-center justify-center rounded-xl bg-slate-900 px-4 text-sm font-bold text-white"
+                    href={mapsHref(lat, lng)}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    Google Maps
+                    Marshrut (xarita)
                   </a>
-                  <a
-                    className="text-xs font-semibold text-slate-600 underline"
-                    href={`https://yandex.uz/maps/?pt=${encodeURIComponent(`${order.longitude},${order.latitude}`)}&z=18`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                ) : null}
+              </div>
+              <div className="grid gap-2 px-3 pb-4 pt-1">
+                {isReady ? (
+                  <button
+                    type="button"
+                    className="min-h-[56px] rounded-2xl bg-emerald-600 text-lg font-bold text-white shadow-md active:scale-[0.99]"
+                    onClick={() => void updateStatus(order.id, 'start-delivery')}
                   >
-                    Yandex
-                  </a>
-                </div>
-              ) : null}
-              <div className="mt-2 flex gap-2">
-                <button className="bb-btn-secondary" onClick={() => updateStatus(order.id, 'start-delivery')}>
-                  Yetkazishni boshlash
-                </button>
-                <button className="bb-btn-secondary" onClick={() => updateStatus(order.id, 'delivered')}>
-                  Yetkazildi
-                </button>
+                    Qabul qilish
+                  </button>
+                ) : null}
+                {isRoad ? (
+                  <>
+                    <div className="flex min-h-[48px] items-center justify-center rounded-2xl bg-amber-100 text-base font-bold text-amber-950">
+                      Yo‘lda
+                    </div>
+                    <button
+                      type="button"
+                      className="min-h-[56px] rounded-2xl bg-slate-900 text-lg font-bold text-white active:scale-[0.99]"
+                      onClick={() => void updateStatus(order.id, 'delivered')}
+                    >
+                      Yetkazildi
+                    </button>
+                  </>
+                ) : null}
               </div>
             </li>
-          ))}
-        </ul>
-      </section>
-      <MobileNav />
-    </main>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

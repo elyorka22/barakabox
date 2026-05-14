@@ -9,8 +9,9 @@ datasource db {
 
 enum Role {
   CLIENT
-  BUSINESS
+  SUPER_ADMIN
   ADMIN
+  BUSINESS
   COURIER
   PICKER
 }
@@ -103,9 +104,17 @@ model User {
   role            Role             @default(CLIENT)
   refreshToken    String?
   fullName        String
+  /// Internal login (e.g. courier_1). Optional; staff may sign in with this or email.
+  staffLogin      String?          @unique
+  phone           String?
+  isActive        Boolean          @default(true)
+  /// Optional scope: courier/picker tied to one business (BusinessProfile id).
+  businessScopeId String?
+  lastLoginAt     DateTime?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   businessProfile BusinessProfile?
+  businessScope   BusinessProfile? @relation("BusinessStaffScope", fields: [businessScopeId], references: [id], onDelete: SetNull)
   cart            Cart?
   orders          Order[]
   pickerOrders    Order[]          @relation("PickerAssignments")
@@ -114,6 +123,7 @@ model User {
   customerProfile Customer?
 
   @@index([role])
+  @@index([businessScopeId])
 }
 
 model Customer {
@@ -160,6 +170,7 @@ model BusinessProfile {
   updatedAt   DateTime       @updatedAt
   user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   products    Product[]
+  scopedStaff User[]         @relation("BusinessStaffScope")
 
   @@index([status])
 }

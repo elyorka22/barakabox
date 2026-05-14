@@ -12,7 +12,16 @@ const CART_CHANGED_EVENT = 'barakabox_cart_changed';
 const CATEGORY_CHANGED_EVENT = 'barakabox_category_changed';
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
-type StoredUser = { id: string; email: string; role: string; fullName: string };
+export type StoredUser = {
+  id: string;
+  email: string;
+  role: string;
+  fullName: string;
+  staffLogin?: string | null;
+  phone?: string | null;
+  businessScopeId?: string | null;
+  isActive?: boolean;
+};
 
 let refreshInFlight: Promise<string | null> | null = null;
 let accessTokenMemory = '';
@@ -75,8 +84,11 @@ function handleSessionExpired() {
   if (redirectingForAuth) return;
   redirectingForAuth = true;
   showToast({ type: 'error', message: 'Sessiya tugadi. Iltimos qaytadan tizimga kiring.' });
-  if (!window.location.pathname.startsWith('/profile')) {
-    window.location.href = '/profile';
+  const p = window.location.pathname;
+  const onStaffPanel =
+    p.startsWith('/admin') || p.startsWith('/business') || p.startsWith('/courier') || p.startsWith('/picker');
+  if (!p.startsWith('/profile') && !p.startsWith('/staff/login')) {
+    window.location.href = onStaffPanel ? '/staff/login' : '/profile';
   }
   window.setTimeout(() => {
     redirectingForAuth = false;
@@ -200,16 +212,16 @@ export const authStorage = {
     if (typeof window === 'undefined') return '';
     return window.localStorage.getItem(REFRESH_TOKEN_KEY) ?? '';
   },
-  setUser(user: { id: string; email: string; role: string; fullName: string }) {
+  setUser(user: StoredUser) {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(USER_KEY, JSON.stringify(user));
       notifyAuthChanged();
     }
   },
-  getUser(): { id: string; email: string; role: string; fullName: string } | null {
+  getUser(): StoredUser | null {
     if (typeof window === 'undefined') return null;
     const value = window.localStorage.getItem(USER_KEY);
-    return value ? (JSON.parse(value) as { id: string; email: string; role: string; fullName: string }) : null;
+    return value ? (JSON.parse(value) as StoredUser) : null;
   },
   async restoreSession() {
     if (accessTokenMemory) return true;
