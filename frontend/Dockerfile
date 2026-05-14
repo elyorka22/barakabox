@@ -1,11 +1,11 @@
 # Compose: build.context "." and dockerfile "frontend/Dockerfile" (repo root context).
 # Installs app at /app from frontend/; shared module at /shared (see tsconfig path ../shared).
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY shared /shared/
@@ -13,7 +13,7 @@ COPY frontend/ .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-FROM node:20-alpine AS runtime
+FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
