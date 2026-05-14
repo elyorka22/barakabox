@@ -25,7 +25,7 @@ COPY --from=build /app/public ./public
 COPY --from=build /app/next.config.ts ./next.config.ts
 COPY --from=build /app/tsconfig.json ./tsconfig.json
 EXPOSE 3000
-# Use 127.0.0.1 (not "localhost") so checks hit IPv4; Node has fetch; allow cold start.
+# Hits App Router GET /health (src/app/health/route.ts), compiled into .next — use 127.0.0.1 for IPv4 probes.
 HEALTHCHECK --interval=15s --timeout=5s --start-period=90s --retries=5 \
   CMD ["node", "-e", "const p=+(process.env.PORT||3000);fetch('http://127.0.0.1:'+p+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
 CMD ["npm", "run", "start"]
