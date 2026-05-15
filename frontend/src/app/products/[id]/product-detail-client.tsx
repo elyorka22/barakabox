@@ -275,7 +275,7 @@ export default function ProductDetailClientPage() {
           <p className="mt-2 text-sm text-gray-500 line-clamp-2">{activeVariant.description}</p>
         ) : null}
         {product?.variants?.length ? (
-          <div className="mt-3 flex gap-2 overflow-x-auto">
+          <div className="bb-scrollbar-hide mt-3 flex gap-2 overflow-x-auto">
             {product.variants.map((variant, idx) => (
               <button
                 key={variant.id}

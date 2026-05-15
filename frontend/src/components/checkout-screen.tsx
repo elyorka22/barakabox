@@ -524,7 +524,7 @@ export function CheckoutScreen() {
                         ) : savedAddresses.length === 0 ? (
                           <p className="mt-1 text-[11px] text-slate-500">Hozircha saqlangan manzil yo&apos;q</p>
                         ) : (
-                          <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                          <div className="bb-scrollbar-hide mt-2 flex gap-2 overflow-x-auto pb-1">
                             {savedAddresses.map((row) => (
                               <div key={row.id} className="relative shrink-0">
                                 <button

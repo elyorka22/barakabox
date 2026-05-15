@@ -513,3 +513,10 @@ model Banner {
 
   @@index([isActive, sortOrder])
 }
+
+model SiteSettings {
+  id                 String   @id @default("global")
+  supportTelegramUrl String?
+  supportTitle       String?
+  updatedAt          DateTime @updatedAt
+}

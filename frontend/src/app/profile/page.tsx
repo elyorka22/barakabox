@@ -16,6 +16,7 @@ import { isActiveDeliveryStatus, readLastOrderSnapshot } from '@/lib/last-order-
 import type { LastOrderSnapshot } from '@/lib/last-order-storage';
 import { PasswordInput } from '@/components/auth/password-input';
 import { useProfileLoyalty } from '@/hooks/use-profile-loyalty';
+import { usePublicSettings } from '@/hooks/use-public-settings';
 import { getProfileNotifCounts } from '@/lib/profile-notifications-storage';
 import { normalizeProfileRole, staffDashboardPath } from '@/lib/profile-role';
 import type { StoredUser } from '@/lib/api';
@@ -44,6 +45,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [lastOrder, setLastOrder] = useState<LastOrderSnapshot | null>(null);
   const { loyalty } = useProfileLoyalty(user);
+  const { settings: publicSettings } = usePublicSettings();
 
   const syncStored = useCallback(() => {
     setLastOrder(readLastOrderSnapshot());
@@ -336,6 +338,8 @@ export default function ProfilePage() {
             <ProfileSettingsSection
               role={normalizeProfileRole(user.role)}
               notifCounts={notifCounts}
+              supportTelegramUrl={publicSettings.supportTelegramUrl}
+              supportTitle={publicSettings.supportTitle}
               onLogout={logout}
             />
           </>

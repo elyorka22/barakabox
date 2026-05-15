@@ -64,7 +64,7 @@ export default function AdminCustomersPage() {
         </div>
       </div>
 
-      <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white md:block">
+      <div className="bb-scrollbar-hide hidden overflow-x-auto rounded-xl border border-slate-200 bg-white md:block">
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase text-slate-600">
             <tr>

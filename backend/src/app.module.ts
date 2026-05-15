@@ -18,6 +18,7 @@ import { CategoriesModule } from './modules/categories/categories.module';
 import { BannersModule } from './modules/banners/banners.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { CustomersModule } from './modules/customers/customers.module';
+import { SettingsModule } from './modules/settings/settings.module';
 import { RedisModule } from './infrastructure/redis/redis.module';
 import { AppCacheModule } from './infrastructure/cache/cache.module';
 import { QueueService } from './infrastructure/queue/queue.service';
@@ -61,6 +62,7 @@ import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
     BannersModule,
     UploadModule,
     CustomersModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [

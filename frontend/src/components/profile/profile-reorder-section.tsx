@@ -63,7 +63,7 @@ export function ProfileReorderSection({ order }: Props) {
           <p className="mt-0.5 text-xs text-[#6B7280]">Oxirgi buyurtmadagi mahsulotlar</p>
         </div>
       </div>
-      <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
+      <div className="bb-scrollbar-hide mt-3 flex gap-2 overflow-x-auto pb-1">
         {preview.map((line, idx) => (
           <motion.div
             key={`${line.title}-${idx}`}

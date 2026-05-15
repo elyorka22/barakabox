@@ -214,7 +214,7 @@ export default function Home() {
             <h2 className="text-base font-semibold">Aksiya va chegirmalar</h2>
             <div className="rounded-xl bg-white/20 px-2 py-1 text-[11px]">03 : 12 : 45</div>
           </div>
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+          <div className="bb-scrollbar-hide mt-3 flex gap-2 overflow-x-auto pb-1">
             {loadingProducts
               ? Array.from({ length: 4 }).map((_, idx) => (
                   <div key={idx} className="min-w-[130px] rounded-2xl bg-white p-2">

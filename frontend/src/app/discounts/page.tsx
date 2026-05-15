@@ -73,7 +73,7 @@ export default function DiscountsPage() {
           </button>
         </div>
 
-        <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+        <div className="bb-scrollbar-hide mt-2 flex gap-2 overflow-x-auto pb-1">
           {tabs.map((tab) => (
             <button
               key={tab}

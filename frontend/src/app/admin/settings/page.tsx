@@ -2,11 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { api, authStorage } from '@/lib/api';
+import { showToast } from '@/lib/toast';
+import { fetchPublicSettings, type PublicSettings } from '@/lib/public-settings';
 
 export default function AdminSettingsPage() {
   const token = authStorage.getAccessToken();
   const [health, setHealth] = useState<{ ok: boolean; message: string } | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [supportLoading, setSupportLoading] = useState(true);
+  const [supportSaving, setSupportSaving] = useState(false);
+  const [supportTelegramUrl, setSupportTelegramUrl] = useState('');
+  const [supportTitle, setSupportTitle] = useState('');
 
   useEffect(() => {
     if (!token) return;
@@ -21,12 +27,96 @@ export default function AdminSettingsPage() {
     void load();
   }, [token]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await fetchPublicSettings();
+        if (cancelled) return;
+        setSupportTelegramUrl(data.supportTelegramUrl ?? '');
+        setSupportTitle(data.supportTitle ?? '');
+      } catch {
+        if (!cancelled) showToast({ type: 'error', message: 'Yordam sozlamalarini yuklab bo‘lmadi' });
+      } finally {
+        if (!cancelled) setSupportLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const saveSupport = async () => {
+    if (!token) {
+      showToast({ type: 'error', message: 'Avval tizimga kiring' });
+      return;
+    }
+    setSupportSaving(true);
+    try {
+      const payload: Partial<PublicSettings> = {
+        supportTelegramUrl: supportTelegramUrl.trim() || null,
+        supportTitle: supportTitle.trim() || null,
+      };
+      const saved = await api.patch<PublicSettings>('/admin/settings/support', payload, token);
+      setSupportTelegramUrl(saved.supportTelegramUrl ?? '');
+      setSupportTitle(saved.supportTitle ?? '');
+      showToast({ type: 'success', message: 'Yordam sozlamalari saqlandi' });
+    } catch (err) {
+      showToast({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Saqlashda xatolik',
+      });
+    } finally {
+      setSupportSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="text-lg font-semibold">Settings</h2>
         <p className="text-sm text-slate-500">JWT/auth holati, tizim konfiguratsiyasi va health indikatorlari.</p>
       </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h3 className="text-sm font-semibold">Yordam / Aloqa</h3>
+        <p className="mt-1 text-xs text-slate-500">
+          Profil sahifasidagi &quot;Yordam&quot; tugmasi uchun Telegram havolasi. Masalan: https://t.me/username
+        </p>
+        {supportLoading ? (
+          <p className="mt-3 text-sm text-slate-500">Yuklanmoqda...</p>
+        ) : (
+          <div className="mt-4 space-y-3">
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Telegram havolasi</span>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                placeholder="https://t.me/yordam"
+                value={supportTelegramUrl}
+                onChange={(e) => setSupportTelegramUrl(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Sarlavha (ixtiyoriy)</span>
+              <input
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                placeholder="Yordam"
+                value={supportTitle}
+                onChange={(e) => setSupportTitle(e.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={supportSaving}
+              onClick={() => void saveSupport()}
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            >
+              {supportSaving ? 'Saqlanmoqda...' : 'Saqlash'}
+            </button>
+          </div>
+        )}
+      </div>
+
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <h3 className="text-sm font-semibold">System configuration</h3>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -37,17 +127,28 @@ export default function AdminSettingsPage() {
           </div>
           <div className="rounded-xl border border-slate-100 p-3 text-sm">
             <p className="font-medium">Environment status</p>
-            <p className={`text-xs ${health?.ok ? 'text-emerald-700' : 'text-rose-700'}`}>{health?.message ?? 'Tekshirilmoqda...'}</p>
+            <p className={`text-xs ${health?.ok ? 'text-emerald-700' : 'text-rose-700'}`}>
+              {health?.message ?? 'Tekshirilmoqda...'}
+            </p>
           </div>
         </div>
       </div>
+
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <h3 className="text-sm font-semibold">Theme toggle</h3>
         <div className="mt-2 inline-flex rounded-xl border border-slate-200 p-1">
-          <button className={`rounded-lg px-3 py-1 text-sm ${theme === 'light' ? 'bg-slate-900 text-white' : ''}`} onClick={() => setTheme('light')}>
+          <button
+            type="button"
+            className={`rounded-lg px-3 py-1 text-sm ${theme === 'light' ? 'bg-slate-900 text-white' : ''}`}
+            onClick={() => setTheme('light')}
+          >
             Light
           </button>
-          <button className={`rounded-lg px-3 py-1 text-sm ${theme === 'dark' ? 'bg-slate-900 text-white' : ''}`} onClick={() => setTheme('dark')}>
+          <button
+            type="button"
+            className={`rounded-lg px-3 py-1 text-sm ${theme === 'dark' ? 'bg-slate-900 text-white' : ''}`}
+            onClick={() => setTheme('dark')}
+          >
             Dark
           </button>
         </div>

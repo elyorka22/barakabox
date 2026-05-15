@@ -38,10 +38,14 @@ const ROLE_PANEL: Partial<Record<ProfileRole, Tile>> = {
 export function ProfileSettingsSection({
   role,
   notifCounts,
+  supportTelegramUrl,
+  supportTitle,
   onLogout,
 }: {
   role: ProfileRole;
   notifCounts: ProfileNotifCounts;
+  supportTelegramUrl?: string | null;
+  supportTitle?: string | null;
   onLogout: () => void;
 }) {
   const [notifOpen, setNotifOpen] = useState(false);
@@ -56,7 +60,16 @@ export function ProfileSettingsSection({
         <NotifToggle open={notifOpen} counts={notifCounts} onToggle={() => setNotifOpen((v) => !v)} />
         <SettingsRow label="Til" icon={Languages} />
         <SettingsRow label="Xavfsizlik" icon={Shield} />
-        <SettingsRow href="https://t.me" label="Yordam" icon={Headphones} external />
+        {supportTelegramUrl ? (
+          <SettingsRow
+            href={supportTelegramUrl}
+            label={supportTitle?.trim() || 'Yordam'}
+            icon={Headphones}
+            external
+          />
+        ) : (
+          <SettingsRow label="Yordam" icon={Headphones} disabled />
+        )}
         <button
           type="button"
           onClick={onLogout}
@@ -72,7 +85,7 @@ export function ProfileSettingsSection({
   );
 }
 
-function SettingsRow({ href, label, icon: Icon, external }: Tile) {
+function SettingsRow({ href, label, icon: Icon, external, disabled }: Tile & { disabled?: boolean }) {
   const inner = (
     <>
       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#FAFAFA] text-[#4B5563]">
@@ -83,7 +96,7 @@ function SettingsRow({ href, label, icon: Icon, external }: Tile) {
     </>
   );
 
-  if (href) {
+  if (href && !disabled) {
     return (
       <Link
         href={href}
@@ -95,7 +108,14 @@ function SettingsRow({ href, label, icon: Icon, external }: Tile) {
     );
   }
 
-  return <div className="flex items-center gap-3 px-4 py-3 opacity-60">{inner}</div>;
+  return (
+    <div
+      className={`flex items-center gap-3 px-4 py-3 ${disabled ? 'cursor-not-allowed opacity-50' : 'opacity-60'}`}
+      aria-disabled={disabled || undefined}
+    >
+      {inner}
+    </div>
+  );
 }
 
 function NotifToggle({
