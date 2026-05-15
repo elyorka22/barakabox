@@ -1,29 +1,31 @@
-import type { PickerOrder, PickerPriority } from './picker-types';
+import { EXPRESS_DELIVERY_FEE } from './delivery-pricing';
+import type { PickerDeliveryType, PickerOrder } from './picker-types';
 
-const URGENT_AGE_MS = 15 * 60_000;
+export function internalOrderLabel(orderId: string): string {
+  return orderId.slice(-8).toUpperCase();
+}
 
-export function orderPriority(order: PickerOrder): PickerPriority {
-  const age = Date.now() - new Date(order.createdAt).getTime();
-  const note = (order.deliveryNote || '').toLowerCase();
-  if (age >= URGENT_AGE_MS || note.includes('shosh') || note.includes('tez')) {
-    return 'shoshilinch';
-  }
+export function orderDeliveryType(order: PickerOrder): PickerDeliveryType {
+  const fee = Number(order.deliveryFee ?? 0);
+  if (fee >= EXPRESS_DELIVERY_FEE - 500) return 'tezkor';
   return 'oddiy';
+}
+
+export function deliveryTypeLabel(type: PickerDeliveryType): string {
+  return type === 'tezkor' ? 'Tezkor' : 'Oddiy';
 }
 
 export function sortPickerOrders(orders: PickerOrder[]): PickerOrder[] {
   return [...orders].sort((a, b) => {
-    const pa = orderPriority(a) === 'shoshilinch' ? 1 : 0;
-    const pb = orderPriority(b) === 'shoshilinch' ? 1 : 0;
-    if (pb !== pa) return pb - pa;
+    const ta = orderDeliveryType(a) === 'tezkor' ? 1 : 0;
+    const tb = orderDeliveryType(b) === 'tezkor' ? 1 : 0;
+    if (tb !== ta) return tb - ta;
     return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
   });
 }
 
 export function estimatePickMinutes(order: PickerOrder): number {
-  const base = 3;
-  const perItem = 2;
-  return base + order.items.length * perItem;
+  return 3 + order.items.length * 2;
 }
 
 export function minutesSinceCreated(iso: string): number {
@@ -41,10 +43,6 @@ export function formatOrderTime(iso: string): string {
   } catch {
     return '—';
   }
-}
-
-export function paymentTypeLabel(): string {
-  return 'Yetkazib berishda to‘lov';
 }
 
 export function statusLabelUz(status: string): string {

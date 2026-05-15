@@ -36,7 +36,7 @@ export function PickerProductChecklist({ items, checkedIds, notFoundIds, onToggl
           />
         </div>
       </div>
-      <ul className="space-y-2">
+      <ul className="space-y-2.5">
         {items.map((item) => {
           const checked = checkedIds.includes(item.id);
           const missing = notFoundIds.includes(item.id);
@@ -45,7 +45,7 @@ export function PickerProductChecklist({ items, checkedIds, notFoundIds, onToggl
           return (
             <li
               key={item.id}
-              className={`rounded-xl border p-2.5 ${missing ? 'border-rose-200 bg-rose-50' : checked ? 'border-[#BBF7D0] bg-[#F0FDF4]' : 'border-[#F3F4F6] bg-[#FAFAFA]'}`}
+              className={`rounded-xl border p-3 ${missing ? 'border-rose-200 bg-rose-50' : checked ? 'border-[#BBF7D0] bg-[#F0FDF4]' : 'border-[#E5E7EB] bg-white'}`}
             >
               <div className="flex gap-3">
                 <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-white">
@@ -57,8 +57,8 @@ export function PickerProductChecklist({ items, checkedIds, notFoundIds, onToggl
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-[#111827]">{item.title}</p>
-                  <p className="text-xs text-[#6B7280]">
+                  <p className="text-sm font-bold leading-snug text-[#111827]">{item.title}</p>
+                  <p className="mt-0.5 text-xs font-medium text-[#6B7280]">
                     {formatQuantityWithUnit(item.quantity, unit)}
                   </p>
                   <div className="mt-2 flex gap-2">

@@ -1,6 +1,6 @@
 export type PickerOrderStatus = 'NEW' | 'PICKING' | 'READY' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED';
 
-export type PickerPriority = 'oddiy' | 'shoshilinch';
+export type PickerDeliveryType = 'oddiy' | 'tezkor';
 
 export type PickerOrderItem = {
   id: string;
@@ -12,6 +12,7 @@ export type PickerOrderItem = {
   variant?: { imageUrl?: string | null; title?: string } | null;
 };
 
+/** API shape — picker UI must not display customer/delivery/payment fields. */
 export type PickerOrder = {
   id: string;
   status: PickerOrderStatus;
@@ -34,9 +35,8 @@ export type PickerTab = 'active' | 'history' | 'stats' | 'profile';
 
 export type PickerHistoryEntry = {
   id: string;
-  customerName: string;
-  deliveryAddress: string;
-  totalAmount: number;
+  orderLabel: string;
+  deliveryType: PickerDeliveryType;
   itemCount: number;
   completedAt: string;
   pickingMinutes: number;
@@ -49,9 +49,4 @@ export type PickerDayStats = {
   avgPickMinutes: number;
   onlineSeconds: number;
   cancelledItems: number;
-};
-
-export type PickerChecklistState = {
-  checkedIds: string[];
-  notFoundIds: string[];
 };

@@ -1,9 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
 import { Search } from 'lucide-react';
-import { formatMoneyUz } from '@/lib/format';
+import { deliveryTypeLabel } from '@/lib/picker-order-utils';
 import type { PickerHistoryEntry } from '@/lib/picker-types';
 
 type Props = {
@@ -26,18 +25,18 @@ export function PickerHistoryPanel({ items }: Props) {
       if (dateFilter === 'week' && t < now - 7 * 24 * 60 * 60_000) return false;
       if (!q.trim()) return true;
       const s = q.toLowerCase();
-      return h.customerName.toLowerCase().includes(s) || h.deliveryAddress.toLowerCase().includes(s);
+      return h.orderLabel.toLowerCase().includes(s) || h.id.toLowerCase().includes(s);
     });
   }, [items, q, dateFilter]);
 
-  const totalSum = filtered.reduce((a, h) => a + h.totalAmount, 0);
+  const totalItems = filtered.reduce((a, h) => a + h.itemCount, 0);
 
   return (
     <div className="space-y-3">
       <div className="rounded-2xl border border-[#ECECEC] bg-white p-4 shadow-sm">
         <p className="text-sm font-semibold text-[#111827]">Xulosa</p>
-        <p className="mt-1 text-2xl font-bold text-[#16A34A]">{filtered.length} ta</p>
-        <p className="text-xs text-[#6B7280]">Jami: {formatMoneyUz(totalSum)}</p>
+        <p className="mt-1 text-2xl font-bold text-[#16A34A]">{filtered.length} buyurtma</p>
+        <p className="text-xs text-[#6B7280]">{totalItems} ta mahsulot yig‘ilgan</p>
       </div>
 
       <div className="relative">
@@ -45,7 +44,7 @@ export function PickerHistoryPanel({ items }: Props) {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Qidirish..."
+          placeholder="Buyurtma raqami..."
           className="w-full rounded-xl border border-[#ECECEC] bg-white py-2.5 pl-9 pr-3 text-sm outline-none ring-[#16A34A]/30 focus:ring-2"
         />
       </div>
@@ -56,7 +55,7 @@ export function PickerHistoryPanel({ items }: Props) {
             key={f}
             type="button"
             onClick={() => setDateFilter(f)}
-            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${dateFilter === f ? 'bg-[#16A34A] text-white' : 'bg-white border border-[#ECECEC] text-[#6B7280]'}`}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${dateFilter === f ? 'bg-[#16A34A] text-white' : 'border border-[#ECECEC] bg-white text-[#6B7280]'}`}
           >
             {f === 'all' ? 'Hammasi' : f === 'today' ? 'Bugun' : 'Hafta'}
           </button>
@@ -66,13 +65,26 @@ export function PickerHistoryPanel({ items }: Props) {
       <ul className="space-y-2">
         {filtered.map((h) => (
           <li key={h.id} className="rounded-2xl border border-[#ECECEC] bg-white p-3 shadow-sm">
-            <p className="font-semibold text-[#111827]">{h.customerName}</p>
-            <p className="mt-0.5 line-clamp-2 text-xs text-[#6B7280]">{h.deliveryAddress}</p>
-            <div className="mt-2 flex justify-between text-xs">
-              <span className="font-semibold text-[#16A34A]">{formatMoneyUz(h.totalAmount)}</span>
-              <span className="text-[#9CA3AF]">
-                {h.itemCount} ta · {h.pickingMinutes} daq ·{' '}
-                {new Date(h.completedAt).toLocaleString('uz-UZ', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-mono text-sm font-bold text-[#111827]">#{h.orderLabel}</p>
+              <span
+                className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${
+                  h.deliveryType === 'tezkor' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600'
+                }`}
+              >
+                {deliveryTypeLabel(h.deliveryType)}
+              </span>
+            </div>
+            <div className="mt-2 flex justify-between text-xs text-[#6B7280]">
+              <span>{h.itemCount} mahsulot</span>
+              <span>
+                {h.pickingMinutes} daq ·{' '}
+                {new Date(h.completedAt).toLocaleString('uz-UZ', {
+                  day: 'numeric',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
               </span>
             </div>
           </li>
