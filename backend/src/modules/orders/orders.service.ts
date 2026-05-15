@@ -1,4 +1,10 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { CartService } from '../cart/cart.service';
 import { CustomersService } from '../customers/customers.service';
@@ -7,7 +13,11 @@ import { EventEmitterService } from '../../infrastructure/events/event-emitter.s
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
 import { OrderStatus, Prisma, UnitType } from '@prisma/client';
-import { canLinkCustomerFromPhone, cashbackPendingForLine } from '../customers/customers.utils';
+import {
+  canLinkCustomerFromPhone,
+  cashbackPendingForLine,
+  normalizeCustomerPhone,
+} from '../customers/customers.utils';
 
 const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   NEW: ['PICKING', 'CANCELLED'],
@@ -52,25 +62,38 @@ export class OrdersService {
       latitude?: number;
       longitude?: number;
       formattedAddress?: string;
+      manualAddress?: string;
       deliveryNote?: string;
       addressLabel?: string;
       deliverySpeed?: 'STANDARD' | 'EXPRESS';
       cashbackRedeemTiyin?: number;
     },
   ) {
-    const lat = deliveryInfo?.latitude;
-    const lng = deliveryInfo?.longitude;
-    if (
-      lat === undefined ||
-      lng === undefined ||
-      !Number.isFinite(lat) ||
-      !Number.isFinite(lng) ||
-      lat < -90 ||
-      lat > 90 ||
-      lng < -180 ||
-      lng > 180
-    ) {
-      throw new BadRequestException('Joylashuv koordinatalari majburiy');
+    const latRaw = deliveryInfo?.latitude;
+    const lngRaw = deliveryInfo?.longitude;
+    const hasLat = latRaw !== undefined && latRaw !== null && Number.isFinite(latRaw);
+    const hasLng = lngRaw !== undefined && lngRaw !== null && Number.isFinite(lngRaw);
+    if (hasLat !== hasLng) {
+      throw new BadRequestException('Koordinatalar to‘liq emas');
+    }
+    let lat: number | null = null;
+    let lng: number | null = null;
+    if (hasLat && hasLng) {
+      const latNum = Number(latRaw);
+      const lngNum = Number(lngRaw);
+      if (latNum < -90 || latNum > 90 || lngNum < -180 || lngNum > 180) {
+        throw new BadRequestException('Koordinatalar noto‘g‘ri');
+      }
+      lat = latNum;
+      lng = lngNum;
+    }
+    const manualAddress = deliveryInfo?.manualAddress?.trim() || null;
+    const addressText = deliveryInfo?.address?.trim() || '';
+    if (!addressText) {
+      throw new BadRequestException('Manzil majburiy');
+    }
+    if (!lat && !lng && !manualAddress) {
+      throw new BadRequestException('Manzil yoki joylashuv koordinatasi kerak');
     }
     const cart = await this.cartService.getCart(userId);
     if (!cart || cart.items.length === 0) {
@@ -223,10 +246,11 @@ export class OrdersService {
           customerId,
           customerName: deliveryInfo?.name?.trim() || user.fullName,
           customerPhone,
-          deliveryAddress: deliveryInfo?.address?.trim() || 'N/A',
+          deliveryAddress: addressText,
           latitude: lat,
           longitude: lng,
           formattedAddress: deliveryInfo?.formattedAddress?.trim() || null,
+          manualAddress,
           deliveryNote: deliveryInfo?.deliveryNote?.trim() || null,
           addressLabel: deliveryInfo?.addressLabel?.trim() || null,
           idempotencyKey,
@@ -322,6 +346,51 @@ export class OrdersService {
     this.events.emit('order.created', { orderId: order.id });
 
     return order;
+  }
+
+  async getTrackByPhone(orderId: string, phoneRaw: string) {
+    let normalizedPhone: string;
+    try {
+      normalizedPhone = normalizeCustomerPhone(phoneRaw);
+    } catch {
+      throw new NotFoundException('Buyurtma topilmadi');
+    }
+
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        customerPhone: true,
+        cashbackEarnedSnapshotTiyin: true,
+        cashbackCreditedAt: true,
+        assignedCourier: { select: { fullName: true } },
+      },
+    });
+    if (!order) {
+      throw new NotFoundException('Buyurtma topilmadi');
+    }
+
+    let orderPhone = '';
+    try {
+      orderPhone = normalizeCustomerPhone(order.customerPhone);
+    } catch {
+      throw new NotFoundException('Buyurtma topilmadi');
+    }
+    if (orderPhone !== normalizedPhone) {
+      throw new NotFoundException('Buyurtma topilmadi');
+    }
+
+    const courierName = order.assignedCourier?.fullName?.trim() || null;
+    return {
+      id: order.id,
+      status: order.status,
+      createdAt: order.createdAt.toISOString(),
+      cashbackEarnedTiyin: order.cashbackEarnedSnapshotTiyin,
+      cashbackCredited: Boolean(order.cashbackCreditedAt),
+      courierName,
+    };
   }
 
   private async finalizeDeliveredCashback(tx: Prisma.TransactionClient, orderId: string) {

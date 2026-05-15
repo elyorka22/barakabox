@@ -33,7 +33,11 @@ function CourierOrderCardInner({ order, busy, onAccept, onReject, onComplete }: 
   const gmaps = googleMapsHref(order);
   const ymaps = yandexMapsHref(order);
   const preview = staticMapPreviewUrl(order);
-  const address = order.formattedAddress || order.deliveryAddress || 'Manzil ko‘rsatilmagan';
+  const address =
+    order.manualAddress ||
+    order.formattedAddress ||
+    order.deliveryAddress ||
+    'Manzil ko‘rsatilmagan';
 
   return (
     <motion.li

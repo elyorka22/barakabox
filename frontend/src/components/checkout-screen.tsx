@@ -27,7 +27,15 @@ import {
   reverseGeocodeOsm,
   shortenAddressLine,
 } from '@/lib/checkout-geo';
+import {
+  isManualAddressValid,
+  looksLikeCoordinateLine,
+  readActiveOrderTrack,
+  saveActiveOrderTrack,
+} from '@/lib/order-track';
 import { phoneDigitsForApi, isUzbekPhoneComplete, onPhoneUzInputChange } from '@/lib/phone-uz';
+import { useOrderTrack } from '@/hooks/use-order-track';
+import { OrderProgressTracker } from '@/components/order/order-progress-tracker';
 
 const STICKY_BOTTOM = 'calc(var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))';
 
@@ -60,8 +68,8 @@ export function CheckoutScreen() {
   const [autoAddressEditOpen, setAutoAddressEditOpen] = useState(false);
   const autoAddressEditOpenRef = useRef(false);
   const [manualGeocodeLoading, setManualGeocodeLoading] = useState(false);
-  const [manualGeocodeError, setManualGeocodeError] = useState<string | null>(null);
   const manualGeocodeSeq = useRef(0);
+  const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
   const [deliverySpeed, setDeliverySpeed] = useState<DeliverySpeed>('STANDARD');
 
   useEffect(() => {
@@ -69,6 +77,16 @@ export function CheckoutScreen() {
     if (s === 'EXPRESS') setDeliverySpeed('EXPRESS');
     else if (s === 'STANDARD') setDeliverySpeed('STANDARD');
   }, [searchParams]);
+
+  useEffect(() => {
+    const active = readActiveOrderTrack();
+    if (!active) return;
+    setPlacedOrderId(active.orderId);
+    setPlaced(true);
+    if (!phone.trim()) {
+      setPhone(active.phone.startsWith('998') ? `+${active.phone}` : active.phone);
+    }
+  }, []);
   const [placed, setPlaced] = useState(false);
   const [loading, setLoading] = useState(false);
   const [cartLoading, setCartLoading] = useState(true);
@@ -86,6 +104,7 @@ export function CheckoutScreen() {
   const [saveAddressChecked, setSaveAddressChecked] = useState(false);
   const [saveAddressLabel, setSaveAddressLabel] = useState('Uy');
   const token = authStorage.getAccessToken();
+  const orderTrack = useOrderTrack(placedOrderId, phone, placed);
 
   const subtotal = useMemo(() => cartSubtotal(cartItems), [cartItems]);
   const delivery = useMemo(() => deliveryFeeFor(deliverySpeed, subtotal), [deliverySpeed, subtotal]);
@@ -191,35 +210,21 @@ export function CheckoutScreen() {
       return;
     }
     const q = address.trim();
-    if (q.length < 6) {
+    if (q.length < 8) {
       manualGeocodeSeq.current += 1;
       setManualGeocodeLoading(false);
-      setManualGeocodeError(null);
-      setGeoCoords(null);
-      setFormattedOsmAddress(null);
-      setGeoState('idle');
       return;
     }
     const seq = (manualGeocodeSeq.current += 1);
     const t = window.setTimeout(() => {
       void (async () => {
         setManualGeocodeLoading(true);
-        setManualGeocodeError(null);
         const r = await forwardGeocodeOsm(q);
         if (manualGeocodeSeq.current !== seq) return;
         setManualGeocodeLoading(false);
         if (r) {
           setGeoCoords({ lat: r.lat, lng: r.lon });
           setFormattedOsmAddress(r.displayName);
-          setGeoState('ok');
-          setManualGeocodeError(null);
-        } else {
-          setGeoCoords(null);
-          setFormattedOsmAddress(null);
-          setGeoState('idle');
-          setManualGeocodeError(
-            'Manzil bazadan topilmadi. Batafsilroq yozing yoki «Avtomatik aniqlash»dan foydalaning.',
-          );
         }
       })();
     }, 650);
@@ -230,7 +235,6 @@ export function CheckoutScreen() {
 
   const pickLocationModeAuto = () => {
     setLocationMode('AUTO');
-    setManualGeocodeError(null);
     setManualGeocodeLoading(false);
     setGeoState('idle');
     setGeoCoords(null);
@@ -251,7 +255,6 @@ export function CheckoutScreen() {
     setFormattedOsmAddress(null);
     setAddress('');
     setReverseLoading(false);
-    setManualGeocodeError(null);
     setManualGeocodeLoading(false);
     setSelectedSavedId(null);
   };
@@ -279,15 +282,18 @@ export function CheckoutScreen() {
       (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
-        const coordStr = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
         setGeoCoords({ lat, lng });
         setGeoState('ok');
-        setAddress(coordStr);
+        if (!autoAddressEditOpenRef.current) {
+          setAddress('');
+        }
         setReverseLoading(true);
         void (async () => {
           const line = await reverseGeocodeOsm(lat, lng);
           setFormattedOsmAddress(line);
-          setAddress((prev) => (autoAddressEditOpenRef.current ? prev : line ?? coordStr));
+          if (!autoAddressEditOpenRef.current && line) {
+            setAddress(line);
+          }
           setReverseLoading(false);
         })();
       },
@@ -315,7 +321,6 @@ export function CheckoutScreen() {
     setFormattedOsmAddress(row.address?.trim() ? row.address : null);
     setAddress(addrText);
     setReverseLoading(false);
-    setManualGeocodeError(null);
     setManualGeocodeLoading(false);
   };
 
@@ -350,15 +355,13 @@ export function CheckoutScreen() {
     }
   };
 
-  const addressOk = address.trim().length >= 4;
   const phoneOk = isUzbekPhoneComplete(phone);
-  const geoOk =
-    geoCoords !== null &&
-    geoState === 'ok' &&
-    (locationMode === 'MANUAL' ? !manualGeocodeLoading : true);
-  const canSubmit = !loading && cartItems.length > 0 && phoneOk && addressOk && geoOk;
+  const manualAddressOk = locationMode === 'MANUAL' && isManualAddressValid(address);
+  const autoLocationOk = locationMode === 'AUTO' && geoCoords !== null && geoState === 'ok';
+  const canSubmit =
+    !loading && cartItems.length > 0 && phoneOk && (manualAddressOk || autoLocationOk);
 
-  const canOfferSave = phoneOk && addressOk && geoOk && !selectedSavedId;
+  const canOfferSave = phoneOk && autoLocationOk && geoCoords !== null && !selectedSavedId;
 
   const orderAddressLabel = useMemo(() => {
     if (selectedSavedId) {
@@ -370,47 +373,62 @@ export function CheckoutScreen() {
   }, [selectedSavedId, savedAddresses, saveAddressChecked, saveAddressLabel]);
 
   const placeOrder = async () => {
-    if (!canSubmit || !apiPhone || !geoCoords) return;
+    if (!canSubmit || !apiPhone) return;
     setLoading(true);
     setError('');
     try {
       const cartRes = await api.get<{ items: CartItem[] }>('/cart', token, true);
       const enrich = enrichOrderLinesFromCart(cartRes.items ?? []);
+      const streetLine =
+        locationMode === 'MANUAL'
+          ? address.trim()
+          : formattedOsmAddress?.trim() ||
+            (address.trim() && !looksLikeCoordinateLine(address) ? address.trim() : '') ||
+            'Avtomatik aniqlangan joylashuv';
       const composedAddress = buildOrderAddress({
         speed: deliverySpeed,
-        street: address,
+        street: streetLine,
       });
+      const body: Record<string, unknown> = {
+        name: fullName.trim() || undefined,
+        phone: apiPhone,
+        address: composedAddress,
+        deliveryNote: undefined,
+        addressLabel: orderAddressLabel,
+        deliverySpeed,
+        cashbackRedeemTiyin: redeemTiyin > 0 ? redeemTiyin : undefined,
+      };
+      if (geoCoords) {
+        body.latitude = geoCoords.lat;
+        body.longitude = geoCoords.lng;
+        if (formattedOsmAddress?.trim()) {
+          body.formattedAddress = formattedOsmAddress.trim();
+        }
+      }
+      if (locationMode === 'MANUAL' && !geoCoords) {
+        body.manualAddress = streetLine;
+      }
       const order = await api.post<{
         id: string;
+        status?: string;
+        createdAt?: string;
         cashbackEarnedSnapshotTiyin?: number;
         cashbackRedeemTiyin?: number;
         totalAmount?: number;
-      }>(
-        '/orders',
-        {
-          name: fullName.trim() || undefined,
-          phone: apiPhone,
-          address: composedAddress,
-          latitude: geoCoords.lat,
-          longitude: geoCoords.lng,
-          formattedAddress: formattedOsmAddress?.trim() || undefined,
-          deliveryNote: undefined,
-          addressLabel: orderAddressLabel,
-          deliverySpeed,
-          cashbackRedeemTiyin: redeemTiyin > 0 ? redeemTiyin : undefined,
-        },
-        token,
-      );
+      }>('/orders', body, token);
       saveLastOrderSnapshot(order, enrich);
-      if (saveAddressChecked && apiPhone) {
+      if (saveAddressChecked && apiPhone && geoCoords) {
         const label = saveAddressLabel.trim() || 'Manzil';
+        const saveLine =
+          formattedOsmAddress?.trim() ||
+          (address.trim() && !looksLikeCoordinateLine(address) ? address.trim() : streetLine);
         try {
           await api.post(
             '/customers/addresses',
             {
               phone: apiPhone,
               label,
-              address: address.trim(),
+              address: saveLine,
               latitude: geoCoords.lat,
               longitude: geoCoords.lng,
               isDefault: savedAddresses.length === 0,
@@ -421,6 +439,8 @@ export function CheckoutScreen() {
           // duplicate or validation — ignore after successful order
         }
       }
+      setPlacedOrderId(order.id);
+      saveActiveOrderTrack(order.id, apiPhone);
       setPlaced(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xatolik yuz berdi. Qayta urinib ko'ring");
@@ -615,16 +635,22 @@ export function CheckoutScreen() {
                             <div className="flex items-start gap-2">
                               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
                               <div className="min-w-0 flex-1">
-                                <p className="text-[11px] font-bold text-emerald-900">Joylashuv aniqlandi</p>
+                                <p className="text-[11px] font-bold text-emerald-900">
+                                  Joylashuv muvaffaqiyatli aniqlandi
+                                </p>
                                 <p className="mt-0.5 text-[12px] font-medium leading-snug text-emerald-950/90">
                                   {reverseLoading
-                                    ? 'Manzil yuklanmoqda…'
-                                    : shortenAddressLine(
-                                        formattedOsmAddress ||
-                                          address.trim() ||
-                                          `${geoCoords.lat.toFixed(5)}, ${geoCoords.lng.toFixed(5)}`,
-                                        120,
-                                      )}
+                                    ? 'Manzil aniqlanmoqda…'
+                                    : (() => {
+                                        const line =
+                                          formattedOsmAddress?.trim() ||
+                                          (address.trim() && !looksLikeCoordinateLine(address)
+                                            ? address.trim()
+                                            : '');
+                                        return line
+                                          ? shortenAddressLine(line, 120)
+                                          : 'Siz endi buyurtma berishingiz mumkin';
+                                      })()}
                                 </p>
                               </div>
                             </div>
@@ -739,26 +765,25 @@ export function CheckoutScreen() {
                           id="co-addr-manual"
                           rows={3}
                           className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[14px] text-[#121212] outline-none transition focus:border-[#16A34A] focus:ring-2 focus:ring-[#16A34A]/15"
-                          placeholder="Ko‘cha, uy, mo‘ljal..."
+                          placeholder="Ko‘cha, mahalla yoki mo‘ljalni kiriting"
                           value={address}
                           onChange={(e) => {
                             setAddress(e.target.value);
                             setSelectedSavedId(null);
                           }}
                         />
+                        <p className="text-[11px] text-slate-500">
+                          Masalan: Do‘stlik mahallasi, 12-maktab yonida
+                        </p>
                         {manualGeocodeLoading ? (
                           <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                            <Loader2 className="h-3 w-3 animate-spin shrink-0" aria-hidden />
-                            Manzil tekshirilmoqda…
+                            <Loader2 className="h-3 w-3 shrink-0 animate-spin" aria-hidden />
+                            Ixtiyoriy: manzil xaritada qidirilmoqda…
                           </p>
                         ) : null}
-                        {manualGeocodeError && address.trim().length >= 6 ? (
-                          <p className="text-[11px] leading-snug text-amber-800">{manualGeocodeError}</p>
-                        ) : null}
                         {locationMode === 'MANUAL' &&
-                        address.trim().length >= 6 &&
+                        isManualAddressValid(address) &&
                         !manualGeocodeLoading &&
-                        geoState === 'ok' &&
                         geoCoords ? (
                           <p className="text-[11px] font-medium text-emerald-700">✓ Manzil xaritada topildi</p>
                         ) : null}
@@ -853,16 +878,17 @@ export function CheckoutScreen() {
             )}
           </>
         ) : (
-          <div className="mt-8 rounded-[24px] bg-white p-8 text-center shadow-[0_8px_32px_rgba(15,23,42,0.08)] ring-1 ring-slate-100">
-            <CheckCircle2 className="mx-auto h-14 w-14 text-[#16A34A]" strokeWidth={1.75} aria-hidden />
-            <h2 className="mt-4 text-xl font-bold text-[#121212]">Buyurtma qabul qilindi</h2>
-            <p className="mt-2 text-[14px] text-slate-500">Rahmat. Tez orada bog&apos;lanamiz.</p>
-            <Link
-              href="/"
-              className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-[#16A34A] px-8 text-[15px] font-semibold text-white"
-            >
-              Bosh sahifa
-            </Link>
+          <div className="mt-4">
+            <div className="text-center">
+              <CheckCircle2 className="mx-auto h-12 w-12 text-[#16A34A]" strokeWidth={1.75} aria-hidden />
+              <h2 className="mt-3 text-xl font-bold text-[#121212]">Buyurtma qabul qilindi</h2>
+              <p className="mt-1 text-[14px] text-slate-500">Holatni real vaqtda kuzatishingiz mumkin</p>
+            </div>
+            <OrderProgressTracker
+              snapshot={orderTrack.snapshot}
+              loading={orderTrack.loading}
+              error={orderTrack.error}
+            />
           </div>
         )}
       </section>

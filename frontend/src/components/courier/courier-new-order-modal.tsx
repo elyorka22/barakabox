@@ -69,7 +69,7 @@ export function CourierNewOrderModal({ order, busy, onAccept, onReject, onClose 
               </p>
               <p className="flex items-start gap-2 text-[#374151]">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#9CA3AF]" />
-                {order.formattedAddress || order.deliveryAddress}
+                {order.manualAddress || order.formattedAddress || order.deliveryAddress}
               </p>
               <div className="flex flex-wrap gap-2 text-xs">
                 <span className="rounded-lg bg-[#F0FDF4] px-2 py-1 font-bold text-[#166534]">

@@ -20,6 +20,7 @@ export type PickerOrder = {
   customerPhone: string;
   deliveryAddress: string;
   formattedAddress?: string | null;
+  manualAddress?: string | null;
   deliveryNote?: string | null;
   totalAmount: number;
   subtotalAmount?: number;

@@ -1,5 +1,16 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  ValidateIf,
+} from 'class-validator';
 
 export class CreateOrderDto {
   @IsOptional()
@@ -14,17 +25,26 @@ export class CreateOrderDto {
   @IsNotEmpty()
   address!: string;
 
+  @IsOptional()
+  @ValidateIf((_, v) => v !== undefined && v !== null)
   @Type(() => Number)
   @IsNumber()
   @Min(-90)
   @Max(90)
-  latitude!: number;
+  latitude?: number;
 
+  @IsOptional()
+  @ValidateIf((_, v) => v !== undefined && v !== null)
   @Type(() => Number)
   @IsNumber()
   @Min(-180)
   @Max(180)
-  longitude!: number;
+  longitude?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  manualAddress?: string;
 
   @IsOptional()
   @IsString()

@@ -398,6 +398,7 @@ model Order {
   latitude      Float?
   longitude     Float?
   formattedAddress String?
+  manualAddress String?
   deliveryNote  String?
   addressLabel  String?
   status        OrderStatus @default(NEW)

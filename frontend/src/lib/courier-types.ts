@@ -14,6 +14,7 @@ export type CourierOrder = {
   latitude?: number | null;
   longitude?: number | null;
   formattedAddress?: string | null;
+  manualAddress?: string | null;
   addressLabel?: string | null;
   deliveryNote?: string | null;
   createdAt: string;

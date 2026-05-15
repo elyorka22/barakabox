@@ -103,7 +103,7 @@ function appendCourierHistory(order: CourierOrder): void {
     id: order.id,
     customerName: order.customerName,
     customerPhone: order.customerPhone,
-    deliveryAddress: order.deliveryAddress || order.formattedAddress || '—',
+    deliveryAddress: order.manualAddress || order.deliveryAddress || order.formattedAddress || '—',
     totalAmount: Number(order.totalAmount) || 0,
     deliveredAt: new Date().toISOString(),
   };

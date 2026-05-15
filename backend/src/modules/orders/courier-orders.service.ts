@@ -62,6 +62,7 @@ export class CourierOrdersService {
     latitude: number | null;
     longitude: number | null;
     formattedAddress: string | null;
+    manualAddress: string | null;
     addressLabel: string | null;
     deliveryNote: string | null;
     createdAt: Date;
@@ -298,6 +299,7 @@ export class CourierOrdersService {
         customerPhone: true,
         deliveryAddress: true,
         formattedAddress: true,
+        manualAddress: true,
         totalAmount: true,
         deliveryFee: true,
         deliveredAt: true,

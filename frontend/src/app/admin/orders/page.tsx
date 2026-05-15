@@ -15,6 +15,7 @@ type Order = {
   latitude?: number | null;
   longitude?: number | null;
   formattedAddress?: string | null;
+  manualAddress?: string | null;
   deliveryNote?: string | null;
   addressLabel?: string | null;
   assignedPicker?: { fullName: string } | null;
@@ -127,6 +128,9 @@ export default function AdminOrdersPage() {
                   <p className="text-xs font-medium text-emerald-800">Yorliq: {order.addressLabel}</p>
                 ) : null}
                 <p className="text-xs text-slate-500">{order.deliveryAddress}</p>
+                {order.manualAddress ? (
+                  <p className="text-xs font-medium text-amber-900">Qo‘lda: {order.manualAddress}</p>
+                ) : null}
                 {order.formattedAddress ? (
                   <p className="text-xs text-slate-600">OSM: {order.formattedAddress}</p>
                 ) : null}
@@ -198,6 +202,7 @@ export default function AdminOrdersPage() {
               <p>Telefon: {selected.customerPhone}</p>
               {selected.addressLabel ? <p>Yorliq: {selected.addressLabel}</p> : null}
               <p>Manzil (yuborilgan): {selected.deliveryAddress}</p>
+              {selected.manualAddress ? <p>Qo‘lda kiritilgan: {selected.manualAddress}</p> : null}
               {selected.formattedAddress ? <p>OSM manzil: {selected.formattedAddress}</p> : null}
               {selected.deliveryNote ? <p>Izoh: {selected.deliveryNote}</p> : null}
               {selected.latitude != null && selected.longitude != null ? (

@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
@@ -67,11 +68,20 @@ export class OrdersController {
       latitude: body?.latitude,
       longitude: body?.longitude,
       formattedAddress: body?.formattedAddress,
+      manualAddress: body?.manualAddress,
       deliveryNote: body?.deliveryNote,
       addressLabel: body?.addressLabel,
       deliverySpeed: body?.deliverySpeed ?? 'STANDARD',
       cashbackRedeemTiyin: body?.cashbackRedeemTiyin,
     });
+  }
+
+  @Get(':orderId/track')
+  trackOrder(@Param('orderId') orderId: string, @Query('phone') phone?: string) {
+    if (!phone?.trim()) {
+      throw new BadRequestException('Telefon raqami kerak');
+    }
+    return this.ordersService.getTrackByPhone(orderId, phone);
   }
 
   @Get()
