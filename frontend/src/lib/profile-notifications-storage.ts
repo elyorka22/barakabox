@@ -5,31 +5,23 @@ export type ProfileNotifCounts = {
   cashback: number;
 };
 
-const KEY = 'barakabox_profile_notif_counts_v1';
-
-const DEFAULTS: ProfileNotifCounts = {
-  orders: 1,
-  promotions: 2,
+const ZEROS: ProfileNotifCounts = {
+  orders: 0,
+  promotions: 0,
   delivery: 0,
-  cashback: 1,
+  cashback: 0,
 };
 
-export function getProfileNotifCounts(): ProfileNotifCounts {
-  if (typeof window === 'undefined') return DEFAULTS;
-  try {
-    const raw = window.sessionStorage.getItem(KEY);
-    if (!raw) {
-      window.sessionStorage.setItem(KEY, JSON.stringify(DEFAULTS));
-      return DEFAULTS;
-    }
-    const parsed = JSON.parse(raw) as Partial<ProfileNotifCounts>;
-    return {
-      orders: typeof parsed.orders === 'number' ? parsed.orders : DEFAULTS.orders,
-      promotions: typeof parsed.promotions === 'number' ? parsed.promotions : DEFAULTS.promotions,
-      delivery: typeof parsed.delivery === 'number' ? parsed.delivery : DEFAULTS.delivery,
-      cashback: typeof parsed.cashback === 'number' ? parsed.cashback : DEFAULTS.cashback,
-    };
-  } catch {
-    return DEFAULTS;
-  }
+/** Operational notification counts — no demo defaults. */
+export function getProfileNotifCounts(activeOrderCount = 0, cashbackBalance = 0): ProfileNotifCounts {
+  return {
+    orders: activeOrderCount > 0 ? 1 : 0,
+    promotions: 0,
+    delivery: activeOrderCount > 0 ? 1 : 0,
+    cashback: cashbackBalance > 0 ? 1 : 0,
+  };
+}
+
+export function emptyProfileNotifCounts(): ProfileNotifCounts {
+  return { ...ZEROS };
 }

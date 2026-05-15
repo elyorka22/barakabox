@@ -85,10 +85,8 @@ function handleSessionExpired() {
   redirectingForAuth = true;
   showToast({ type: 'error', message: 'Sessiya tugadi. Iltimos qaytadan tizimga kiring.' });
   const p = window.location.pathname;
-  const onStaffPanel =
-    p.startsWith('/admin') || p.startsWith('/business') || p.startsWith('/courier') || p.startsWith('/picker');
-  if (!p.startsWith('/profile') && !p.startsWith('/staff/login')) {
-    window.location.href = onStaffPanel ? '/staff/login' : '/profile';
+  if (!p.startsWith('/profile')) {
+    window.location.href = '/profile';
   }
   window.setTimeout(() => {
     redirectingForAuth = false;

@@ -132,7 +132,7 @@ export function CourierDashboard() {
     }
   };
 
-  const logout = () => void authStorage.logout().finally(() => router.replace('/staff/login'));
+  const logout = () => void authStorage.logout().finally(() => router.replace('/profile'));
   const user = authStorage.getUser();
 
   return (

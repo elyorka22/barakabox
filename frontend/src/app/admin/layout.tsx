@@ -17,7 +17,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       const token = authStorage.getAccessToken() || authStorage.getRefreshToken();
       const role = (user?.role ?? '').toUpperCase();
       if (!token || (role !== 'ADMIN' && role !== 'SUPER_ADMIN')) {
-        router.replace('/staff/login');
+        router.replace('/profile');
         return;
       }
       setReady(true);

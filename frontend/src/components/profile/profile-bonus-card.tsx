@@ -37,15 +37,17 @@ export function ProfileBonusCard({ loyalty }: Props) {
           <span className="flex-1">Promo-kodlar</span>
           <span className="text-[#D1D5DB]">›</span>
         </Link>
-        <button
-          type="button"
-          onClick={copyReferral}
-          className="flex w-full items-center gap-2 px-1 py-2 text-left text-sm text-[#374151] transition active:bg-[#FAFAFA]"
-        >
-          <Share2 className="h-4 w-4 shrink-0 text-[#16A34A]" strokeWidth={2} />
-          <span className="flex-1">Do‘stlarga ulashish</span>
-          <span className="text-[11px] font-medium text-[#16A34A]">+{formatMoneyUz(loyalty.referralBonusSoM)}</span>
-        </button>
+        {loyalty.referralBonusSoM > 0 ? (
+          <button
+            type="button"
+            onClick={copyReferral}
+            className="flex w-full items-center gap-2 px-1 py-2 text-left text-sm text-[#374151] transition active:bg-[#FAFAFA]"
+          >
+            <Share2 className="h-4 w-4 shrink-0 text-[#16A34A]" strokeWidth={2} />
+            <span className="flex-1">Do‘stlarga ulashish</span>
+            <span className="text-[11px] font-medium text-[#16A34A]">+{formatMoneyUz(loyalty.referralBonusSoM)}</span>
+          </button>
+        ) : null}
       </div>
     </section>
   );

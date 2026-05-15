@@ -14,7 +14,8 @@ import { ProfileQuickActionsGrid } from '@/components/profile/profile-quick-acti
 import { ProfileSettingsSection } from '@/components/profile/profile-settings-section';
 import { isActiveDeliveryStatus, readLastOrderSnapshot } from '@/lib/last-order-storage';
 import type { LastOrderSnapshot } from '@/lib/last-order-storage';
-import { getProfileLoyaltyDisplay } from '@/lib/profile-loyalty-storage';
+import { PasswordInput } from '@/components/auth/password-input';
+import { useProfileLoyalty } from '@/hooks/use-profile-loyalty';
 import { getProfileNotifCounts } from '@/lib/profile-notifications-storage';
 import { normalizeProfileRole, staffDashboardPath } from '@/lib/profile-role';
 import type { StoredUser } from '@/lib/api';
@@ -42,11 +43,10 @@ export default function ProfilePage() {
   const [user, setUser] = useState<StoredUser | null>(null);
   const [loading, setLoading] = useState(false);
   const [lastOrder, setLastOrder] = useState<LastOrderSnapshot | null>(null);
-  const [notifCounts, setNotifCounts] = useState(getProfileNotifCounts());
+  const { loyalty } = useProfileLoyalty(user);
 
   const syncStored = useCallback(() => {
     setLastOrder(readLastOrderSnapshot());
-    setNotifCounts(getProfileNotifCounts());
   }, []);
 
   useEffect(() => {
@@ -155,9 +155,9 @@ export default function ProfilePage() {
     });
   };
 
-  const loyalty = user ? getProfileLoyaltyDisplay(user.id) : null;
   const activeOrder = lastOrder && isActiveDeliveryStatus(lastOrder.status) ? lastOrder : null;
   const showFloating = Boolean(user && activeOrder);
+  const notifCounts = getProfileNotifCounts(activeOrder ? 1 : 0, loyalty.cashbackSoM);
 
   if (!mounted) {
     return (
@@ -251,16 +251,16 @@ export default function ProfilePage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       onBlur={() => handleBlur('email')}
-                      placeholder={mode === 'login' ? 'Email yoki login (masalan: courier)' : 'Email'}
+                      placeholder={mode === 'login' ? 'Email yoki login' : 'Email'}
                     />
                     {touched.email && fieldErrors.email ? (
                       <p className="text-xs text-red-600">{fieldErrors.email}</p>
                     ) : null}
                   </div>
                   <div className="space-y-1">
-                    <input
-                      className="bb-input rounded-xl border-[#ECECEC] bg-white px-4 py-3 text-sm outline-none focus:border-[#16A34A] focus:ring-1 focus:ring-[#16A34A]"
-                      type="password"
+                    <PasswordInput
+                      className="bb-input w-full rounded-xl border border-[#ECECEC] bg-white px-4 py-3 text-sm outline-none focus:border-[#16A34A] focus:ring-1 focus:ring-[#16A34A]"
+                      autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       onBlur={() => handleBlur('password')}
@@ -272,9 +272,9 @@ export default function ProfilePage() {
                   </div>
                   {mode === 'register' ? (
                     <div className="space-y-1">
-                      <input
-                        className="bb-input rounded-xl border-[#ECECEC] bg-white px-4 py-3 text-sm outline-none focus:border-[#16A34A] focus:ring-1 focus:ring-[#16A34A]"
-                        type="password"
+                      <PasswordInput
+                        className="bb-input w-full rounded-xl border border-[#ECECEC] bg-white px-4 py-3 text-sm outline-none focus:border-[#16A34A] focus:ring-1 focus:ring-[#16A34A]"
+                        autoComplete="new-password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         onBlur={() => handleBlur('confirmPassword')}
@@ -299,9 +299,6 @@ export default function ProfilePage() {
                   >
                     Mehmon sifatida davom etish
                   </Link>
-                  <Link href="/staff/login" className="block text-center text-xs font-medium text-[#16A34A]">
-                    Xodimlar uchun alohida kirish
-                  </Link>
                   <p className="text-center text-xs text-[#6B7280]">
                     {mode === 'login' ? "Hisobingiz yo‘qmi? " : "Akkauntingiz bormi? "}
                     <button
@@ -324,7 +321,7 @@ export default function ProfilePage() {
               <p className="mt-1">Buyurtmalar, cashback, manzillar va kuponlar.</p>
             </div>
           </>
-        ) : loyalty ? (
+        ) : user ? (
           <>
             {activeOrder ? <ProfileActiveOrderCard order={activeOrder} /> : null}
             <ProfileCompactHeader fullName={user.fullName} email={user.email} loyalty={loyalty} />

@@ -11,63 +11,48 @@ export type ProfileLoyaltyDisplay = {
 
 const STORAGE_KEY = 'barakabox_profile_loyalty_v1';
 
-function hashUserId(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i += 1) {
-    h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  }
-  return h;
-}
-
-function defaultDisplay(seed: number): ProfileLoyaltyDisplay {
-  const mod = seed % 3;
-  const tierKey: LoyaltyTierKey = mod === 0 ? 'gold' : mod === 1 ? 'silver' : 'vip';
-  const tierTitle =
-    tierKey === 'gold' ? 'Gold Member' : tierKey === 'silver' ? 'Silver Member' : 'VIP Member';
-  const bump = (seed % 5) * 500;
-  const savedMonthSoM = 185_000 + bump * 2;
+export function emptyProfileLoyalty(): ProfileLoyaltyDisplay {
   return {
-    tierKey,
-    tierTitle,
-    cashbackSoM: 12_450 + bump,
-    savedMonthSoM,
-    totalPurchasesSoM: 1_240_000 + bump * 8,
-    referralBonusSoM: 10_000,
+    tierKey: 'silver',
+    tierTitle: 'Silver',
+    cashbackSoM: 0,
+    savedMonthSoM: 0,
+    totalPurchasesSoM: 0,
+    referralBonusSoM: 0,
   };
 }
 
 export function getProfileLoyaltyDisplay(userId: string): ProfileLoyaltyDisplay {
-  if (typeof window === 'undefined') {
-    return defaultDisplay(hashUserId(userId || 'guest'));
+  if (typeof window === 'undefined' || !userId) {
+    return emptyProfileLoyalty();
   }
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Partial<ProfileLoyaltyDisplay> & { userId?: string };
-      if (parsed && parsed.userId === userId && typeof parsed.cashbackSoM === 'number') {
-        const savedMonthSoM = typeof parsed.savedMonthSoM === 'number' ? parsed.savedMonthSoM : 185_000;
-        return {
-          tierKey: (parsed.tierKey as LoyaltyTierKey) ?? 'gold',
-          tierTitle: parsed.tierTitle ?? 'Gold Member',
-          cashbackSoM: parsed.cashbackSoM,
-          savedMonthSoM,
-          totalPurchasesSoM:
-            typeof parsed.totalPurchasesSoM === 'number' ? parsed.totalPurchasesSoM : 1_240_000,
-          referralBonusSoM: typeof parsed.referralBonusSoM === 'number' ? parsed.referralBonusSoM : 10_000,
-        };
-      }
+    if (!raw) return emptyProfileLoyalty();
+    const parsed = JSON.parse(raw) as Partial<ProfileLoyaltyDisplay> & { userId?: string };
+    if (parsed?.userId !== userId) return emptyProfileLoyalty();
+    return {
+      tierKey: (parsed.tierKey as LoyaltyTierKey) ?? 'silver',
+      tierTitle: parsed.tierTitle ?? 'Silver',
+      cashbackSoM: typeof parsed.cashbackSoM === 'number' ? parsed.cashbackSoM : 0,
+      savedMonthSoM: typeof parsed.savedMonthSoM === 'number' ? parsed.savedMonthSoM : 0,
+      totalPurchasesSoM: typeof parsed.totalPurchasesSoM === 'number' ? parsed.totalPurchasesSoM : 0,
+      referralBonusSoM: typeof parsed.referralBonusSoM === 'number' ? parsed.referralBonusSoM : 0,
+    };
+  } catch {
+    return emptyProfileLoyalty();
+  }
+}
+
+export function saveProfileLoyalty(userId: string, patch: Partial<ProfileLoyaltyDisplay>): ProfileLoyaltyDisplay {
+  const current = getProfileLoyaltyDisplay(userId);
+  const next = { ...current, ...patch };
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ userId, ...next }));
+    } catch {
+      /* ignore */
     }
-  } catch {
-    // fall through
   }
-  const display = defaultDisplay(hashUserId(userId || 'guest'));
-  try {
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ userId, ...display }),
-    );
-  } catch {
-    // ignore
-  }
-  return display;
+  return next;
 }
