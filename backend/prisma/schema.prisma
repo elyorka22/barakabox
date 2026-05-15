@@ -119,11 +119,37 @@ model User {
   orders          Order[]
   pickerOrders    Order[]          @relation("PickerAssignments")
   courierOrders   Order[]          @relation("CourierAssignments")
+  courierRejects  CourierOrderReject[]
+  courierShifts   CourierShift[]
   uploadAuditLogs UploadAuditLog[]
   customerProfile Customer?
 
   @@index([role])
   @@index([businessScopeId])
+}
+
+model CourierOrderReject {
+  id        String   @id @default(cuid())
+  courierId String
+  orderId   String
+  reason    String?
+  createdAt DateTime @default(now())
+  courier   User     @relation(fields: [courierId], references: [id], onDelete: Cascade)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([courierId, createdAt])
+  @@index([orderId, courierId])
+}
+
+model CourierShift {
+  id        String    @id @default(cuid())
+  courierId String
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  courier   User      @relation(fields: [courierId], references: [id], onDelete: Cascade)
+
+  @@index([courierId, startedAt])
+  @@index([courierId, endedAt])
 }
 
 model Customer {
@@ -396,6 +422,7 @@ model Order {
   items         OrderItem[]
   inventoryLogs InventoryLog[]
   cashbackTransactions CashbackTransaction[]
+  courierRejects CourierOrderReject[]
 
   @@index([userId, status])
   @@index([customerId])
