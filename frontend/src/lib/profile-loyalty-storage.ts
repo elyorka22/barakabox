@@ -5,6 +5,7 @@ export type ProfileLoyaltyDisplay = {
   tierTitle: string;
   cashbackSoM: number;
   savedMonthSoM: number;
+  totalPurchasesSoM: number;
   referralBonusSoM: number;
 };
 
@@ -24,11 +25,13 @@ function defaultDisplay(seed: number): ProfileLoyaltyDisplay {
   const tierTitle =
     tierKey === 'gold' ? 'Gold Member' : tierKey === 'silver' ? 'Silver Member' : 'VIP Member';
   const bump = (seed % 5) * 500;
+  const savedMonthSoM = 185_000 + bump * 2;
   return {
     tierKey,
     tierTitle,
     cashbackSoM: 12_450 + bump,
-    savedMonthSoM: 185_000 + bump * 2,
+    savedMonthSoM,
+    totalPurchasesSoM: 1_240_000 + bump * 8,
     referralBonusSoM: 10_000,
   };
 }
@@ -42,11 +45,14 @@ export function getProfileLoyaltyDisplay(userId: string): ProfileLoyaltyDisplay 
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<ProfileLoyaltyDisplay> & { userId?: string };
       if (parsed && parsed.userId === userId && typeof parsed.cashbackSoM === 'number') {
+        const savedMonthSoM = typeof parsed.savedMonthSoM === 'number' ? parsed.savedMonthSoM : 185_000;
         return {
           tierKey: (parsed.tierKey as LoyaltyTierKey) ?? 'gold',
           tierTitle: parsed.tierTitle ?? 'Gold Member',
           cashbackSoM: parsed.cashbackSoM,
-          savedMonthSoM: typeof parsed.savedMonthSoM === 'number' ? parsed.savedMonthSoM : 185_000,
+          savedMonthSoM,
+          totalPurchasesSoM:
+            typeof parsed.totalPurchasesSoM === 'number' ? parsed.totalPurchasesSoM : 1_240_000,
           referralBonusSoM: typeof parsed.referralBonusSoM === 'number' ? parsed.referralBonusSoM : 10_000,
         };
       }

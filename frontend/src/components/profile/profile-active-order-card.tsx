@@ -28,7 +28,7 @@ export function ProfileActiveOrderCard({ order }: Props) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.22 }}
       id="active-order"
-      className="rounded-2xl border border-[#ECECEC] bg-white p-4 shadow-sm"
+      className="rounded-xl border border-[#ECECEC] bg-white px-3.5 py-3"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">

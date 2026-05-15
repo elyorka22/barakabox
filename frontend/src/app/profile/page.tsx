@@ -3,17 +3,14 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useCallback, useEffect, useState } from 'react';
-import { Sparkles, UserRound } from 'lucide-react';
+import { UserRound } from 'lucide-react';
 import { api, authEvents, authStorage } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
-import { ProfileInstallSection } from '@/components/pwa/ProfileInstallSection';
 import { ProfileActiveOrderCard } from '@/components/profile/profile-active-order-card';
+import { ProfileBonusCard } from '@/components/profile/profile-bonus-card';
+import { ProfileCompactHeader } from '@/components/profile/profile-compact-header';
 import { ProfileFloatingTrackCta } from '@/components/profile/profile-floating-track-cta';
-import { ProfileHeroCard } from '@/components/profile/profile-hero-card';
-import { ProfileLoyaltySection } from '@/components/profile/profile-loyalty-section';
-import { ProfileNotificationsSection } from '@/components/profile/profile-notifications-section';
 import { ProfileQuickActionsGrid } from '@/components/profile/profile-quick-actions-grid';
-import { ProfileReorderSection } from '@/components/profile/profile-reorder-section';
 import { ProfileSettingsSection } from '@/components/profile/profile-settings-section';
 import { isActiveDeliveryStatus, readLastOrderSnapshot } from '@/lib/last-order-storage';
 import type { LastOrderSnapshot } from '@/lib/last-order-storage';
@@ -177,7 +174,7 @@ export default function ProfilePage() {
 
   return (
     <main className="bb-page bg-[#F7F7F7]">
-      <section className={`bb-shell space-y-4 ${showFloating ? 'pb-32' : 'pb-28'} pt-1`}>
+      <section className={`bb-shell space-y-3 ${showFloating ? 'pb-28' : 'pb-24'} pt-1`}>
         {!user ? (
           <>
             <div className="flex items-end justify-between px-0.5 pb-1">
@@ -191,7 +188,7 @@ export default function ProfilePage() {
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2 }}
-              className="overflow-hidden rounded-2xl border border-[#ECECEC] bg-white shadow-sm"
+              className="overflow-hidden rounded-xl border border-[#ECECEC] bg-white"
             >
               <div className="border-b border-[#ECECEC] bg-[#F4FBF6] px-4 py-3">
                 <div className="flex items-start gap-3">
@@ -322,38 +319,15 @@ export default function ProfilePage() {
               </div>
             </motion.div>
 
-            <div className="rounded-2xl border border-[#ECECEC] bg-white p-4 shadow-sm">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-[#16A34A]" />
-                <p className="text-sm font-semibold text-[#111827]">Nimalar ochiladi</p>
-              </div>
-              <ul className="mt-3 space-y-2 border-t border-[#ECECEC] pt-3 text-xs leading-relaxed text-[#6B7280]">
-                <li className="flex gap-2">
-                  <span className="text-[#16A34A]">✓</span> Buyurtmalar va qayta buyurtma
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-[#16A34A]">✓</span> Cashback va aksiyalar
-                </li>
-                <li className="flex gap-2">
-                  <span className="text-[#16A34A]">✓</span> Tezkor manzil va to‘lov
-                </li>
-              </ul>
+            <div className="rounded-xl border border-[#ECECEC] bg-white px-4 py-3 text-xs text-[#6B7280]">
+              <p className="font-medium text-[#111827]">Kirishdan keyin</p>
+              <p className="mt-1">Buyurtmalar, cashback, manzillar va kuponlar.</p>
             </div>
-
-            <ProfileInstallSection />
           </>
-        ) : (
+        ) : loyalty ? (
           <>
-            <div className="flex items-end justify-between px-0.5 pb-1">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-wide text-[#6B7280]">Shaxsiy kabinet</p>
-                <h1 className="text-xl font-semibold tracking-tight text-[#111827]">Profil</h1>
-              </div>
-            </div>
-
-            {loyalty ? <ProfileHeroCard fullName={user.fullName} email={user.email} loyalty={loyalty} /> : null}
             {activeOrder ? <ProfileActiveOrderCard order={activeOrder} /> : null}
-
+            <ProfileCompactHeader fullName={user.fullName} email={user.email} loyalty={loyalty} />
             <ProfileQuickActionsGrid
               badges={{
                 Buyurtmalar: notifCounts.orders,
@@ -361,18 +335,14 @@ export default function ProfilePage() {
                 Kuponlar: notifCounts.promotions,
               }}
             />
-
-            <ProfileReorderSection order={lastOrder} />
-
-            {loyalty ? <ProfileLoyaltySection loyalty={loyalty} /> : null}
-
-            <ProfileNotificationsSection counts={notifCounts} />
-
-            <ProfileInstallSection />
-
-            <ProfileSettingsSection role={normalizeProfileRole(user.role)} onLogout={logout} />
+            <ProfileBonusCard loyalty={loyalty} />
+            <ProfileSettingsSection
+              role={normalizeProfileRole(user.role)}
+              notifCounts={notifCounts}
+              onLogout={logout}
+            />
           </>
-        )}
+        ) : null}
       </section>
 
       <ProfileFloatingTrackCta visible={showFloating} />
