@@ -7,9 +7,10 @@ import { CustomersModule } from '../customers/customers.module';
 import { QueueService } from '../../infrastructure/queue/queue.service';
 import { EventEmitterService } from '../../infrastructure/events/event-emitter.service';
 import { UsersModule } from '../users/users.module';
+import { CouponsModule } from '../coupons/coupons.module';
 
 @Module({
-  imports: [CartModule, UsersModule, CustomersModule],
+  imports: [CartModule, UsersModule, CustomersModule, CouponsModule],
   providers: [OrdersService, CourierOrdersService, QueueService, EventEmitterService],
   controllers: [OrdersController],
 })

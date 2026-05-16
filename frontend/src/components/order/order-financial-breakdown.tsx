@@ -6,6 +6,7 @@ import { calculateOrderTotals } from '@/lib/order-totals';
 type Props = {
   subtotalAmount: number;
   deliveryFee: number;
+  couponDiscountTiyin?: number;
   cashbackRedeemTiyin?: number;
   className?: string;
   compact?: boolean;
@@ -14,6 +15,7 @@ type Props = {
 export function OrderFinancialBreakdown({
   subtotalAmount,
   deliveryFee,
+  couponDiscountTiyin = 0,
   cashbackRedeemTiyin = 0,
   className = '',
   compact = false,
@@ -21,8 +23,10 @@ export function OrderFinancialBreakdown({
   const totals = calculateOrderTotals({
     subtotalAmount,
     deliveryFee,
+    couponDiscountTiyin,
     cashbackRedeemRequested: cashbackRedeemTiyin,
   });
+  const coupon = totals.couponDiscountTiyin;
   const redeem = totals.cashbackRedeemTiyin;
   const text = compact ? 'text-xs' : 'text-sm';
   const gap = compact ? 'space-y-1' : 'space-y-1.5';
@@ -41,6 +45,12 @@ export function OrderFinancialBreakdown({
           {totals.deliveryFee === 0 ? 'Bepul' : formatMoneyUz(totals.deliveryFee)}
         </span>
       </div>
+      {coupon > 0 ? (
+        <div className="flex justify-between gap-3 text-emerald-800">
+          <span>Kupon chegirmasi</span>
+          <span className="shrink-0 font-semibold tabular-nums">-{formatMoneyUz(coupon)}</span>
+        </div>
+      ) : null}
       {redeem > 0 ? (
         <div className="flex justify-between gap-3 text-emerald-800">
           <span>Cashback ishlatildi</span>

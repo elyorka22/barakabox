@@ -19,6 +19,7 @@ import {
   normalizeCustomerPhone,
 } from '../customers/customers.utils';
 import { calculateOrderTotals } from './order-totals.util';
+import { CouponsService } from '../coupons/coupons.service';
 
 const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   NEW: ['PICKING', 'CANCELLED'],
@@ -52,6 +53,7 @@ export class OrdersService {
     private readonly queueService: QueueService,
     private readonly events: EventEmitterService,
     private readonly configService: ConfigService,
+    private readonly couponsService: CouponsService,
   ) {}
 
   async createFromCart(
@@ -68,6 +70,7 @@ export class OrdersService {
       addressLabel?: string;
       deliverySpeed?: 'STANDARD' | 'EXPRESS';
       cashbackRedeemTiyin?: number;
+      couponCode?: string;
     },
   ) {
     const latRaw = deliveryInfo?.latitude;
@@ -165,9 +168,10 @@ export class OrdersService {
     }
 
     const cashbackRedeemRequested = Math.max(0, Math.floor(deliveryInfo?.cashbackRedeemTiyin ?? 0));
+    const couponCodeRaw = deliveryInfo?.couponCode?.trim().toUpperCase() ?? '';
 
     const idempotencyKey = createHash('sha256')
-      .update(`${userId}:${cashbackRedeemRequested}:${JSON.stringify(preparedLines)}`)
+      .update(`${userId}:${cashbackRedeemRequested}:${couponCodeRaw}:${JSON.stringify(preparedLines)}`)
       .digest('hex');
 
     const duplicateWindowSeconds = Number(
@@ -225,9 +229,17 @@ export class OrdersService {
         throw new BadRequestException('Keshbek ishlatish uchun telefon raqam kiriting');
       }
 
+      const couponResolved = await this.couponsService.resolveForOrder(tx, {
+        code: couponCodeRaw || undefined,
+        phone: deliveryInfo?.phone,
+        subtotalAmount: subtotal,
+        deliveryFee,
+      });
+
       const totals = calculateOrderTotals({
         subtotalAmount: subtotal,
         deliveryFee,
+        couponDiscountTiyin: couponResolved?.couponDiscountTiyin ?? 0,
         cashbackBalance: customerBalance,
         cashbackRedeemRequested: cashbackRedeemRequested,
       });
@@ -265,6 +277,9 @@ export class OrdersService {
           totalAmount,
           cashbackRedeemTiyin: redeem,
           cashbackEarnedSnapshotTiyin,
+          couponId: couponResolved?.couponId ?? null,
+          couponCode: couponResolved?.couponCode ?? null,
+          couponDiscountTiyin: couponResolved?.couponDiscountTiyin ?? 0,
           items: {
             create: preparedLines.map((item) => ({
               productId: item.type === 'product' ? item.entityId : null,
@@ -294,6 +309,15 @@ export class OrdersService {
             type: 'SPENT',
             status: 'COMPLETED',
           },
+        });
+      }
+
+      if (couponResolved) {
+        await this.couponsService.attachRedemption(tx, {
+          couponId: couponResolved.couponId,
+          orderId: createdOrder.id,
+          customerId,
+          phone: canLink && deliveryInfo?.phone ? normalizeCustomerPhone(deliveryInfo.phone) : undefined,
         });
       }
 
@@ -590,6 +614,7 @@ export class OrdersService {
         }
         if (nextStatus === 'CANCELLED') {
           await this.refundOrderCashbackSpend(tx, orderId);
+          await this.couponsService.refundCouponOnCancel(tx, orderId);
         }
         return updated;
       });

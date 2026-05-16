@@ -82,6 +82,11 @@ export function CheckoutScreen() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [cashbackBalance, setCashbackBalance] = useState(0);
   const [redeemInput, setRedeemInput] = useState('');
+  const [couponInput, setCouponInput] = useState('');
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponAppliedCode, setCouponAppliedCode] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponMessage, setCouponMessage] = useState('');
   const [geoState, setGeoState] = useState<GeoState>('idle');
   const [geoCoords, setGeoCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [formattedOsmAddress, setFormattedOsmAddress] = useState<string | null>(null);
@@ -92,6 +97,7 @@ export function CheckoutScreen() {
   const [saveAddressChecked, setSaveAddressChecked] = useState(false);
   const [saveAddressLabel, setSaveAddressLabel] = useState('Uy');
   const token = authStorage.getAccessToken();
+  const apiPhone = phoneDigitsForApi(phone);
 
   const subtotal = useMemo(() => cartSubtotal(cartItems), [cartItems]);
   const delivery = useMemo(() => deliveryFeeFor(deliverySpeed, subtotal), [deliverySpeed, subtotal]);
@@ -101,11 +107,50 @@ export function CheckoutScreen() {
       calculateOrderTotals({
         subtotalAmount: subtotal,
         deliveryFee: delivery,
+        couponDiscountTiyin: couponDiscount,
         cashbackBalance,
         cashbackRedeemRequested: parseCashbackRedeemInput(redeemInput),
       }),
-    [subtotal, delivery, cashbackBalance, redeemInput],
+    [subtotal, delivery, couponDiscount, cashbackBalance, redeemInput],
   );
+
+  const applyCoupon = async () => {
+    const code = couponInput.trim();
+    if (!code) {
+      setCouponDiscount(0);
+      setCouponAppliedCode('');
+      setCouponMessage('');
+      return;
+    }
+    setCouponLoading(true);
+    setCouponMessage('');
+    try {
+      const res = await api.post<{
+        code: string;
+        couponDiscountTiyin: number;
+      }>('/coupons/validate', {
+        code,
+        phone: apiPhone || undefined,
+        subtotalAmount: subtotal,
+        deliveryFee: delivery,
+      });
+      setCouponDiscount(res.couponDiscountTiyin);
+      setCouponAppliedCode(res.code);
+      setCouponMessage(`Kupon qo‘llandi: -${formatMoneyUz(res.couponDiscountTiyin)}`);
+    } catch (err) {
+      setCouponDiscount(0);
+      setCouponAppliedCode('');
+      setCouponMessage(err instanceof Error ? err.message : 'Kupon qo‘llanmadi');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!couponAppliedCode) return;
+    void applyCoupon();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- revalidate when cart totals change
+  }, [subtotal, delivery, apiPhone]);
   const redeemTiyin = orderTotals.cashbackRedeemTiyin;
   const total = orderTotals.totalAmount;
 
@@ -118,6 +163,16 @@ export function CheckoutScreen() {
         value: subtotal <= 0 ? '—' : delivery === 0 ? 'Bepul' : formatMoneyUz(delivery),
         variant: 'muted',
       },
+      ...(couponDiscount > 0
+        ? ([
+            {
+              key: 'coupon',
+              label: couponAppliedCode ? `Kupon (${couponAppliedCode})` : 'Kupon chegirmasi',
+              value: `-${formatMoneyUz(couponDiscount)}`,
+              variant: 'discount' as const,
+            },
+          ] as CartSummaryRow[])
+        : []),
       ...(redeemTiyin > 0
         ? ([
             {
@@ -140,7 +195,7 @@ export function CheckoutScreen() {
         : []),
       { key: 'tot', label: 'Yakuniy summa', value: formatMoneyUz(total), variant: 'total' },
     ],
-    [subtotal, delivery, earnEstimate, redeemTiyin, total],
+    [subtotal, delivery, earnEstimate, couponDiscount, couponAppliedCode, redeemTiyin, total],
   );
 
   useEffect(() => {
@@ -157,9 +212,8 @@ export function CheckoutScreen() {
     })();
   }, [token]);
 
-  const apiPhone = phoneDigitsForApi(phone);
   useEffect(() => {
-    const digits = phoneDigitsForApi(phone);
+    const digits = apiPhone;
     if (!digits) {
       setCashbackBalance(0);
       return;
@@ -401,6 +455,7 @@ export function CheckoutScreen() {
         addressLabel: orderAddressLabel,
         deliverySpeed,
         cashbackRedeemTiyin: redeemTiyin > 0 ? redeemTiyin : undefined,
+        couponCode: couponAppliedCode || undefined,
       };
       if (geoCoords) {
         body.latitude = geoCoords.lat;
@@ -865,6 +920,33 @@ export function CheckoutScreen() {
                         />
                       </div>
                     ) : null}
+                    <div className="mt-4 rounded-[16px] border border-slate-200 bg-slate-50/80 p-3">
+                      <p className="text-xs font-semibold text-slate-700">Promo-kod</p>
+                      <div className="mt-2 flex gap-2">
+                        <input
+                          id="co-coupon"
+                          className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm uppercase"
+                          placeholder="KUPON"
+                          value={couponInput}
+                          onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                        />
+                        <button
+                          type="button"
+                          disabled={couponLoading || !couponInput.trim()}
+                          onClick={() => void applyCoupon()}
+                          className="shrink-0 rounded-xl bg-[#16A34A] px-4 text-sm font-semibold text-white disabled:opacity-50"
+                        >
+                          {couponLoading ? '…' : 'Qo‘llash'}
+                        </button>
+                      </div>
+                      {couponMessage ? (
+                        <p
+                          className={`mt-2 text-[11px] ${couponDiscount > 0 ? 'text-emerald-800' : 'text-rose-700'}`}
+                        >
+                          {couponMessage}
+                        </p>
+                      ) : null}
+                    </div>
                     {cashbackBalance > 0 ? (
                       <div className="mt-4 rounded-[16px] border border-emerald-100 bg-emerald-50/70 p-3 text-[#14532d]">
                         <p className="text-xs font-semibold">Mavjud keshbek: {formatMoneyUz(cashbackBalance)}</p>

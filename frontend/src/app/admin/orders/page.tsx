@@ -13,6 +13,8 @@ type Order = {
   subtotalAmount?: number | string;
   deliveryFee?: number | string;
   cashbackRedeemTiyin?: number | string;
+  couponDiscountTiyin?: number | string;
+  couponCode?: string | null;
   customerName: string;
   customerPhone: string;
   deliveryAddress: string;
@@ -240,8 +242,12 @@ export default function AdminOrdersPage() {
                 <OrderFinancialBreakdown
                   subtotalAmount={Number(selected.subtotalAmount ?? 0)}
                   deliveryFee={Number(selected.deliveryFee ?? 0)}
+                  couponDiscountTiyin={Number(selected.couponDiscountTiyin ?? 0)}
                   cashbackRedeemTiyin={Number(selected.cashbackRedeemTiyin ?? 0)}
                 />
+                {selected.couponCode ? (
+                  <p className="mt-2 text-xs text-slate-500">Kupon: {selected.couponCode}</p>
+                ) : null}
               </div>
             </div>
           </div>

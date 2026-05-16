@@ -70,4 +70,9 @@ export class CreateOrderDto {
   @IsInt()
   @Min(0)
   cashbackRedeemTiyin?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  couponCode?: string;
 }

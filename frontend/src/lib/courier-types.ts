@@ -9,6 +9,8 @@ export type CourierOrder = {
   subtotalAmount?: number;
   deliveryFee?: number;
   cashbackRedeemTiyin?: number;
+  couponDiscountTiyin?: number;
+  couponCode?: string | null;
   customerPhone: string;
   customerName: string;
   deliveryAddress: string;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, authStorage } from '@/lib/api';
 import { formatMoneyUz } from '@/lib/format';
 import { ImageUploader } from '@/components/admin/image-uploader';
@@ -66,47 +66,90 @@ export default function AdminProductsPage() {
   });
   const [uploadingVariantImages, setUploadingVariantImages] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(true);
+  const [listLoading, setListLoading] = useState(false);
   const [error, setError] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const metaLoaded = useRef(false);
 
-  const load = async () => {
-    setLoading(true);
-    setError('');
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => window.clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, categoryFilter]);
+
+  const loadMeta = useCallback(async () => {
+    if (!token) return;
     try {
-      const [productsData, businessesData, categoriesData] = await Promise.all([
-        api.get<Product[]>('/products', token),
+      const [businessesData, categoriesData] = await Promise.all([
         api.get<Business[]>('/businesses/approved', token),
         api.get<Category[]>('/categories'),
       ]);
-      setProducts(productsData);
       setBusinesses(businessesData);
-      setCategories(categoriesData.filter((c) => c.slug !== 'all'));
-      setForm((prev) => ({
-        ...prev,
-        businessId: prev.businessId || businessesData[0]?.id || '',
-        categoryId: prev.categoryId || categoriesData.find((c) => c.slug !== 'all')?.id || '',
-      }));
+      const cats = categoriesData.filter((c) => c.slug !== 'all');
+      setCategories(cats);
+      if (!metaLoaded.current) {
+        metaLoaded.current = true;
+        setForm((prev) => ({
+          ...prev,
+          businessId: prev.businessId || businessesData[0]?.id || '',
+          categoryId: prev.categoryId || cats[0]?.id || '',
+        }));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ma'lumotlarni yuklab bo'lmadi");
+    }
+  }, [token]);
+
+  const loadProducts = useCallback(async () => {
+    if (!token) return;
+    setListLoading(true);
+    setError('');
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: '24',
+      });
+      if (debouncedSearch) params.set('q', debouncedSearch);
+      if (categoryFilter !== 'ALL') params.set('categoryId', categoryFilter);
+      const productsData = await api.get<Product[]>(`/products/admin/list?${params}`, token);
+      setProducts(productsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Mahsulotlarni yuklab bo'lmadi");
     } finally {
+      setListLoading(false);
       setLoading(false);
     }
-  };
+  }, [token, page, debouncedSearch, categoryFilter]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    await loadMeta();
+    await loadProducts();
+  }, [loadMeta, loadProducts]);
 
   useEffect(() => {
     if (!token) return;
-    void load();
-  }, [token]);
+    void loadMeta();
+  }, [token, loadMeta]);
 
-  const visible = useMemo(() => {
-    const filtered = products.filter((item) => {
-      const q = search.trim().toLowerCase();
-      const matchesSearch = q.length === 0 || item.name.toLowerCase().includes(q);
-      const matchesCategory = categoryFilter === 'ALL' || item.category?.id === categoryFilter;
-      return matchesSearch && matchesCategory;
+  useEffect(() => {
+    if (!token) return;
+    void loadProducts();
+  }, [token, loadProducts]);
+
+  const visible = products;
+
+  const handleVariantUploading = useCallback((variantIdx: number, isUploading: boolean) => {
+    setUploadingVariantImages((prev) => {
+      if (isUploading) return { ...prev, [variantIdx]: true };
+      const next = { ...prev };
+      delete next[variantIdx];
+      return next;
     });
-    const pageSize = 8;
-    return filtered.slice((page - 1) * pageSize, page * pageSize);
-  }, [products, search, categoryFilter, page]);
+  }, []);
 
   const filteredUnitOptions = useMemo(() => {
     const q = unitSearch.trim().toLowerCase();
@@ -508,12 +551,7 @@ export default function AdminProductsPage() {
                           ),
                         }))
                       }
-                      onUploadingChange={(isUploading) =>
-                        setUploadingVariantImages((prev) => ({
-                          ...prev,
-                          [idx]: isUploading,
-                        }))
-                      }
+                      onUploadingChange={(isUploading) => handleVariantUploading(idx, isUploading)}
                       inputId={`variant-image-upload-${idx}`}
                       label="Variant rasmi"
                     />
@@ -550,7 +588,7 @@ export default function AdminProductsPage() {
       </div>
 
       <div className="w-full min-w-0 max-w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-        {loading ? <div className="bb-skeleton h-64 w-full" /> : null}
+        {loading || listLoading ? <div className="bb-skeleton h-64 w-full" /> : null}
         <div className="grid min-w-0 max-w-full gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {visible.map((item) => (
             <div key={item.id} className="min-w-0 max-w-full rounded-xl border border-slate-100 p-3">

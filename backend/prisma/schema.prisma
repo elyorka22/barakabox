@@ -97,6 +97,11 @@ enum CashbackTransactionStatus {
   CANCELLED
 }
 
+enum CouponDiscountType {
+  PERCENT
+  FIXED_AMOUNT
+}
+
 model User {
   id              String           @id @default(cuid())
   email           String           @unique
@@ -166,8 +171,47 @@ model Customer {
   orders           Order[]
   cashbackTransactions CashbackTransaction[]
   addresses        CustomerAddress[]
+  couponRedemptions CouponRedemption[]
 
   @@index([phone])
+}
+
+model Coupon {
+  id             String             @id @default(cuid())
+  code           String             @unique
+  discountType   CouponDiscountType
+  discountValue  Int
+  minOrderAmount Int                @default(0)
+  maxDiscount    Int?
+  usageLimit     Int?
+  usedCount      Int                @default(0)
+  perUserLimit   Int                @default(1)
+  expiresAt      DateTime?
+  isActive       Boolean            @default(true)
+  notes          String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  orders         Order[]
+  redemptions    CouponRedemption[]
+
+  @@index([isActive])
+  @@index([expiresAt])
+}
+
+model CouponRedemption {
+  id         String   @id @default(cuid())
+  couponId   String
+  customerId String?
+  orderId    String   @unique
+  phone      String?
+  createdAt  DateTime @default(now())
+  coupon     Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([couponId])
+  @@index([customerId])
+  @@index([phone, couponId])
 }
 
 model CashbackTransaction {
@@ -415,6 +459,9 @@ model Order {
   cashbackRedeemTiyin          Int       @default(0)
   cashbackEarnedSnapshotTiyin Int       @default(0)
   cashbackCreditedAt          DateTime?
+  couponId                    String?
+  couponCode                  String?
+  couponDiscountTiyin         Int       @default(0)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -425,8 +472,11 @@ model Order {
   inventoryLogs InventoryLog[]
   cashbackTransactions CashbackTransaction[]
   courierRejects CourierOrderReject[]
+  coupon         Coupon?  @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  couponRedemption CouponRedemption?
 
   @@index([userId, status])
+  @@index([couponId])
   @@index([customerId])
   @@index([idempotencyKey, createdAt])
 }

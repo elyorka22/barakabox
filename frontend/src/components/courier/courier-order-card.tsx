@@ -112,6 +112,7 @@ function CourierOrderCardInner({ order, busy, onAccept, onReject, onComplete }: 
             <OrderFinancialBreakdown
               subtotalAmount={Number(order.subtotalAmount ?? 0)}
               deliveryFee={Number(order.deliveryFee ?? 0)}
+              couponDiscountTiyin={Number(order.couponDiscountTiyin ?? 0)}
               cashbackRedeemTiyin={Number(order.cashbackRedeemTiyin ?? 0)}
               compact
             />

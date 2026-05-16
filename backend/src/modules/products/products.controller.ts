@@ -27,6 +27,23 @@ export class ProductsController {
     return this.productsService.createByAdmin(body.businessId, body);
   }
 
+  @Get('admin/list')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  listForAdmin(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('q') q?: string,
+    @Query('categoryId') categoryId?: string,
+  ) {
+    return this.productsService.listForAdmin({
+      page: Number(page || 1),
+      limit: Number(limit || 24),
+      q,
+      categoryId: categoryId && categoryId !== 'ALL' ? categoryId : undefined,
+    });
+  }
+
   @Get('me')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('BUSINESS')

@@ -1,4 +1,4 @@
-import { ProductUnit, CashbackType } from '@prisma/client';
+import { ProductUnit, CashbackType, Prisma } from '@prisma/client';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { UploadService } from '../upload/upload.service';
@@ -33,6 +33,57 @@ export class ProductsService {
         },
       },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  listForAdmin(opts?: { page?: number; limit?: number; q?: string; categoryId?: string }) {
+    const page = Math.max(1, opts?.page ?? 1);
+    const limit = Math.min(50, Math.max(1, opts?.limit ?? 24));
+    const skip = (page - 1) * limit;
+    const q = opts?.q?.trim();
+
+    const where: Prisma.ProductWhereInput = {};
+    if (q) {
+      where.name = { contains: q, mode: 'insensitive' };
+    }
+    if (opts?.categoryId) {
+      where.categoryId = opts.categoryId;
+    }
+
+    return this.prisma.product.findMany({
+      where,
+      skip,
+      take: limit,
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        stockQuantity: true,
+        unit: true,
+        businessId: true,
+        isActive: true,
+        cashbackType: true,
+        cashbackValue: true,
+        imageThumbUrl: true,
+        imageUrl: true,
+        imageKey: true,
+        category: { select: { id: true, name: true } },
+        variants: {
+          where: { isActive: true },
+          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+          select: {
+            id: true,
+            title: true,
+            flavor: true,
+            description: true,
+            price: true,
+            discountPrice: true,
+            stock: true,
+            imageUrl: true,
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
     });
   }
 

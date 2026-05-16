@@ -38,9 +38,12 @@ export function ImageUploader({
     setPreviewUrl(valueUrl);
   }, [valueUrl]);
 
+  const onUploadingChangeRef = useRef(onUploadingChange);
+  onUploadingChangeRef.current = onUploadingChange;
+
   useEffect(() => {
-    onUploadingChange?.(uploading);
-  }, [uploading, onUploadingChange]);
+    onUploadingChangeRef.current?.(uploading);
+  }, [uploading]);
 
   const clearProgressTimer = () => {
     if (progressTimerRef.current !== null) {

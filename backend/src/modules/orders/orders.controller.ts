@@ -73,6 +73,7 @@ export class OrdersController {
       addressLabel: body?.addressLabel,
       deliverySpeed: body?.deliverySpeed ?? 'STANDARD',
       cashbackRedeemTiyin: body?.cashbackRedeemTiyin,
+      couponCode: body?.couponCode,
     });
   }
 
