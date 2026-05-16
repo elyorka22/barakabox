@@ -36,13 +36,22 @@ export class ProductsService {
     });
   }
 
-  listForAdmin(opts?: { page?: number; limit?: number; q?: string; categoryId?: string }) {
+  listForAdmin(opts?: {
+    page?: number;
+    limit?: number;
+    q?: string;
+    categoryId?: string;
+    includeInactive?: boolean;
+  }) {
     const page = Math.max(1, opts?.page ?? 1);
     const limit = Math.min(50, Math.max(1, opts?.limit ?? 24));
     const skip = (page - 1) * limit;
     const q = opts?.q?.trim();
 
     const where: Prisma.ProductWhereInput = {};
+    if (!opts?.includeInactive) {
+      where.isActive = true;
+    }
     if (q) {
       where.name = { contains: q, mode: 'insensitive' };
     }
@@ -65,6 +74,7 @@ export class ProductsService {
         cashbackType: true,
         cashbackValue: true,
         imageThumbUrl: true,
+        imageCardUrl: true,
         imageUrl: true,
         imageKey: true,
         category: { select: { id: true, name: true } },

@@ -35,12 +35,14 @@ export class ProductsController {
     @Query('limit') limit?: string,
     @Query('q') q?: string,
     @Query('categoryId') categoryId?: string,
+    @Query('includeInactive') includeInactive?: string,
   ) {
     return this.productsService.listForAdmin({
       page: Number(page || 1),
       limit: Number(limit || 24),
       q,
       categoryId: categoryId && categoryId !== 'ALL' ? categoryId : undefined,
+      includeInactive: includeInactive === '1' || includeInactive === 'true',
     });
   }
 

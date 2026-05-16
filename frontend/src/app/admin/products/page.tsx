@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, authStorage } from '@/lib/api';
 import { formatMoneyUz } from '@/lib/format';
+import { AdminProductCard } from '@/components/admin/admin-product-card';
 import { ImageUploader } from '@/components/admin/image-uploader';
 import {
   DEFAULT_PRODUCT_UNIT,
@@ -24,8 +25,10 @@ type Product = {
   categoryId?: string | null;
   category?: { id: string; name: string } | null;
   imageThumbUrl?: string | null;
+  imageCardUrl?: string | null;
   imageUrl?: string | null;
   imageKey?: string | null;
+  isActive?: boolean;
   variants?: Array<{
     id?: string;
     title?: string | null;
@@ -68,7 +71,11 @@ export default function AdminProductsPage() {
   const [loading, setLoading] = useState(true);
   const [listLoading, setListLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [includeInactive, setIncludeInactive] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const metaLoaded = useRef(false);
 
   useEffect(() => {
@@ -78,7 +85,7 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, categoryFilter]);
+  }, [debouncedSearch, categoryFilter, includeInactive]);
 
   const loadMeta = useCallback(async () => {
     if (!token) return;
@@ -114,6 +121,7 @@ export default function AdminProductsPage() {
       });
       if (debouncedSearch) params.set('q', debouncedSearch);
       if (categoryFilter !== 'ALL') params.set('categoryId', categoryFilter);
+      if (includeInactive) params.set('includeInactive', 'true');
       const productsData = await api.get<Product[]>(`/products/admin/list?${params}`, token);
       setProducts(productsData);
     } catch (err) {
@@ -122,7 +130,7 @@ export default function AdminProductsPage() {
       setListLoading(false);
       setLoading(false);
     }
-  }, [token, page, debouncedSearch, categoryFilter]);
+  }, [token, page, debouncedSearch, categoryFilter, includeInactive]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -241,7 +249,8 @@ export default function AdminProductsPage() {
         variants: [{ id: '', flavor: '', description: '', price: '1000', discountPrice: '', discountPercent: '', stock: '0', imageUrl: '' }],
       }));
       setUploadingVariantImages({});
-      await load();
+      setSuccess(form.id ? 'Mahsulot yangilandi' : 'Mahsulot yaratildi');
+      await loadProducts();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Saqlab bo‘lmadi');
     }
@@ -292,16 +301,58 @@ export default function AdminProductsPage() {
     });
   };
 
-  const remove = async (id: string) => {
-    await api.delete(`/products/${id}`, {}, token);
-    await load();
+  const remove = async (product: Product) => {
+    if (!token) return;
+    setDeletingId(product.id);
+    setError('');
+    setSuccess('');
+    setProducts((prev) => prev.filter((p) => p.id !== product.id));
+    if (form.id === product.id) {
+      setForm({
+        id: '',
+        name: '',
+        unit: DEFAULT_PRODUCT_UNIT,
+        businessId: businesses[0]?.id ?? '',
+        categoryId: categories[0]?.id ?? '',
+        cashbackType: 'NONE',
+        cashbackValue: '0',
+        variants: [
+          { id: '', flavor: '', description: '', price: '1000', discountPrice: '', discountPercent: '', stock: '0', imageUrl: '' },
+        ],
+      });
+    }
+    try {
+      await api.delete(`/products/${product.id}`, {}, token);
+      setSuccess(`“${product.name}” o‘chirildi`);
+      setDeleteTarget(null);
+      await loadProducts();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'O‘chirib bo‘lmadi');
+      await loadProducts();
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
     <div className="min-w-0 max-w-full space-y-4 overflow-x-hidden">
+      {success ? (
+        <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">
+          {success}
+        </p>
+      ) : null}
+
       <div className="w-full min-w-0 max-w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
         <h2 className="text-lg font-semibold">Product management</h2>
         <p className="text-sm text-slate-500">Create/edit/delete, category filter, stock status va pagination.</p>
+        <label className="mt-3 flex items-center gap-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={includeInactive}
+            onChange={(e) => setIncludeInactive(e.target.checked)}
+          />
+          O&apos;chirilgan mahsulotlarni ko&apos;rsatish
+        </label>
         <div className="mt-3 grid min-w-0 max-w-full gap-2 md:grid-cols-4">
           <input
             className="w-full min-w-0 max-w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
@@ -588,57 +639,65 @@ export default function AdminProductsPage() {
       </div>
 
       <div className="w-full min-w-0 max-w-full rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-        {loading || listLoading ? <div className="bb-skeleton h-64 w-full" /> : null}
-        <div className="grid min-w-0 max-w-full gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {visible.map((item) => (
-            <div key={item.id} className="min-w-0 max-w-full rounded-xl border border-slate-100 p-3">
-              <div className="flex min-w-0 max-w-full items-center gap-2">
-                {item.imageThumbUrl || item.imageUrl ? (
-                  <img
-                    src={item.imageThumbUrl ?? item.imageUrl ?? ''}
-                    alt={item.name}
-                    loading="lazy"
-                    decoding="async"
-                    className="h-12 w-12 rounded-lg object-cover"
-                  />
-                ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-[10px] text-slate-500">No image</div>
-                )}
-                <div className="min-w-0">
-                  <p className="truncate font-semibold">{item.name}</p>
-                  <p className="truncate text-xs text-slate-500">{item.category?.name ?? "Kategoriya yo'q"}</p>
-                </div>
-              </div>
-              <p className="mt-2 text-sm text-slate-700">
-                {formatMoneyWithUnitSuffix(
-                  formatMoneyUz(item.price),
-                  normalizeIncomingProductUnit(item.unit ?? item.unitType) ?? DEFAULT_PRODUCT_UNIT,
-                )}
-              </p>
-              <p className={`text-xs ${item.stockQuantity > 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                {item.stockQuantity > 0 ? `In stock: ${item.stockQuantity}` : 'Out of stock'}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="min-h-11 rounded-lg border border-slate-300 px-3 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-300"
-                  onClick={() => edit(item)}
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="min-h-11 rounded-lg border border-rose-300 px-3 text-xs font-medium text-rose-700 focus:outline-none focus:ring-2 focus:ring-rose-300"
-                  onClick={() => void remove(item.id)}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+        <h3 className="mb-3 text-sm font-semibold text-slate-800">Mahsulotlar ro&apos;yxati</h3>
+        {loading || listLoading ? (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="aspect-[4/3] animate-pulse rounded-2xl bg-slate-100" />
+            ))}
+          </div>
+        ) : visible.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-slate-200 py-12 text-center text-sm text-slate-500">
+            Mahsulot topilmadi
+          </p>
+        ) : (
+          <div className="grid min-w-0 max-w-full gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {visible.map((item) => (
+              <AdminProductCard
+                key={item.id}
+                item={item}
+                deleting={deletingId === item.id}
+                onEdit={() => edit(item)}
+                onDelete={() => setDeleteTarget(item)}
+              />
+            ))}
+          </div>
+        )}
       </div>
-      {error ? <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
+
+      {deleteTarget ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+            <h3 className="text-lg font-bold text-[#0f172a]">Mahsulotni o&apos;chirish?</h3>
+            <p className="mt-2 text-sm text-slate-600">
+              <span className="font-semibold">{deleteTarget.name}</span> saytdan ham yashiriladi.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                disabled={Boolean(deletingId)}
+                className="flex-1 min-h-11 rounded-xl bg-rose-600 text-sm font-semibold text-white disabled:opacity-50"
+                onClick={() => void remove(deleteTarget)}
+              >
+                {deletingId ? 'O‘chirilmoqda…' : 'O‘chirish'}
+              </button>
+              <button
+                type="button"
+                className="flex-1 min-h-11 rounded-xl border border-slate-200 text-sm font-medium"
+                onClick={() => setDeleteTarget(null)}
+              >
+                Bekor
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {error ? (
+        <p className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
