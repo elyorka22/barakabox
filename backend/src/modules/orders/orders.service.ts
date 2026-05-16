@@ -11,7 +11,7 @@ import { CustomersService } from '../customers/customers.service';
 import { QueueService } from '../../infrastructure/queue/queue.service';
 import { EventEmitterService } from '../../infrastructure/events/event-emitter.service';
 import { ConfigService } from '@nestjs/config';
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { OrderStatus, Prisma, UnitType } from '@prisma/client';
 import {
   canLinkCustomerFromPhone,
@@ -239,9 +239,11 @@ export class OrdersService {
       }
 
       const totalAmount = Math.max(0, subtotal + deliveryFee - redeem);
+      const trackingToken = randomBytes(24).toString('hex');
 
       const createdOrder = await tx.order.create({
         data: {
+          trackingToken,
           userId,
           customerId,
           customerName: deliveryInfo?.name?.trim() || user.fullName,
@@ -359,12 +361,13 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       select: {
-        id: true,
         status: true,
         createdAt: true,
         customerPhone: true,
+        deliveryAddress: true,
         cashbackEarnedSnapshotTiyin: true,
         cashbackCreditedAt: true,
+        trackingToken: true,
         assignedCourier: { select: { fullName: true } },
       },
     });
@@ -381,12 +384,63 @@ export class OrdersService {
     if (orderPhone !== normalizedPhone) {
       throw new NotFoundException('Buyurtma topilmadi');
     }
+    if (!order.trackingToken) {
+      throw new NotFoundException('Buyurtma topilmadi');
+    }
 
     const courierName = order.assignedCourier?.fullName?.trim() || null;
+    return this.toPublicTrackPayload(order, courierName);
+  }
+
+  async getTrackByToken(tokenRaw: string) {
+    const token = tokenRaw?.trim();
+    if (!token || token.length < 16 || token.length > 128) {
+      throw new NotFoundException('Buyurtma topilmadi');
+    }
+    if (!/^[a-f0-9]+$/i.test(token)) {
+      throw new NotFoundException('Buyurtma topilmadi');
+    }
+
+    const order = await this.prisma.order.findUnique({
+      where: { trackingToken: token },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        deliveryAddress: true,
+        cashbackEarnedSnapshotTiyin: true,
+        cashbackCreditedAt: true,
+        trackingToken: true,
+        assignedCourier: { select: { fullName: true } },
+      },
+    });
+    if (!order?.trackingToken) {
+      throw new NotFoundException('Buyurtma topilmadi');
+    }
+
+    const courierName = order.assignedCourier?.fullName?.trim() || null;
+    return this.toPublicTrackPayload(order, courierName);
+  }
+
+  private toPublicTrackPayload(
+    order: {
+      status: OrderStatus;
+      createdAt: Date;
+      deliveryAddress: string;
+      cashbackEarnedSnapshotTiyin: number;
+      cashbackCreditedAt: Date | null;
+      trackingToken: string | null;
+    },
+    courierName: string | null,
+  ) {
+    const trackingToken = order.trackingToken ?? '';
+    const deliverySpeed = order.deliveryAddress.includes('Tezkor yetkazish') ? 'EXPRESS' : 'STANDARD';
     return {
-      id: order.id,
+      trackingToken,
+      trackingCode: trackingToken ? trackingToken.slice(0, 8).toUpperCase() : '',
       status: order.status,
       createdAt: order.createdAt.toISOString(),
+      deliverySpeed,
       cashbackEarnedTiyin: order.cashbackEarnedSnapshotTiyin,
       cashbackCredited: Boolean(order.cashbackCreditedAt),
       courierName,

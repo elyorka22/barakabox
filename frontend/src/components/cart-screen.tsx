@@ -14,6 +14,8 @@ import { bootstrapCart } from '@/lib/cart-store';
 import { useCartHydrated, useCartItems } from '@/lib/use-cart-store';
 import { deliveryFeeFor, type DeliverySpeed } from '@/lib/delivery-pricing';
 import { cartCashbackEarnEstimate, cartSubtotal, countCashbackOfferLines } from '@/lib/cart-totals';
+import { useGuestOrderTracking } from '@/hooks/use-guest-order-tracking';
+import { GuestOrderTrackingPanel } from '@/components/order/guest-order-tracking-panel';
 
 const NAV_BOTTOM = 'calc(var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))';
 /** Space for collapsed sheet (~138px) + small gap above nav */
@@ -26,6 +28,7 @@ export function CartScreen() {
   const [token, setToken] = useState('');
   const [error, setError] = useState('');
   const [speed, setSpeed] = useState<DeliverySpeed>('STANDARD');
+  const guestTracking = useGuestOrderTracking();
 
   useEffect(() => {
     const id = requestAnimationFrame(() => {
@@ -70,15 +73,17 @@ export function CartScreen() {
     router.push(speed === 'EXPRESS' ? '/checkout?speed=EXPRESS' : '/checkout');
   };
 
-  const showSkeleton = !hydrated;
+  const showSkeleton = !hydrated || !guestTracking.hydrated;
   const empty = hydrated && cartItems.length === 0;
+  const showOrderTracking = guestTracking.showTracking;
+  const trackingOnly = showOrderTracking && empty;
 
   return (
     <main className="min-h-dvh bg-[#F4F5F7]">
       <section
         className="mx-auto w-full max-w-lg px-4 pb-6 pt-3"
         style={{
-          paddingBottom: empty ? undefined : SCROLL_PAD_COLLAPSED,
+          paddingBottom: trackingOnly || empty ? undefined : SCROLL_PAD_COLLAPSED,
         }}
       >
         <header className="pt-1">
@@ -95,7 +100,7 @@ export function CartScreen() {
           </div>
         ) : null}
 
-        {earnEstimate > 0 && !empty ? (
+        {earnEstimate > 0 && !empty && !trackingOnly ? (
           <div className="mt-5 overflow-hidden rounded-[22px] bg-gradient-to-br from-emerald-50 via-white to-green-50/80 p-[1px] shadow-[0_6px_28px_rgba(22,163,74,0.12)]">
             <div className="rounded-[21px] bg-white/90 px-4 py-3 backdrop-blur-sm">
               <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-800/90">Yetkazilgach keshbek</p>
@@ -107,13 +112,20 @@ export function CartScreen() {
           </div>
         ) : null}
 
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 space-y-4">
           {showSkeleton ? (
             <>
               <CartLineSkeleton />
               <CartLineSkeleton />
             </>
-          ) : empty ? (
+          ) : trackingOnly ? (
+            <GuestOrderTrackingPanel tracking={guestTracking} showHomeLink />
+          ) : (
+            <>
+              {showOrderTracking ? (
+                <GuestOrderTrackingPanel tracking={guestTracking} title="Faol buyurtma" />
+              ) : null}
+              {empty ? (
             <div className="flex flex-col items-center rounded-[24px] bg-white px-6 py-14 text-center shadow-[0_8px_32px_rgba(15,23,42,0.06)] ring-1 ring-slate-100/80">
               <span className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-slate-400">
                 <ShoppingBag className="h-8 w-8" strokeWidth={1.6} />
@@ -129,13 +141,15 @@ export function CartScreen() {
                 Xarid qilish
               </Link>
             </div>
-          ) : (
-            cartItems.map((item) => <CartLineCard key={item.id} item={item} />)
+              ) : (
+                cartItems.map((item) => <CartLineCard key={item.id} item={item} />)
+              )}
+            </>
           )}
         </div>
       </section>
 
-      {!empty ? (
+      {!empty && !trackingOnly ? (
         <CartBottomSheet
           bottom={NAV_BOTTOM}
           speed={speed}

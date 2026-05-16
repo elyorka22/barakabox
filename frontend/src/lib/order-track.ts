@@ -1,4 +1,5 @@
 import type { OrderStatusLite } from '@/lib/last-order-storage';
+import type { DeliverySpeed } from '@/lib/delivery-pricing';
 import {
   CUSTOMER_ORDER_STEPS,
   customerProgressStepIndex,
@@ -7,15 +8,21 @@ import {
 } from '@/lib/order-status';
 
 export const MANUAL_ADDRESS_MIN_LEN = 8;
+export const GUEST_TRACK_POLL_MS = 20_000;
 
-export type OrderTrackSnapshot = {
-  id: string;
+export type PublicOrderTrackSnapshot = {
+  trackingToken: string;
+  trackingCode: string;
   status: OrderStatusLite;
   createdAt: string;
+  deliverySpeed: DeliverySpeed;
   cashbackEarnedTiyin: number;
   cashbackCredited: boolean;
   courierName?: string | null;
 };
+
+/** @deprecated Use PublicOrderTrackSnapshot */
+export type OrderTrackSnapshot = PublicOrderTrackSnapshot & { id?: string };
 
 export type OrderProgressStepId = CustomerOrderStepId;
 export type OrderProgressStep = CustomerOrderStep;
@@ -38,38 +45,17 @@ export function isTrackableOrderStatus(status: OrderStatusLite): boolean {
   return status !== 'CANCELLED' && status !== 'DELIVERED';
 }
 
-const ACTIVE_TRACK_KEY = 'barakabox_active_track_v1';
-
-export function saveActiveOrderTrack(orderId: string, phoneDigits: string): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.sessionStorage.setItem(
-      ACTIVE_TRACK_KEY,
-      JSON.stringify({ orderId, phone: phoneDigits }),
-    );
-  } catch {
-    // ignore
+export function parsePublicTrackStatus(value: string): OrderStatusLite {
+  const s = value.toUpperCase();
+  if (
+    s === 'NEW' ||
+    s === 'PICKING' ||
+    s === 'READY' ||
+    s === 'DELIVERING' ||
+    s === 'DELIVERED' ||
+    s === 'CANCELLED'
+  ) {
+    return s;
   }
-}
-
-export function readActiveOrderTrack(): { orderId: string; phone: string } | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = window.sessionStorage.getItem(ACTIVE_TRACK_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { orderId?: string; phone?: string };
-    if (!parsed.orderId || !parsed.phone) return null;
-    return { orderId: parsed.orderId, phone: parsed.phone };
-  } catch {
-    return null;
-  }
-}
-
-export function clearActiveOrderTrack(): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.sessionStorage.removeItem(ACTIVE_TRACK_KEY);
-  } catch {
-    // ignore
-  }
+  return 'NEW';
 }

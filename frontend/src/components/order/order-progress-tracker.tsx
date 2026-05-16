@@ -7,11 +7,11 @@ import { formatMoneyUz } from '@/lib/format';
 import {
   ORDER_PROGRESS_STEPS,
   activeProgressStepIndex,
-  type OrderTrackSnapshot,
+  type PublicOrderTrackSnapshot,
 } from '@/lib/order-track';
 
 type Props = {
-  snapshot: OrderTrackSnapshot | null;
+  snapshot: PublicOrderTrackSnapshot | null;
   loading: boolean;
   error?: string;
   orderNumber?: string;
@@ -47,8 +47,8 @@ export function OrderProgressTracker({ snapshot, loading, error, orderNumber }: 
         <p className="text-[11px] font-semibold uppercase tracking-wide text-[#16A34A]">Buyurtma holati</p>
         {orderNumber ? (
           <p className="mt-1 text-xs text-slate-500">#{orderNumber}</p>
-        ) : snapshot?.id ? (
-          <p className="mt-1 text-xs text-slate-500">#{snapshot.id.slice(-6).toUpperCase()}</p>
+        ) : snapshot?.trackingCode ? (
+          <p className="mt-1 text-xs text-slate-500">#{snapshot.trackingCode}</p>
         ) : null}
       </div>
 

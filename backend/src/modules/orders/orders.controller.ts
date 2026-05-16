@@ -76,6 +76,14 @@ export class OrdersController {
     });
   }
 
+  @Get('track/public')
+  trackByToken(@Query('token') token?: string) {
+    if (!token?.trim()) {
+      throw new BadRequestException('Kuzatish kodi kerak');
+    }
+    return this.ordersService.getTrackByToken(token);
+  }
+
   @Get(':orderId/track')
   trackOrder(@Param('orderId') orderId: string, @Query('phone') phone?: string) {
     if (!phone?.trim()) {

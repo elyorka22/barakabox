@@ -27,15 +27,11 @@ import {
   reverseGeocodeOsm,
   shortenAddressLine,
 } from '@/lib/checkout-geo';
-import {
-  isManualAddressValid,
-  looksLikeCoordinateLine,
-  readActiveOrderTrack,
-  saveActiveOrderTrack,
-} from '@/lib/order-track';
+import { isManualAddressValid, looksLikeCoordinateLine, type PublicOrderTrackSnapshot } from '@/lib/order-track';
 import { phoneDigitsForApi, isUzbekPhoneComplete, onPhoneUzInputChange } from '@/lib/phone-uz';
-import { useOrderTrack } from '@/hooks/use-order-track';
-import { OrderProgressTracker } from '@/components/order/order-progress-tracker';
+import { useGuestOrderTracking } from '@/hooks/use-guest-order-tracking';
+import { GuestOrderTrackingPanel } from '@/components/order/guest-order-tracking-panel';
+import { hasVisibleGuestOrderTracking } from '@/lib/guest-order-tracking-storage';
 
 const STICKY_BOTTOM = 'calc(var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))';
 
@@ -69,8 +65,11 @@ export function CheckoutScreen() {
   const autoAddressEditOpenRef = useRef(false);
   const [manualGeocodeLoading, setManualGeocodeLoading] = useState(false);
   const manualGeocodeSeq = useRef(0);
-  const [placedOrderId, setPlacedOrderId] = useState<string | null>(null);
   const [deliverySpeed, setDeliverySpeed] = useState<DeliverySpeed>('STANDARD');
+  const [placed, setPlaced] = useState(() =>
+    typeof window !== 'undefined' ? hasVisibleGuestOrderTracking() : false,
+  );
+  const guestTracking = useGuestOrderTracking();
 
   useEffect(() => {
     const s = searchParams.get('speed');
@@ -79,15 +78,10 @@ export function CheckoutScreen() {
   }, [searchParams]);
 
   useEffect(() => {
-    const active = readActiveOrderTrack();
-    if (!active) return;
-    setPlacedOrderId(active.orderId);
-    setPlaced(true);
-    if (!phone.trim()) {
-      setPhone(active.phone.startsWith('998') ? `+${active.phone}` : active.phone);
+    if (guestTracking.hydrated && guestTracking.showTracking) {
+      setPlaced(true);
     }
-  }, []);
-  const [placed, setPlaced] = useState(false);
+  }, [guestTracking.hydrated, guestTracking.showTracking]);
   const [loading, setLoading] = useState(false);
   const [cartLoading, setCartLoading] = useState(true);
   const [error, setError] = useState('');
@@ -104,7 +98,6 @@ export function CheckoutScreen() {
   const [saveAddressChecked, setSaveAddressChecked] = useState(false);
   const [saveAddressLabel, setSaveAddressLabel] = useState('Uy');
   const token = authStorage.getAccessToken();
-  const orderTrack = useOrderTrack(placedOrderId, phone, placed);
 
   const subtotal = useMemo(() => cartSubtotal(cartItems), [cartItems]);
   const delivery = useMemo(() => deliveryFeeFor(deliverySpeed, subtotal), [deliverySpeed, subtotal]);
@@ -408,15 +401,17 @@ export function CheckoutScreen() {
       if (locationMode === 'MANUAL' && !geoCoords) {
         body.manualAddress = streetLine;
       }
-      const order = await api.post<{
-        id: string;
-        status?: string;
-        createdAt?: string;
-        cashbackEarnedSnapshotTiyin?: number;
-        cashbackRedeemTiyin?: number;
-        totalAmount?: number;
-      }>('/orders', body, token);
-      saveLastOrderSnapshot(order, enrich);
+      const order = await api.post<PublicOrderTrackSnapshot & { id?: string }>('/orders', body, token);
+      saveLastOrderSnapshot(
+        {
+          id: order.trackingToken,
+          status: order.status,
+          createdAt: order.createdAt,
+          cashbackEarnedSnapshotTiyin: order.cashbackEarnedTiyin,
+        },
+        enrich,
+      );
+      guestTracking.registerNewOrder(order);
       if (saveAddressChecked && apiPhone && geoCoords) {
         const label = saveAddressLabel.trim() || 'Manzil';
         const saveLine =
@@ -439,8 +434,6 @@ export function CheckoutScreen() {
           // duplicate or validation — ignore after successful order
         }
       }
-      setPlacedOrderId(order.id);
-      saveActiveOrderTrack(order.id, apiPhone);
       setPlaced(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xatolik yuz berdi. Qayta urinib ko'ring");
@@ -884,11 +877,7 @@ export function CheckoutScreen() {
               <h2 className="mt-3 text-xl font-bold text-[#121212]">Buyurtma qabul qilindi</h2>
               <p className="mt-1 text-[14px] text-slate-500">Holatni real vaqtda kuzatishingiz mumkin</p>
             </div>
-            <OrderProgressTracker
-              snapshot={orderTrack.snapshot}
-              loading={orderTrack.loading}
-              error={orderTrack.error}
-            />
+            <GuestOrderTrackingPanel tracking={guestTracking} title="Buyurtma holati" />
           </div>
         )}
       </section>
