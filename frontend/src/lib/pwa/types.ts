@@ -4,6 +4,7 @@ export type PwaAnalyticsDetail = {
 };
 
 export const PWA_STORAGE = {
+  customInstallModalUntil: "bb_pwa_custom_install_modal_until",
   androidBannerSoftUntil: "bb_pwa_android_banner_soft_until",
   androidNever: "bb_pwa_android_never",
   engagementCount: "bb_pwa_engagement_count",

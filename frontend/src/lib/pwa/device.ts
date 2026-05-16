@@ -28,3 +28,10 @@ export function isAndroid(): boolean {
 export function supportsBeforeInstallPrompt(): boolean {
   return typeof window !== "undefined" && "onbeforeinstallprompt" in window;
 }
+
+/** Touch-first mobile viewport (install modal target). */
+export function isMobileUserAgent(): boolean {
+  if (typeof window === "undefined") return false;
+  if (isIOSDevice() || isAndroid()) return true;
+  return window.matchMedia("(max-width: 768px)").matches;
+}

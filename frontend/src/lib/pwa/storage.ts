@@ -56,8 +56,23 @@ export function clearHomeInstallSessionDismiss() {
 }
 
 /** Profil: barcha “hech qachon” va vaqtinchalik yashirishlarni tiklash. */
+export function isCustomInstallModalDismissed(): boolean {
+  const until = readNumber(PWA_STORAGE.customInstallModalUntil);
+  if (until === null) return false;
+  return Date.now() < until;
+}
+
+export function dismissCustomInstallModalForDays(days = 3) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(
+    PWA_STORAGE.customInstallModalUntil,
+    String(Date.now() + days * 24 * 60 * 60 * 1000),
+  );
+}
+
 export function resetAllInstallHints() {
   if (typeof window === "undefined") return;
+  window.localStorage.removeItem(PWA_STORAGE.customInstallModalUntil);
   window.localStorage.removeItem(PWA_STORAGE.androidNever);
   window.localStorage.removeItem(PWA_STORAGE.iosNever);
   window.localStorage.removeItem(PWA_STORAGE.androidBannerSoftUntil);

@@ -1,4 +1,10 @@
 import type { OrderStatusLite } from '@/lib/last-order-storage';
+import {
+  CUSTOMER_ORDER_STEPS,
+  customerProgressStepIndex,
+  type CustomerOrderStep,
+  type CustomerOrderStepId,
+} from '@/lib/order-status';
 
 export const MANUAL_ADDRESS_MIN_LEN = 8;
 
@@ -11,36 +17,10 @@ export type OrderTrackSnapshot = {
   courierName?: string | null;
 };
 
-export type OrderProgressStepId = 'received' | 'preparing' | 'courier' | 'delivered';
+export type OrderProgressStepId = CustomerOrderStepId;
+export type OrderProgressStep = CustomerOrderStep;
 
-export type OrderProgressStep = {
-  id: OrderProgressStepId;
-  title: string;
-  description: string;
-};
-
-export const ORDER_PROGRESS_STEPS: OrderProgressStep[] = [
-  {
-    id: 'received',
-    title: 'Buyurtma qabul qilindi',
-    description: 'Buyurtmangiz muvaffaqiyatli qabul qilindi.',
-  },
-  {
-    id: 'preparing',
-    title: 'Buyurtma yig‘ilmoqda',
-    description: 'Mahsulotlaringiz tayyorlanmoqda.',
-  },
-  {
-    id: 'courier',
-    title: 'Buyurtma kuryerga topshirildi',
-    description: 'Kuryer buyurtmangizni olib yo‘lga chiqdi.',
-  },
-  {
-    id: 'delivered',
-    title: 'Buyurtma yetkazildi',
-    description: 'Xaridingiz uchun rahmat.',
-  },
-];
+export const ORDER_PROGRESS_STEPS = CUSTOMER_ORDER_STEPS;
 
 export function isManualAddressValid(text: string): boolean {
   return text.trim().length >= MANUAL_ADDRESS_MIN_LEN;
@@ -51,21 +31,7 @@ export function looksLikeCoordinateLine(text: string): boolean {
 }
 
 export function activeProgressStepIndex(status: OrderStatusLite): number {
-  switch (status) {
-    case 'NEW':
-      return 0;
-    case 'PICKING':
-    case 'READY':
-      return 1;
-    case 'DELIVERING':
-      return 2;
-    case 'DELIVERED':
-      return 3;
-    case 'CANCELLED':
-      return -1;
-    default:
-      return 0;
-  }
+  return customerProgressStepIndex(status);
 }
 
 export function isTrackableOrderStatus(status: OrderStatusLite): boolean {

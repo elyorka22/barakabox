@@ -5,14 +5,18 @@ import { emitPwaAnalytics } from "@/lib/pwa/analytics";
 import { isStandaloneDisplay } from "@/lib/pwa/device";
 import {
   incrementEngagementCount,
+  isCustomInstallModalDismissed,
   isHomeInstallDismissedThisSession,
   resetAllInstallHints,
   setHomeInstallDismissedThisSession,
   setIosLastShownAt,
   setIosNever,
 } from "@/lib/pwa/storage";
+import { isIOSSafari, isMobileUserAgent } from "@/lib/pwa/device";
+import { showToast } from "@/lib/toast";
 import { PwaInstallContextProvider, type PwaInstallContextValue } from "./pwa-context";
 import { IosInstallGuideModal } from "./IosInstallGuideModal";
+import { PwaInstallModal } from "./PwaInstallModal";
 import { PwaUpdateBar } from "./PwaUpdateBar";
 
 function useServiceWorkerUpdate() {
@@ -80,6 +84,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [iosModalOpen, setIosModalOpen] = useState(false);
   const [homeInstallSessionDismissed, setHomeInstallSessionDismissed] = useState(false);
+  const [installModalOpen, setInstallModalOpen] = useState(false);
 
   const { swUpdateWaiting, applyWaitingServiceWorker } = useServiceWorkerUpdate();
 
@@ -145,6 +150,8 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     const onInstalled = () => {
       setDeferredPrompt(null);
       setIosModalOpen(false);
+      setInstallModalOpen(false);
+      showToast({ type: "success", message: "Ilova muvaffaqiyatli o‘rnatildi" });
       emitPwaAnalytics({ name: "pwa_app_installed", props: {} });
     };
     window.addEventListener("appinstalled", onInstalled);
@@ -154,6 +161,26 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("appinstalled", onInstalled);
     };
   }, [ready, isStandalone]);
+
+  useEffect(() => {
+    if (!ready || isStandalone) {
+      setInstallModalOpen(false);
+      return;
+    }
+    if (!isMobileUserAgent()) return;
+    if (isCustomInstallModalDismissed()) return;
+
+    const canPrompt = Boolean(deferredPrompt);
+    const canIosGuide = isIOSSafari() && !canPrompt;
+    if (!canPrompt && !canIosGuide) return;
+
+    const timer = window.setTimeout(() => {
+      setInstallModalOpen(true);
+      emitPwaAnalytics({ name: "pwa_install_modal_shown", props: { hasDeferred: canPrompt } });
+    }, 1500);
+
+    return () => window.clearTimeout(timer);
+  }, [ready, isStandalone, deferredPrompt]);
 
   const dismissHomeInstallForSession = useCallback(() => {
     setHomeInstallDismissedThisSession();
@@ -237,6 +264,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
       {children}
       <PwaUpdateBar visible={swUpdateWaiting} onReload={applyWaitingServiceWorker} />
       <IosInstallGuideModal />
+      <PwaInstallModal open={installModalOpen} onClose={() => setInstallModalOpen(false)} />
     </PwaInstallContextProvider>
   );
 }

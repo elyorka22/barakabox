@@ -71,7 +71,7 @@ export function OrderProgressTracker({ snapshot, loading, error, orderNumber }: 
       ) : (
         <ol className="mt-6 space-y-0">
           {ORDER_PROGRESS_STEPS.map((step, idx) => {
-            const done = activeIdx > idx || (delivered && idx <= 3);
+            const done = activeIdx > idx || (delivered && idx <= 2);
             const active = activeIdx === idx && !delivered;
             const future = activeIdx < idx && !delivered;
 
@@ -112,7 +112,7 @@ export function OrderProgressTracker({ snapshot, loading, error, orderNumber }: 
                       {step.title}
                     </p>
                     <p className="mt-0.5 text-xs leading-snug text-slate-500">{step.description}</p>
-                    {active && step.id === 'courier' && snapshot?.courierName ? (
+                    {active && step.id === 'with_courier' && snapshot?.courierName ? (
                       <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-[#166534]">
                         <Truck className="h-3.5 w-3.5" />
                         {snapshot.courierName}

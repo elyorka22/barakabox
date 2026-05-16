@@ -47,8 +47,8 @@ export function formatOrderTime(iso: string): string {
 
 export function statusLabelUz(status: string): string {
   if (status === 'NEW') return 'Navbatda';
-  if (status === 'PICKING') return 'Yig‘ilmoqda';
-  if (status === 'READY') return 'Tayyor';
+  if (status === 'PICKING') return 'Qabul qilindi';
+  if (status === 'READY') return 'Kuryerga tayyor';
   return status;
 }
 

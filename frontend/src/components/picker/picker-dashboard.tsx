@@ -115,7 +115,6 @@ export function PickerDashboard() {
                               setBusyId(null);
                             }
                           }}
-                          onSkip={() => void loadOrders(true)}
                         />
                       ))}
                     </ul>

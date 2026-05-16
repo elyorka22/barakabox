@@ -70,9 +70,9 @@ export function paymentTypeLabel(): string {
 }
 
 export function orderStatusLabelUz(status: string): string {
-  if (status === 'READY') return 'Tayyor';
-  if (status === 'DELIVERING') return 'Yo‘lda';
-  if (status === 'DELIVERED') return 'Yetkazildi';
+  if (status === 'READY') return 'Olishga tayyor';
+  if (status === 'DELIVERING') return 'Buyurtmangizni kuryer oldi';
+  if (status === 'DELIVERED') return 'Buyurtma yetkazildi';
   return status;
 }
 

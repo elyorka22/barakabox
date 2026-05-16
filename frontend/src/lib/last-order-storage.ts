@@ -5,6 +5,11 @@ import {
   normalizeIncomingProductUnit,
   normalizedProductSaleUnit,
 } from '@onlinebozor/product-units';
+import {
+  customerOrderProgressPercent,
+  customerOrderStatusLabel,
+  isActiveCustomerOrder,
+} from '@/lib/order-status';
 
 export type OrderStatusLite = 'NEW' | 'PICKING' | 'READY' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED';
 
@@ -152,56 +157,27 @@ export function clearLastOrderSnapshot(): void {
 }
 
 export function isActiveDeliveryStatus(status: OrderStatusLite): boolean {
-  return status === 'NEW' || status === 'PICKING' || status === 'READY' || status === 'DELIVERING';
+  return isActiveCustomerOrder(status);
 }
 
 export function orderStatusLabelUz(status: OrderStatusLite): string {
-  switch (status) {
-    case 'NEW':
-      return 'Buyurtma qabul qilindi';
-    case 'PICKING':
-      return 'Buyurtma yig‘ilmoqda';
-    case 'READY':
-      return 'Yetkazib berishga tayyor';
-    case 'DELIVERING':
-      return 'Yo‘lda';
-    case 'DELIVERED':
-      return 'Yetkazildi';
-    case 'CANCELLED':
-      return 'Bekor qilindi';
-    default:
-      return 'Holat';
-  }
+  return customerOrderStatusLabel(status);
 }
 
 export function orderEtaHintUz(status: OrderStatusLite): string {
   switch (status) {
+    case 'NEW':
+      return 'Picker qabul qilishi kutilmoqda';
+    case 'PICKING':
+    case 'READY':
+      return 'Kuryer tayinlanishi kutilmoqda';
     case 'DELIVERING':
       return 'Taxminan 10–20 daqiqada';
-    case 'READY':
-      return 'Kuryer yo‘lga chiqmoqda';
-    case 'PICKING':
-      return 'Taxminan 15–25 daqiqada';
-    case 'NEW':
-      return 'Taxminan 25–35 daqiqada';
     default:
       return '';
   }
 }
 
 export function orderProgressPercent(status: OrderStatusLite): number {
-  switch (status) {
-    case 'NEW':
-      return 18;
-    case 'PICKING':
-      return 42;
-    case 'READY':
-      return 68;
-    case 'DELIVERING':
-      return 88;
-    case 'DELIVERED':
-      return 100;
-    default:
-      return 0;
-  }
+  return customerOrderProgressPercent(status);
 }
