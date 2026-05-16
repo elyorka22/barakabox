@@ -31,7 +31,7 @@ import { isManualAddressValid, looksLikeCoordinateLine, type PublicOrderTrackSna
 import { phoneDigitsForApi, isUzbekPhoneComplete, onPhoneUzInputChange } from '@/lib/phone-uz';
 import { useGuestOrderTracking } from '@/hooks/use-guest-order-tracking';
 import { GuestOrderTrackingPanel } from '@/components/order/guest-order-tracking-panel';
-import { hasVisibleGuestOrderTracking } from '@/lib/guest-order-tracking-storage';
+import { GuestOrderCompletionBanner } from '@/components/order/guest-order-completion-banner';
 
 const STICKY_BOTTOM = 'calc(var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))';
 
@@ -66,22 +66,15 @@ export function CheckoutScreen() {
   const [manualGeocodeLoading, setManualGeocodeLoading] = useState(false);
   const manualGeocodeSeq = useRef(0);
   const [deliverySpeed, setDeliverySpeed] = useState<DeliverySpeed>('STANDARD');
-  const [placed, setPlaced] = useState(() =>
-    typeof window !== 'undefined' ? hasVisibleGuestOrderTracking() : false,
-  );
   const guestTracking = useGuestOrderTracking();
+  const showTrackingView = guestTracking.showTracking;
+  const showCompletedFlash = guestTracking.showCompletedFlash;
 
   useEffect(() => {
     const s = searchParams.get('speed');
     if (s === 'EXPRESS') setDeliverySpeed('EXPRESS');
     else if (s === 'STANDARD') setDeliverySpeed('STANDARD');
   }, [searchParams]);
-
-  useEffect(() => {
-    if (guestTracking.hydrated && guestTracking.showTracking) {
-      setPlaced(true);
-    }
-  }, [guestTracking.hydrated, guestTracking.showTracking]);
   const [loading, setLoading] = useState(false);
   const [cartLoading, setCartLoading] = useState(true);
   const [error, setError] = useState('');
@@ -434,7 +427,6 @@ export function CheckoutScreen() {
           // duplicate or validation — ignore after successful order
         }
       }
-      setPlaced(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xatolik yuz berdi. Qayta urinib ko'ring");
     } finally {
@@ -451,12 +443,12 @@ export function CheckoutScreen() {
       <section
         className="mx-auto w-full max-w-lg px-4 pb-6 pt-2"
         style={{
-          paddingBottom: placed
+          paddingBottom: showTrackingView
             ? undefined
             : 'calc(12.5rem + var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))',
         }}
       >
-        {!placed ? (
+        {!showTrackingView ? (
           <>
             <div className="flex items-center gap-1 pt-1">
               <Link
@@ -469,6 +461,15 @@ export function CheckoutScreen() {
               <h1 className="text-[22px] font-extrabold tracking-tight text-[#121212]">Buyurtma</h1>
             </div>
             <p className="mt-1 pl-1 text-[13px] font-medium text-slate-500">Yetkazib berish ma&apos;lumotlari va to&apos;lov</p>
+
+            {showCompletedFlash && guestTracking.completedFlash ? (
+              <div className="mt-4">
+                <GuestOrderCompletionBanner
+                  flash={guestTracking.completedFlash}
+                  onDismiss={guestTracking.dismissCompletedFlash}
+                />
+              </div>
+            ) : null}
 
             {cartLoading ? (
               <div className="mt-3 space-y-2.5">
@@ -882,7 +883,7 @@ export function CheckoutScreen() {
         )}
       </section>
 
-      {!placed && !cartLoading && cartItems.length > 0 ? (
+      {!showTrackingView && !cartLoading && cartItems.length > 0 ? (
         <div
           className="fixed inset-x-0 z-20 border-t border-slate-100/90 bg-white/95 backdrop-blur-md"
           style={{ bottom: STICKY_BOTTOM }}

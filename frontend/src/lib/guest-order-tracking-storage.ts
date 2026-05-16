@@ -1,10 +1,15 @@
 import type { OrderStatusLite } from '@/lib/last-order-storage';
 import type { DeliverySpeed } from '@/lib/delivery-pricing';
-import { isTrackableOrderStatus } from '@/lib/order-track';
+import { isActiveGuestOrderStatus, isCompletedGuestOrderStatus } from '@/lib/order-track';
 
-const STORAGE_KEY = 'barakabox_guest_orders_v2';
+const ACTIVE_STORAGE_KEY = 'barakabox_guest_orders_v3';
+const LEGACY_V2_KEY = 'barakabox_guest_orders_v2';
 const LEGACY_SESSION_KEY = 'barakabox_active_track_v1';
-export const COMPLETED_ORDER_RETENTION_MS = 24 * 60 * 60 * 1000;
+const COMPLETED_FLASH_KEY = 'barakabox_guest_completed_flash_v1';
+const HISTORY_STORAGE_KEY = 'barakabox_guest_order_history_v1';
+
+export const COMPLETED_FLASH_MS = 15_000;
+const HISTORY_MAX = 10;
 
 export type StoredGuestOrder = {
   trackingToken: string;
@@ -14,127 +19,151 @@ export type StoredGuestOrder = {
   createdAt: string;
   updatedAt: string;
   syncedAt: string;
-  completedAt?: string;
   cashbackEarnedTiyin: number;
   cashbackCredited: boolean;
   courierName?: string | null;
 };
 
-type GuestOrdersStore = {
-  version: 2;
+export type GuestCompletedFlash = {
+  trackingCode: string;
+  status: 'DELIVERED' | 'CANCELLED';
+  completedAt: string;
+  cashbackEarnedTiyin: number;
+  cashbackCredited: boolean;
+};
+
+export type GuestOrderHistoryEntry = {
+  trackingCode: string;
+  status: OrderStatusLite;
+  completedAt: string;
+};
+
+type ActiveOrdersStore = {
+  version: 3;
   selectedToken: string | null;
   orders: Record<string, StoredGuestOrder>;
+};
+
+type HistoryStore = {
+  version: 1;
+  entries: GuestOrderHistoryEntry[];
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function parseStatus(value: unknown): OrderStatusLite {
-  const s = String(value ?? '').toUpperCase();
-  if (
-    s === 'NEW' ||
-    s === 'PICKING' ||
-    s === 'READY' ||
-    s === 'DELIVERING' ||
-    s === 'DELIVERED' ||
-    s === 'CANCELLED'
-  ) {
-    return s;
-  }
-  return 'NEW';
+function emptyActiveStore(): ActiveOrdersStore {
+  return { version: 3, selectedToken: null, orders: {} };
 }
 
-function parseDeliverySpeed(value: unknown): DeliverySpeed {
-  return value === 'EXPRESS' ? 'EXPRESS' : 'STANDARD';
-}
-
-function emptyStore(): GuestOrdersStore {
-  return { version: 2, selectedToken: null, orders: {} };
-}
-
-function readStore(): GuestOrdersStore {
-  if (typeof window === 'undefined') return emptyStore();
+function readActiveStoreRaw(): ActiveOrdersStore {
+  if (typeof window === 'undefined') return emptyActiveStore();
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return migrateLegacySessionStore();
-    const parsed = JSON.parse(raw) as unknown;
-    if (!isRecord(parsed) || parsed.version !== 2 || !isRecord(parsed.orders)) {
-      return emptyStore();
+    const raw = window.localStorage.getItem(ACTIVE_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as unknown;
+      if (isRecord(parsed) && parsed.version === 3 && isRecord(parsed.orders)) {
+        return {
+          version: 3,
+          selectedToken: typeof parsed.selectedToken === 'string' ? parsed.selectedToken : null,
+          orders: parsed.orders as Record<string, StoredGuestOrder>,
+        };
+      }
     }
-    return {
-      version: 2,
-      selectedToken: typeof parsed.selectedToken === 'string' ? parsed.selectedToken : null,
-      orders: parsed.orders as Record<string, StoredGuestOrder>,
-    };
+    return migrateLegacyStores();
   } catch {
-    return emptyStore();
+    return emptyActiveStore();
   }
 }
 
-function migrateLegacySessionStore(): GuestOrdersStore {
-  const store = emptyStore();
+function migrateLegacyStores(): ActiveOrdersStore {
+  const store = emptyActiveStore();
+  if (typeof window === 'undefined') return store;
+
   try {
-    const legacy = window.sessionStorage.getItem(LEGACY_SESSION_KEY);
-    if (!legacy) return store;
+    const v2 = window.localStorage.getItem(LEGACY_V2_KEY);
+    if (v2) {
+      const parsed = JSON.parse(v2) as { orders?: Record<string, StoredGuestOrder>; selectedToken?: string };
+      const orders: Record<string, StoredGuestOrder> = {};
+      for (const order of Object.values(parsed.orders ?? {})) {
+        if (order?.trackingToken && isActiveGuestOrderStatus(order.status)) {
+          orders[order.trackingToken] = order;
+        }
+      }
+      let selectedToken = parsed.selectedToken ?? null;
+      if (selectedToken && !orders[selectedToken]) selectedToken = null;
+      window.localStorage.removeItem(LEGACY_V2_KEY);
+      writeActiveStore({ version: 3, selectedToken, orders });
+      return { version: 3, selectedToken, orders };
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
     window.sessionStorage.removeItem(LEGACY_SESSION_KEY);
   } catch {
-    return store;
+    // ignore
   }
+
   return store;
 }
 
-function writeStore(store: GuestOrdersStore): void {
+function writeActiveStore(store: ActiveOrdersStore): void {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    window.localStorage.setItem(ACTIVE_STORAGE_KEY, JSON.stringify(store));
     window.dispatchEvent(new Event('barakabox_guest_orders_changed'));
   } catch {
     // ignore quota
   }
 }
 
-export function pruneGuestOrderStore(store: GuestOrdersStore): GuestOrdersStore {
-  const now = Date.now();
+function pruneActiveStore(store: ActiveOrdersStore): ActiveOrdersStore {
   const orders: Record<string, StoredGuestOrder> = {};
   for (const [token, order] of Object.entries(store.orders)) {
     if (!order?.trackingToken) continue;
-    if (order.status === 'DELIVERED' || order.status === 'CANCELLED') {
-      const completedAt = order.completedAt ? Date.parse(order.completedAt) : Date.parse(order.updatedAt);
-      if (Number.isFinite(completedAt) && now - completedAt > COMPLETED_ORDER_RETENTION_MS) {
-        continue;
-      }
-    }
+    if (!isActiveGuestOrderStatus(order.status)) continue;
     orders[token] = order;
   }
   let selectedToken = store.selectedToken;
   if (selectedToken && !orders[selectedToken]) {
-    selectedToken = null;
+    selectedToken = Object.keys(orders)[0] ?? null;
   }
-  return { version: 2, selectedToken, orders };
+  return { version: 3, selectedToken, orders };
 }
 
-export function listVisibleGuestOrders(): StoredGuestOrder[] {
-  const store = pruneGuestOrderStore(readStore());
-  writeStore(store);
+export function listActiveGuestOrders(): StoredGuestOrder[] {
+  const store = pruneActiveStore(readActiveStoreRaw());
+  writeActiveStore(store);
   return Object.values(store.orders).sort(
     (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
   );
 }
 
-export function getSelectedGuestOrder(): StoredGuestOrder | null {
-  const store = pruneGuestOrderStore(readStore());
+export function getSelectedActiveGuestOrder(): StoredGuestOrder | null {
+  const store = pruneActiveStore(readActiveStoreRaw());
   if (!store.selectedToken) return null;
   return store.orders[store.selectedToken] ?? null;
 }
 
 export function selectGuestOrder(trackingToken: string): void {
-  const store = pruneGuestOrderStore(readStore());
+  const store = pruneActiveStore(readActiveStoreRaw());
   if (!store.orders[trackingToken]) return;
-  writeStore({ ...store, selectedToken: trackingToken });
+  writeActiveStore({ ...store, selectedToken: trackingToken });
 }
 
-export function upsertGuestOrderFromApi(input: {
+export function removeActiveGuestOrder(trackingToken: string): void {
+  const store = pruneActiveStore(readActiveStoreRaw());
+  const orders = { ...store.orders };
+  delete orders[trackingToken];
+  const selectedToken =
+    store.selectedToken === trackingToken ? Object.keys(orders)[0] ?? null : store.selectedToken;
+  writeActiveStore({ version: 3, selectedToken, orders });
+}
+
+export function upsertActiveGuestOrderFromApi(input: {
   trackingToken: string;
   trackingCode: string;
   status: OrderStatusLite;
@@ -143,11 +172,30 @@ export function upsertGuestOrderFromApi(input: {
   cashbackEarnedTiyin: number;
   cashbackCredited: boolean;
   courierName?: string | null;
-}): StoredGuestOrder {
-  const store = pruneGuestOrderStore(readStore());
+}): StoredGuestOrder | null {
+  if (isCompletedGuestOrderStatus(input.status)) {
+    finalizeGuestOrderCompletion({
+      trackingToken: input.trackingToken,
+      trackingCode: input.trackingCode,
+      status: input.status,
+      deliverySpeed: input.deliverySpeed,
+      createdAt: input.createdAt,
+      updatedAt: new Date().toISOString(),
+      syncedAt: new Date().toISOString(),
+      cashbackEarnedTiyin: input.cashbackEarnedTiyin,
+      cashbackCredited: input.cashbackCredited,
+      courierName: input.courierName ?? null,
+    });
+    return null;
+  }
+
+  if (!isActiveGuestOrderStatus(input.status)) {
+    return null;
+  }
+
+  const store = pruneActiveStore(readActiveStoreRaw());
   const now = new Date().toISOString();
   const prev = store.orders[input.trackingToken];
-  const terminal = input.status === 'DELIVERED' || input.status === 'CANCELLED';
   const next: StoredGuestOrder = {
     trackingToken: input.trackingToken,
     trackingCode: input.trackingCode,
@@ -156,34 +204,111 @@ export function upsertGuestOrderFromApi(input: {
     createdAt: prev?.createdAt ?? input.createdAt,
     updatedAt: now,
     syncedAt: now,
-    completedAt: terminal ? prev?.completedAt ?? now : undefined,
     cashbackEarnedTiyin: input.cashbackEarnedTiyin,
     cashbackCredited: input.cashbackCredited,
     courierName: input.courierName ?? null,
   };
   const orders = { ...store.orders, [input.trackingToken]: next };
   const selectedToken = store.selectedToken ?? input.trackingToken;
-  writeStore({ version: 2, selectedToken, orders });
+  writeActiveStore({ version: 3, selectedToken, orders });
   return next;
 }
 
-export function removeGuestOrder(trackingToken: string): void {
-  const store = pruneGuestOrderStore(readStore());
-  const orders = { ...store.orders };
-  delete orders[trackingToken];
-  const selectedToken =
-    store.selectedToken === trackingToken
-      ? Object.keys(orders)[0] ?? null
-      : store.selectedToken;
-  writeStore({ version: 2, selectedToken, orders });
+function readHistoryStore(): HistoryStore {
+  if (typeof window === 'undefined') return { version: 1, entries: [] };
+  try {
+    const raw = window.localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (!raw) return { version: 1, entries: [] };
+    const parsed = JSON.parse(raw) as unknown;
+    if (isRecord(parsed) && parsed.version === 1 && Array.isArray(parsed.entries)) {
+      return { version: 1, entries: parsed.entries as GuestOrderHistoryEntry[] };
+    }
+  } catch {
+    // ignore
+  }
+  return { version: 1, entries: [] };
+}
+
+function appendOrderHistory(entry: GuestOrderHistoryEntry): void {
+  if (typeof window === 'undefined') return;
+  const store = readHistoryStore();
+  const entries = [entry, ...store.entries.filter((e) => e.trackingCode !== entry.trackingCode)].slice(
+    0,
+    HISTORY_MAX,
+  );
+  try {
+    window.localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify({ version: 1, entries }));
+  } catch {
+    // ignore
+  }
+}
+
+export function listGuestOrderHistory(): GuestOrderHistoryEntry[] {
+  return readHistoryStore().entries;
+}
+
+export function finalizeGuestOrderCompletion(order: StoredGuestOrder): void {
+  removeActiveGuestOrder(order.trackingToken);
+  const flash: GuestCompletedFlash = {
+    trackingCode: order.trackingCode,
+    status: order.status === 'CANCELLED' ? 'CANCELLED' : 'DELIVERED',
+    completedAt: new Date().toISOString(),
+    cashbackEarnedTiyin: order.cashbackEarnedTiyin,
+    cashbackCredited: order.cashbackCredited,
+  };
+  setCompletedFlash(flash);
+  appendOrderHistory({
+    trackingCode: order.trackingCode,
+    status: order.status,
+    completedAt: flash.completedAt,
+  });
+}
+
+export function getCompletedFlash(): GuestCompletedFlash | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.sessionStorage.getItem(COMPLETED_FLASH_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as GuestCompletedFlash;
+    if (!parsed?.completedAt || !parsed.trackingCode) return null;
+    const age = Date.now() - Date.parse(parsed.completedAt);
+    if (!Number.isFinite(age) || age > COMPLETED_FLASH_MS) {
+      clearCompletedFlash();
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function setCompletedFlash(flash: GuestCompletedFlash): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.setItem(COMPLETED_FLASH_KEY, JSON.stringify(flash));
+    window.dispatchEvent(new Event('barakabox_guest_orders_changed'));
+  } catch {
+    // ignore
+  }
+}
+
+export function clearCompletedFlash(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.removeItem(COMPLETED_FLASH_KEY);
+    window.dispatchEvent(new Event('barakabox_guest_orders_changed'));
+  } catch {
+    // ignore
+  }
 }
 
 export function hasActiveGuestOrderTracking(): boolean {
-  return listVisibleGuestOrders().some((o) => isTrackableOrderStatus(o.status));
+  return listActiveGuestOrders().length > 0;
 }
 
+/** @deprecated Use hasActiveGuestOrderTracking */
 export function hasVisibleGuestOrderTracking(): boolean {
-  return listVisibleGuestOrders().length > 0;
+  return hasActiveGuestOrderTracking();
 }
 
 export const guestOrdersChangedEvent = 'barakabox_guest_orders_changed';

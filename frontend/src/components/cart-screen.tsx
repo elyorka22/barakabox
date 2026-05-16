@@ -15,6 +15,7 @@ import { useCartHydrated, useCartItems } from '@/lib/use-cart-store';
 import { deliveryFeeFor, type DeliverySpeed } from '@/lib/delivery-pricing';
 import { cartCashbackEarnEstimate, cartSubtotal, countCashbackOfferLines } from '@/lib/cart-totals';
 import { useGuestOrderTracking } from '@/hooks/use-guest-order-tracking';
+import { GuestOrderCompletionBanner } from '@/components/order/guest-order-completion-banner';
 import { GuestOrderTrackingPanel } from '@/components/order/guest-order-tracking-panel';
 
 const NAV_BOTTOM = 'calc(var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))';
@@ -76,6 +77,7 @@ export function CartScreen() {
   const showSkeleton = !hydrated || !guestTracking.hydrated;
   const empty = hydrated && cartItems.length === 0;
   const showOrderTracking = guestTracking.showTracking;
+  const showCompletedFlash = guestTracking.showCompletedFlash;
   const trackingOnly = showOrderTracking && empty;
 
   return (
@@ -100,7 +102,14 @@ export function CartScreen() {
           </div>
         ) : null}
 
-        {earnEstimate > 0 && !empty && !trackingOnly ? (
+        {showCompletedFlash && guestTracking.completedFlash ? (
+          <GuestOrderCompletionBanner
+            flash={guestTracking.completedFlash}
+            onDismiss={guestTracking.dismissCompletedFlash}
+          />
+        ) : null}
+
+        {earnEstimate > 0 && !empty && !trackingOnly && !showCompletedFlash ? (
           <div className="mt-5 overflow-hidden rounded-[22px] bg-gradient-to-br from-emerald-50 via-white to-green-50/80 p-[1px] shadow-[0_6px_28px_rgba(22,163,74,0.12)]">
             <div className="rounded-[21px] bg-white/90 px-4 py-3 backdrop-blur-sm">
               <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-800/90">Yetkazilgach keshbek</p>

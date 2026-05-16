@@ -3,6 +3,7 @@ import type { DeliverySpeed } from '@/lib/delivery-pricing';
 import {
   CUSTOMER_ORDER_STEPS,
   customerProgressStepIndex,
+  isActiveCustomerOrder,
   type CustomerOrderStep,
   type CustomerOrderStepId,
 } from '@/lib/order-status';
@@ -41,8 +42,18 @@ export function activeProgressStepIndex(status: OrderStatusLite): number {
   return customerProgressStepIndex(status);
 }
 
+/** Active guest tracking: accepted → courier → in delivery (DB: NEW…DELIVERING). */
+export function isActiveGuestOrderStatus(status: OrderStatusLite): boolean {
+  return isActiveCustomerOrder(status);
+}
+
+export function isCompletedGuestOrderStatus(status: OrderStatusLite): boolean {
+  return status === 'DELIVERED' || status === 'CANCELLED';
+}
+
+/** @deprecated Use isActiveGuestOrderStatus */
 export function isTrackableOrderStatus(status: OrderStatusLite): boolean {
-  return status !== 'CANCELLED' && status !== 'DELIVERED';
+  return isActiveGuestOrderStatus(status);
 }
 
 export function parsePublicTrackStatus(value: string): OrderStatusLite {

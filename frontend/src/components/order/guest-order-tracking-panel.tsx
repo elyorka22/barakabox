@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { OrderProgressTracker } from '@/components/order/order-progress-tracker';
 import type { useGuestOrderTracking } from '@/hooks/use-guest-order-tracking';
-import { isTrackableOrderStatus } from '@/lib/order-track';
+import { isActiveGuestOrderStatus } from '@/lib/order-track';
 
 type TrackingState = ReturnType<typeof useGuestOrderTracking>;
 
@@ -73,7 +73,7 @@ export function GuestOrderTrackingPanel({
               >
                 <p className="font-mono font-bold">{order.trackingCode}</p>
                 <p className="mt-0.5 text-[10px] text-slate-500">
-                  {isTrackableOrderStatus(order.status) ? 'Faol' : 'Yakunlangan'}
+                  {isActiveGuestOrderStatus(order.status) ? 'Faol' : 'Yakunlangan'}
                 </p>
               </button>
             );
@@ -104,12 +104,6 @@ export function GuestOrderTrackingPanel({
         </Link>
       ) : null}
 
-      {tracking.isTerminal && selected.status === 'DELIVERED' ? (
-        <p className="flex items-center justify-center gap-1.5 text-center text-xs text-slate-500">
-          <CheckCircle2 className="h-3.5 w-3.5 text-[#16A34A]" />
-          Buyurtma 24 soatgacha shu yerda saqlanadi
-        </p>
-      ) : null}
     </div>
   );
 }
