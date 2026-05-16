@@ -107,6 +107,59 @@ export class UsersService {
     });
   }
 
+  async listEmployeesForAdmin(opts?: {
+    page?: number;
+    limit?: number;
+    q?: string;
+    role?: Role;
+    status?: 'active' | 'inactive' | 'all';
+  }) {
+    const page = Math.max(1, opts?.page ?? 1);
+    const limit = Math.min(100, Math.max(1, opts?.limit ?? 25));
+    const skip = (page - 1) * limit;
+    const search = opts?.q?.trim();
+    const where: import('@prisma/client').Prisma.UserWhereInput = {
+      role: opts?.role ?? { in: [Role.SUPER_ADMIN, Role.ADMIN, Role.BUSINESS, Role.COURIER, Role.PICKER] },
+    };
+
+    if (opts?.status === 'active') where.isActive = true;
+    else if (opts?.status === 'inactive') where.isActive = false;
+
+    if (search) {
+      where.OR = [
+        { fullName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { staffLogin: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
+        select: {
+          id: true,
+          email: true,
+          staffLogin: true,
+          phone: true,
+          fullName: true,
+          role: true,
+          isActive: true,
+          lastLoginAt: true,
+          businessScopeId: true,
+          createdAt: true,
+          businessScope: { select: { id: true, displayName: true } },
+        },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return { items, total, page, limit };
+  }
+
   async listStaffForAdmin(params: { role?: Role; search?: string; includeClients?: boolean }) {
     const search = params.search?.trim().toLowerCase();
     const roleFilter = params.role;
