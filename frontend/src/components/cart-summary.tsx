@@ -6,7 +6,7 @@ export type CartSummaryRow = {
   key: string;
   label: string;
   value: string;
-  variant?: 'default' | 'muted' | 'accent' | 'total';
+  variant?: 'default' | 'muted' | 'accent' | 'discount' | 'total';
 };
 
 type CartSummaryProps = {
@@ -20,6 +20,7 @@ export function CartSummary({ rows, className = '' }: CartSummaryProps) {
       {rows.map((row) => {
         const isTotal = row.variant === 'total';
         const isAccent = row.variant === 'accent';
+        const isDiscount = row.variant === 'discount';
         const isMuted = row.variant === 'muted';
         return (
           <div
@@ -30,14 +31,24 @@ export function CartSummary({ rows, className = '' }: CartSummaryProps) {
           >
             <span
               className={
-                isMuted ? 'text-slate-500' : isAccent ? 'font-medium text-emerald-800' : 'text-slate-600'
+                isMuted
+                  ? 'text-slate-500'
+                  : isAccent || isDiscount
+                    ? 'font-medium text-emerald-800'
+                    : 'text-slate-600'
               }
             >
               {row.label}
             </span>
             <span
-              className={`shrink-0 tabular-nums ${
-                isTotal ? 'text-[#121212]' : isAccent ? 'font-semibold text-emerald-700' : 'font-semibold text-[#121212]'
+              className={`shrink-0 tabular-nums transition-all duration-300 ${
+                isTotal
+                  ? 'text-[#121212]'
+                  : isDiscount
+                    ? 'font-semibold text-emerald-700'
+                    : isAccent
+                      ? 'font-semibold text-emerald-700'
+                      : 'font-semibold text-[#121212]'
               }`}
             >
               {row.value}

@@ -18,6 +18,7 @@ import {
   cashbackPendingForLine,
   normalizeCustomerPhone,
 } from '../customers/customers.utils';
+import { calculateOrderTotals } from './order-totals.util';
 
 const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   NEW: ['PICKING', 'CANCELLED'],
@@ -207,15 +208,11 @@ export class OrdersService {
     const customerPhone = deliveryInfo?.phone?.trim() || 'N/A';
     const canLink = canLinkCustomerFromPhone(deliveryInfo?.phone);
 
-    let redeem = cashbackRedeemRequested;
-    if (redeem > subtotal) {
-      redeem = subtotal;
-    }
-
     const cashbackEarnedSnapshotTiyin = preparedLines.reduce((s, l) => s + l.cashbackPendingTiyin, 0);
 
     const order = await this.prisma.$transaction(async (tx) => {
       let customerId: string | undefined;
+      let customerBalance = 0;
       if (canLink && deliveryInfo?.phone) {
         const customer = await this.customersService.upsertByPhoneOnOrder(
           deliveryInfo.phone,
@@ -223,22 +220,29 @@ export class OrdersService {
           tx,
         );
         customerId = customer.id;
-        if (redeem > 0) {
-          const dec = await tx.customer.updateMany({
-            where: { id: customer.id, cashbackBalance: { gte: redeem } },
-            data: { cashbackBalance: { decrement: redeem } },
-          });
-          if (dec.count !== 1) {
-            throw new BadRequestException('Keshbek balansi yetarli emas');
-          }
-        }
-      } else if (redeem > 0) {
+        customerBalance = customer.cashbackBalance ?? 0;
+      } else if (cashbackRedeemRequested > 0) {
         throw new BadRequestException('Keshbek ishlatish uchun telefon raqam kiriting');
-      } else {
-        redeem = 0;
       }
 
-      const totalAmount = Math.max(0, subtotal + deliveryFee - redeem);
+      const totals = calculateOrderTotals({
+        subtotalAmount: subtotal,
+        deliveryFee,
+        cashbackBalance: customerBalance,
+        cashbackRedeemRequested: cashbackRedeemRequested,
+      });
+      const redeem = totals.cashbackRedeemTiyin;
+      const totalAmount = totals.totalAmount;
+
+      if (redeem > 0 && customerId) {
+        const dec = await tx.customer.updateMany({
+          where: { id: customerId, cashbackBalance: { gte: redeem } },
+          data: { cashbackBalance: { decrement: redeem } },
+        });
+        if (dec.count !== 1) {
+          throw new BadRequestException('Keshbek balansi yetarli emas');
+        }
+      }
       const trackingToken = randomBytes(24).toString('hex');
 
       const createdOrder = await tx.order.create({

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { api, authStorage } from '@/lib/api';
+import { OrderFinancialBreakdown } from '@/components/order/order-financial-breakdown';
 import { formatMoneyUz } from '@/lib/format';
 
 type OrderStatus = 'NEW' | 'PICKING' | 'READY' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED';
@@ -9,6 +10,9 @@ type Order = {
   id: string;
   status: OrderStatus;
   totalAmount: string;
+  subtotalAmount?: number | string;
+  deliveryFee?: number | string;
+  cashbackRedeemTiyin?: number | string;
   customerName: string;
   customerPhone: string;
   deliveryAddress: string;
@@ -232,7 +236,13 @@ export default function AdminOrdersPage() {
               ) : (
                 <p className="text-amber-800">Koordinatalar yo&apos;q (eski buyurtma)</p>
               )}
-              <p>Jami: {formatMoneyUz(selected.totalAmount)}</p>
+              <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50/80 p-3">
+                <OrderFinancialBreakdown
+                  subtotalAmount={Number(selected.subtotalAmount ?? 0)}
+                  deliveryFee={Number(selected.deliveryFee ?? 0)}
+                  cashbackRedeemTiyin={Number(selected.cashbackRedeemTiyin ?? 0)}
+                />
+              </div>
             </div>
           </div>
         </div>

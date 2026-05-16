@@ -15,6 +15,7 @@ import {
   yandexMapsHref,
 } from '@/lib/courier-order-utils';
 import type { CourierOrder } from '@/lib/courier-types';
+import { OrderFinancialBreakdown } from '@/components/order/order-financial-breakdown';
 import { CourierPriorityBadges } from './courier-priority-badges';
 
 type Props = {
@@ -95,12 +96,27 @@ function CourierOrderCardInner({ order, busy, onAccept, onReject, onComplete }: 
           <span className="rounded-lg bg-[#F0FDF4] px-2 py-1 font-semibold text-[#166534]">
             {formatMoneyUz(order.totalAmount)}
           </span>
+          {Number(order.cashbackRedeemTiyin ?? 0) > 0 ? (
+            <span className="rounded-lg bg-emerald-50 px-2 py-1 font-medium text-emerald-800">
+              Keshbek -{formatMoneyUz(Number(order.cashbackRedeemTiyin))}
+            </span>
+          ) : null}
           <span className="rounded-lg border border-[#ECECEC] px-2 py-1 text-[#6B7280]">{paymentTypeLabel()}</span>
           <span className="inline-flex items-center gap-1 rounded-lg bg-[#F9FAFB] px-2 py-1 text-[#6B7280]">
             <Clock className="h-3 w-3" />
             {formatOrderTime(order.createdAt)}
           </span>
         </div>
+        {Number(order.subtotalAmount ?? 0) > 0 || Number(order.deliveryFee ?? 0) > 0 ? (
+          <div className="rounded-xl border border-[#ECECEC] bg-[#FAFAFA] px-3 py-2.5 dark:bg-slate-800/40">
+            <OrderFinancialBreakdown
+              subtotalAmount={Number(order.subtotalAmount ?? 0)}
+              deliveryFee={Number(order.deliveryFee ?? 0)}
+              cashbackRedeemTiyin={Number(order.cashbackRedeemTiyin ?? 0)}
+              compact
+            />
+          </div>
+        ) : null}
         {order.deliveryNote ? (
           <p className="flex items-start gap-2 rounded-xl bg-[#FFFBEB] px-3 py-2 text-xs text-amber-950">
             <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0" />

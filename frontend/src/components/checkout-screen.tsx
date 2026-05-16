@@ -20,6 +20,7 @@ import {
   type DeliverySpeed,
 } from '@/lib/delivery-pricing';
 import { cartCashbackEarnEstimate, cartSubtotal } from '@/lib/cart-totals';
+import { calculateOrderTotals, parseCashbackRedeemInput } from '@/lib/order-totals';
 import {
   forwardGeocodeOsm,
   geolocationErrorMessageUz,
@@ -95,11 +96,18 @@ export function CheckoutScreen() {
   const subtotal = useMemo(() => cartSubtotal(cartItems), [cartItems]);
   const delivery = useMemo(() => deliveryFeeFor(deliverySpeed, subtotal), [deliverySpeed, subtotal]);
   const earnEstimate = useMemo(() => cartCashbackEarnEstimate(cartItems), [cartItems]);
-  const redeemTiyin = useMemo(() => {
-    const raw = Math.max(0, Math.floor(Number(redeemInput.replace(/\s/g, '')) || 0));
-    return Math.min(raw, cashbackBalance, subtotal);
-  }, [redeemInput, cashbackBalance, subtotal]);
-  const total = Math.max(0, subtotal + delivery - redeemTiyin);
+  const orderTotals = useMemo(
+    () =>
+      calculateOrderTotals({
+        subtotalAmount: subtotal,
+        deliveryFee: delivery,
+        cashbackBalance,
+        cashbackRedeemRequested: parseCashbackRedeemInput(redeemInput),
+      }),
+    [subtotal, delivery, cashbackBalance, redeemInput],
+  );
+  const redeemTiyin = orderTotals.cashbackRedeemTiyin;
+  const total = orderTotals.totalAmount;
 
   const summaryRows: CartSummaryRow[] = useMemo(
     () => [
@@ -110,6 +118,16 @@ export function CheckoutScreen() {
         value: subtotal <= 0 ? '—' : delivery === 0 ? 'Bepul' : formatMoneyUz(delivery),
         variant: 'muted',
       },
+      ...(redeemTiyin > 0
+        ? ([
+            {
+              key: 'redeem',
+              label: 'Cashback ishlatildi',
+              value: `-${formatMoneyUz(redeemTiyin)}`,
+              variant: 'discount' as const,
+            },
+          ] as CartSummaryRow[])
+        : []),
       ...(earnEstimate > 0
         ? ([
             {
@@ -120,9 +138,9 @@ export function CheckoutScreen() {
             },
           ] as CartSummaryRow[])
         : []),
-      { key: 'tot', label: 'Jami', value: formatMoneyUz(total), variant: 'total' },
+      { key: 'tot', label: 'Yakuniy summa', value: formatMoneyUz(total), variant: 'total' },
     ],
-    [subtotal, delivery, earnEstimate, total],
+    [subtotal, delivery, earnEstimate, redeemTiyin, total],
   );
 
   useEffect(() => {
@@ -859,10 +877,13 @@ export function CheckoutScreen() {
                           inputMode="numeric"
                           placeholder="0"
                           value={redeemInput}
-                          onChange={(e) => setRedeemInput(e.target.value)}
+                          onChange={(e) => setRedeemInput(e.target.value.replace(/[^\d\s]/g, ''))}
                         />
                         <p className="mt-1 text-[11px] text-emerald-800">
-                          Chegirma: {formatMoneyUz(redeemTiyin)}
+                          Ishlatiladi: {formatMoneyUz(redeemTiyin)}
+                          {orderTotals.grossTotal > 0
+                            ? ` · maks. ${formatMoneyUz(Math.min(cashbackBalance, orderTotals.grossTotal))}`
+                            : ''}
                         </p>
                       </div>
                     ) : null}
