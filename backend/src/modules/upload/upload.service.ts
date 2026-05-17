@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { UploadMetricsService } from './upload-metrics.service';
-import { SpacesService } from './spaces.service';
+import { SpacesObjectPrefix, SpacesService } from './spaces.service';
 
 @Injectable()
 export class UploadService {
@@ -16,6 +16,7 @@ export class UploadService {
   private readonly halfOpenMaxRequests: number;
   private readonly monthlyStorageLimitBytes: number;
   private readonly blockOnCostLimit: boolean;
+  private readonly orphanCleanupEnabled: boolean;
   private failedUploadOperations = 0;
   private circuitOpenedUntil = 0;
   private circuitState: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
@@ -41,6 +42,8 @@ export class UploadService {
     );
     this.blockOnCostLimit =
       (this.configService.get<string>('UPLOAD_BLOCK_ON_COST_LIMIT') ?? 'true').toLowerCase() === 'true';
+    this.orphanCleanupEnabled =
+      (this.configService.get<string>('UPLOAD_ORPHAN_CLEANUP_ENABLED') ?? 'false').toLowerCase() === 'true';
   }
 
   private ensureCircuitClosed() {
@@ -138,11 +141,13 @@ export class UploadService {
     return uploaded;
   }
 
-  async uploadImageForForm(file: Express.Multer.File) {
+  async uploadImageForForm(file: Express.Multer.File, folder: SpacesObjectPrefix = 'products') {
     const id = randomUUID();
     const ts = Date.now();
     const extension = file.mimetype === 'image/png' ? 'png' : file.mimetype === 'image/webp' ? 'webp' : 'jpg';
-    const key = `products/temp/${ts}-${id}.${extension}`;
+    const prefix =
+      folder === 'products' ? 'products/temp' : folder;
+    const key = `${prefix}/${ts}-${id}.${extension}`;
     return this.spacesService.uploadBuffer({
       key,
       buffer: file.buffer,
@@ -200,22 +205,14 @@ export class UploadService {
     });
   }
 
+  /** Off by default (UPLOAD_ORPHAN_CLEANUP_ENABLED). Never deletes DB rows — only Spaces objects. */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async cleanupOrphanImages(): Promise<void> {
+    if (!this.orphanCleanupEnabled) {
+      return;
+    }
     try {
-      const knownKeys = new Set<string>();
-      const products = await this.prisma.product.findMany({
-        select: {
-          imageKey: true,
-          imageCardKey: true,
-          imageThumbKey: true,
-        },
-      });
-      for (const product of products) {
-        if (product.imageKey) knownKeys.add(product.imageKey);
-        if (product.imageCardKey) knownKeys.add(product.imageCardKey);
-        if (product.imageThumbKey) knownKeys.add(product.imageThumbKey);
-      }
+      const knownKeys = await this.collectReferencedObjectKeys();
 
       let continuationToken: string | undefined;
       do {
@@ -230,6 +227,78 @@ export class UploadService {
       } while (continuationToken);
     } catch {
       await this.metrics.recordCleanupFailure();
+    }
+  }
+
+  private async collectReferencedObjectKeys(): Promise<Set<string>> {
+    const knownKeys = new Set<string>();
+    const bucket = this.bucket;
+
+    const addKeyFromUrl = (url: string | null | undefined) => {
+      if (!url?.trim()) return;
+      const key = this.extractObjectKeyFromUrl(url, bucket);
+      if (key) knownKeys.add(key);
+    };
+
+    const [products, assets, sessions, variants, categories, banners] = await Promise.all([
+      this.prisma.product.findMany({
+        select: { imageKey: true, imageCardKey: true, imageThumbKey: true },
+      }),
+      this.prisma.productImageAsset.findMany({
+        select: { mainKey: true, cardKey: true, thumbKey: true },
+      }),
+      this.prisma.uploadSession.findMany({
+        select: { mainKey: true, cardKey: true, thumbKey: true },
+      }),
+      this.prisma.productVariant.findMany({
+        where: { imageUrl: { not: null } },
+        select: { imageUrl: true },
+      }),
+      this.prisma.category.findMany({ select: { imageUrl: true } }),
+      this.prisma.banner.findMany({ select: { imageUrl: true } }),
+    ]);
+
+    for (const product of products) {
+      if (product.imageKey) knownKeys.add(product.imageKey);
+      if (product.imageCardKey) knownKeys.add(product.imageCardKey);
+      if (product.imageThumbKey) knownKeys.add(product.imageThumbKey);
+    }
+    for (const asset of assets) {
+      knownKeys.add(asset.mainKey);
+      knownKeys.add(asset.cardKey);
+      knownKeys.add(asset.thumbKey);
+    }
+    for (const session of sessions) {
+      knownKeys.add(session.mainKey);
+      knownKeys.add(session.cardKey);
+      knownKeys.add(session.thumbKey);
+    }
+    for (const variant of variants) {
+      addKeyFromUrl(variant.imageUrl);
+    }
+    for (const category of categories) {
+      addKeyFromUrl(category.imageUrl);
+    }
+    for (const banner of banners) {
+      addKeyFromUrl(banner.imageUrl);
+    }
+
+    return knownKeys;
+  }
+
+  private extractObjectKeyFromUrl(url: string, bucket: string): string | null {
+    try {
+      const parsed = new URL(url);
+      if (!parsed.hostname.includes('digitaloceanspaces.com')) {
+        return null;
+      }
+      const path = parsed.pathname.replace(/^\//, '');
+      if (!path || path.startsWith(`${bucket}/`)) {
+        return path.replace(new RegExp(`^${bucket}/`), '') || null;
+      }
+      return path;
+    } catch {
+      return null;
     }
   }
 
@@ -438,11 +507,14 @@ export class UploadService {
 
   async checkHealth() {
     try {
-      await this.spacesService.checkBucketHealth();
+      const spaces = await this.spacesService.checkBucketHealth();
       return {
         ok: true,
         spacesConnectivity: 'ok',
         bucketAccess: 'ok',
+        bucket: spaces.bucket,
+        publicBaseUrl: spaces.publicBaseUrl,
+        orphanCleanupEnabled: this.orphanCleanupEnabled,
         circuitState: this.circuitState,
         circuitBreakerOpen: this.circuitState === 'OPEN' && this.circuitOpenedUntil > Date.now(),
         circuitOpenedUntil: this.circuitOpenedUntil > Date.now() ? new Date(this.circuitOpenedUntil).toISOString() : null,

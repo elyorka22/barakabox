@@ -6,6 +6,8 @@ import { authStorage } from '@/lib/api';
 import { normalizeAssetUrl } from '@/lib/asset-url';
 import { getApiBaseUrl } from '@/lib/seo';
 
+type StorageFolder = 'products' | 'categories' | 'banners' | 'users';
+
 type Props = {
   valueUrl: string;
   valueKey: string;
@@ -13,6 +15,8 @@ type Props = {
   onUploadingChange?: (uploading: boolean) => void;
   inputId?: string;
   label?: string;
+  /** Spaces folder prefix (single bucket). Default: products (temp uploads). */
+  storageFolder?: StorageFolder;
 };
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -25,6 +29,7 @@ export function ImageUploader({
   onUploadingChange,
   inputId = 'product-image-upload',
   label = 'Mahsulot rasmi',
+  storageFolder = 'products',
 }: Props) {
   const [previewUrl, setPreviewUrl] = useState(valueUrl);
   const [error, setError] = useState('');
@@ -76,7 +81,8 @@ export function ImageUploader({
 
     try {
       const token = authStorage.getAccessToken();
-      const response = await fetch(`${apiBase}/upload/image`, {
+      const uploadUrl = `${apiBase}/upload/image?folder=${encodeURIComponent(storageFolder)}`;
+      const response = await fetch(uploadUrl, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,

@@ -112,7 +112,11 @@ export class UploadController {
       },
     }),
   )
-  async uploadImage(@CurrentUser() user: { sub: string }, @UploadedFile() file?: Express.Multer.File) {
+  async uploadImage(
+    @CurrentUser() user: { sub: string },
+    @UploadedFile() file?: Express.Multer.File,
+    @Req() req?: { query?: { folder?: string } },
+  ) {
     this.logger.log(
       JSON.stringify({
         event: 'upload_image_request_received',
@@ -137,8 +141,15 @@ export class UploadController {
     if (!detected || !allowed.has(detected.mime)) {
       throw new BadRequestException("Noto'g'ri fayl turi. Faqat jpg/png/webp mumkin");
     }
+    const folderRaw = req?.query?.folder?.trim().toLowerCase();
+    const allowedFolders = new Set(['products', 'categories', 'banners', 'users']);
+    const folder =
+      folderRaw && allowedFolders.has(folderRaw)
+        ? (folderRaw as 'products' | 'categories' | 'banners' | 'users')
+        : 'products';
+
     try {
-      const uploaded = await this.uploadService.uploadImageForForm(file);
+      const uploaded = await this.uploadService.uploadImageForForm(file, folder);
       this.logger.log(
         JSON.stringify({
           event: 'upload_image_success',

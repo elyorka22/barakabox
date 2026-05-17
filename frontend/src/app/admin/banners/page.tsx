@@ -688,6 +688,7 @@ function BannerEditorImage({ imageUrl, onChange }: { imageUrl: string; onChange:
         valueKey=""
         inputId="banner-image-upload"
         label="Banner rasmi yuklash"
+        storageFolder="banners"
         onChange={(next) => onChange(next.url)}
       />
     </div>

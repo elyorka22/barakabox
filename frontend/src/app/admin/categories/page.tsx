@@ -87,7 +87,7 @@ export default function AdminCategoriesPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const response = await fetch(`${apiBase}/upload/image`, {
+      const response = await fetch(`${apiBase}/upload/image?folder=categories`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,

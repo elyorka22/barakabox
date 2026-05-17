@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   DeleteObjectCommand,
@@ -10,45 +10,92 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
+/** Allowed top-level object prefixes — single bucket, folder-based layout. */
+export const SPACES_OBJECT_PREFIXES = ['products', 'categories', 'banners', 'users', 'debug'] as const;
+export type SpacesObjectPrefix = (typeof SPACES_OBJECT_PREFIXES)[number];
+
 @Injectable()
-export class SpacesService {
+export class SpacesService implements OnModuleInit {
   private readonly logger = new Logger(SpacesService.name);
   private readonly client: S3Client;
   private readonly bucket: string;
   private readonly publicBaseUrl: string;
   private readonly cdnUrl: string;
   private readonly uploadTimeoutMs: number;
+  private readonly startupStrict: boolean;
 
   constructor(private readonly configService: ConfigService) {
     const endpoint = this.normalizeUrl(this.getEnvOrThrow('SPACES_ENDPOINT'));
-    const region = this.getEnvOrThrow('SPACES_REGION');
+    const signingRegion = this.getEnvOrThrow('SPACES_REGION');
     const accessKeyId = this.getEnvOrThrow('SPACES_KEY');
     const secretAccessKey = this.getEnvOrThrow('SPACES_SECRET');
     this.bucket = this.getEnvOrThrow('SPACES_BUCKET');
-    this.publicBaseUrl = `https://${this.bucket}.${region}.digitaloceanspaces.com`;
+    const spacesSlug = this.resolveSpacesRegionSlug(endpoint);
+    this.publicBaseUrl = `https://${this.bucket}.${spacesSlug}.digitaloceanspaces.com`;
     this.cdnUrl = this.normalizeUrl(this.configService.get<string>('SPACES_CDN_URL') ?? '');
     this.uploadTimeoutMs = 10_000;
+    this.startupStrict =
+      (this.configService.get<string>('UPLOAD_STARTUP_STRICT') ?? 'false').toLowerCase() === 'true';
 
     this.logger.log(
       JSON.stringify({
         event: 'spaces_config_loaded',
         endpoint,
-        region,
+        signingRegion,
+        spacesSlug,
         bucket: this.bucket,
         cdnUrl: this.cdnUrl || null,
         forcePathStyle: false,
         hasAccessKey: Boolean(accessKeyId),
         hasSecret: Boolean(secretAccessKey),
         timeoutMs: this.uploadTimeoutMs,
+        startupStrict: this.startupStrict,
+        allowedPrefixes: SPACES_OBJECT_PREFIXES,
       }),
     );
 
     this.client = new S3Client({
-      region,
+      region: signingRegion,
       endpoint,
       credentials: { accessKeyId, secretAccessKey },
       forcePathStyle: false,
     });
+  }
+
+  async onModuleInit() {
+    try {
+      await this.checkBucketHealth();
+      this.logger.log(
+        JSON.stringify({
+          event: 'spaces_startup_health_ok',
+          bucket: this.bucket,
+        }),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown';
+      this.logger.error(
+        JSON.stringify({
+          event: 'spaces_startup_health_failed',
+          bucket: this.bucket,
+          error: message,
+        }),
+      );
+      if (this.startupStrict) {
+        throw new Error(`Spaces bucket health check failed: ${message}`);
+      }
+    }
+  }
+
+  /** DO datacenter slug from endpoint host (e.g. fra1), not AWS signing region. */
+  private resolveSpacesRegionSlug(endpoint: string): string {
+    try {
+      const host = new URL(endpoint).hostname;
+      const match = host.match(/^([a-z0-9-]+)\.digitaloceanspaces\.com$/i);
+      if (match?.[1]) return match[1];
+    } catch {
+      // fall through
+    }
+    return this.getEnvOrThrow('SPACES_REGION');
   }
 
   private getEnvOrThrow(key: string): string {
@@ -74,6 +121,26 @@ export class SpacesService {
     return Promise.race([action, timeout]);
   }
 
+  /**
+   * Production guard: only single-object deletes with a valid key under allowed prefixes.
+   * Bucket-level APIs (DeleteBucket, etc.) are intentionally never implemented in this app.
+   */
+  assertSafeObjectKey(key: string, operation: 'delete' | 'read' | 'write') {
+    const trimmed = key.trim();
+    if (!trimmed || trimmed === '*' || trimmed === '/' || trimmed.endsWith('/')) {
+      throw new Error(`Refusing ${operation}: invalid object key`);
+    }
+    if (trimmed === this.bucket || trimmed.toLowerCase() === 'bucket') {
+      throw new Error(`Refusing ${operation}: key must not equal bucket name`);
+    }
+    const topLevel = trimmed.split('/')[0];
+    if (!SPACES_OBJECT_PREFIXES.includes(topLevel as SpacesObjectPrefix)) {
+      throw new Error(
+        `Refusing ${operation}: key must start with one of ${SPACES_OBJECT_PREFIXES.join(', ')}`,
+      );
+    }
+  }
+
   buildPublicUrl(key: string): string {
     const baseUrl = this.cdnUrl || this.publicBaseUrl;
     return `${baseUrl}/${key}`;
@@ -83,7 +150,12 @@ export class SpacesService {
     return this.bucket;
   }
 
+  getPublicBaseUrl() {
+    return this.cdnUrl || this.publicBaseUrl;
+  }
+
   async createPresignedUpload(key: string, contentType: string, cacheControl: string) {
+    this.assertSafeObjectKey(key, 'write');
     const command = new PutObjectCommand({
       Bucket: this.bucket,
       Key: key,
@@ -110,6 +182,7 @@ export class SpacesService {
     contentType: string;
     cacheControl?: string;
   }) {
+    this.assertSafeObjectKey(params.key, 'write');
     const cacheControl = params.cacheControl ?? 'public, max-age=31536000, immutable';
     this.logger.log(
       JSON.stringify({
@@ -194,6 +267,14 @@ export class SpacesService {
   }
 
   async deleteObject(key: string) {
+    this.assertSafeObjectKey(key, 'delete');
+    this.logger.warn(
+      JSON.stringify({
+        event: 'spaces_delete_object',
+        bucket: this.bucket,
+        key,
+      }),
+    );
     await this.withTimeout(
       this.client.send(
         new DeleteObjectCommand({
@@ -203,9 +284,17 @@ export class SpacesService {
       ),
       'Spaces delete',
     );
+    this.logger.log(
+      JSON.stringify({
+        event: 'spaces_delete_object_success',
+        bucket: this.bucket,
+        key,
+      }),
+    );
   }
 
   async headObject(key: string) {
+    this.assertSafeObjectKey(key, 'read');
     await this.withTimeout(
       this.client.send(
         new HeadObjectCommand({
@@ -218,11 +307,19 @@ export class SpacesService {
   }
 
   async listObjects(prefix: string, continuationToken?: string) {
+    const normalized = prefix.trim();
+    if (!normalized || normalized === '*' || normalized === '/') {
+      throw new Error('Refusing listObjects: invalid prefix');
+    }
+    const topLevel = normalized.replace(/\/$/, '').split('/')[0];
+    if (!SPACES_OBJECT_PREFIXES.includes(topLevel as SpacesObjectPrefix)) {
+      throw new Error(`Refusing listObjects: prefix must start with ${SPACES_OBJECT_PREFIXES.join(', ')}`);
+    }
     return this.withTimeout(
       this.client.send(
         new ListObjectsV2Command({
           Bucket: this.bucket,
-          Prefix: prefix,
+          Prefix: normalized,
           ContinuationToken: continuationToken,
         }),
       ),
@@ -248,5 +345,10 @@ export class SpacesService {
       ),
       'Spaces health list',
     );
+    return {
+      ok: true,
+      bucket: this.bucket,
+      publicBaseUrl: this.getPublicBaseUrl(),
+    };
   }
 }

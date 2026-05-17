@@ -23,6 +23,8 @@ export type AppEnv = {
   UPLOAD_CIRCUIT_HALF_OPEN_MAX_REQUESTS: string;
   UPLOAD_MONTHLY_STORAGE_LIMIT_BYTES: string;
   UPLOAD_BLOCK_ON_COST_LIMIT: string;
+  UPLOAD_ORPHAN_CLEANUP_ENABLED: string;
+  UPLOAD_STARTUP_STRICT: string;
 };
 
 function normalizeHttpsUrl(input: string): string {
@@ -58,6 +60,8 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
   const uploadCircuitHalfOpenMaxRequests = String(config.UPLOAD_CIRCUIT_HALF_OPEN_MAX_REQUESTS ?? '1');
   const uploadMonthlyStorageLimitBytes = String(config.UPLOAD_MONTHLY_STORAGE_LIMIT_BYTES ?? '5368709120');
   const uploadBlockOnCostLimit = String(config.UPLOAD_BLOCK_ON_COST_LIMIT ?? 'true');
+  const uploadOrphanCleanupEnabled = String(config.UPLOAD_ORPHAN_CLEANUP_ENABLED ?? 'false');
+  const uploadStartupStrict = String(config.UPLOAD_STARTUP_STRICT ?? 'false');
 
   if (!databaseUrl.startsWith('postgresql://')) {
     throw new Error('DATABASE_URL must be a valid postgresql URL');
@@ -133,5 +137,7 @@ export function validateEnv(config: Record<string, unknown>): AppEnv {
     UPLOAD_CIRCUIT_HALF_OPEN_MAX_REQUESTS: uploadCircuitHalfOpenMaxRequests,
     UPLOAD_MONTHLY_STORAGE_LIMIT_BYTES: uploadMonthlyStorageLimitBytes,
     UPLOAD_BLOCK_ON_COST_LIMIT: uploadBlockOnCostLimit,
+    UPLOAD_ORPHAN_CLEANUP_ENABLED: uploadOrphanCleanupEnabled,
+    UPLOAD_STARTUP_STRICT: uploadStartupStrict,
   };
 }
