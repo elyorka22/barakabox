@@ -1,3 +1,4 @@
+// Keep in sync with shared/product-units.ts
 /**
  * Product sale units — single source of truth for Product.unit (API + DB).
  * Must match `ProductUnit` in `backend/prisma/schema.prisma` (see `product-units.sync.spec.ts`).
