@@ -36,13 +36,19 @@ export class ProductsController {
     @Query('q') q?: string,
     @Query('categoryId') categoryId?: string,
     @Query('includeInactive') includeInactive?: string,
+    @Query('stockFilter') stockFilter?: string,
+    @Query('sortBy') sortBy?: string,
   ) {
+    const allowedStock = new Set(['all', 'in_stock', 'low', 'out']);
+    const allowedSort = new Set(['newest', 'stock_asc', 'stock_desc', 'price_asc', 'price_desc']);
     return this.productsService.listForAdmin({
       page: Number(page || 1),
-      limit: Number(limit || 24),
+      limit: Number(limit || 50),
       q,
       categoryId: categoryId && categoryId !== 'ALL' ? categoryId : undefined,
       includeInactive: includeInactive === '1' || includeInactive === 'true',
+      stockFilter: allowedStock.has(stockFilter ?? '') ? (stockFilter as 'all' | 'in_stock' | 'low' | 'out') : 'all',
+      sortBy: allowedSort.has(sortBy ?? '') ? (sortBy as 'newest' | 'stock_asc' | 'stock_desc' | 'price_asc' | 'price_desc') : 'newest',
     });
   }
 

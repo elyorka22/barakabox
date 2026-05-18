@@ -42,9 +42,11 @@ export class ProductsService {
     q?: string;
     categoryId?: string;
     includeInactive?: boolean;
+    stockFilter?: 'all' | 'in_stock' | 'low' | 'out';
+    sortBy?: 'newest' | 'stock_asc' | 'stock_desc' | 'price_asc' | 'price_desc';
   }) {
     const page = Math.max(1, opts?.page ?? 1);
-    const limit = Math.min(50, Math.max(1, opts?.limit ?? 24));
+    const limit = Math.min(100, Math.max(1, opts?.limit ?? 50));
     const skip = (page - 1) * limit;
     const q = opts?.q?.trim();
 
@@ -58,43 +60,70 @@ export class ProductsService {
     if (opts?.categoryId) {
       where.categoryId = opts.categoryId;
     }
+    const stockFilter = opts?.stockFilter ?? 'all';
+    if (stockFilter === 'out') {
+      where.stockQuantity = { lte: 0 };
+    } else if (stockFilter === 'low') {
+      where.stockQuantity = { gt: 0, lte: 5 };
+    } else if (stockFilter === 'in_stock') {
+      where.stockQuantity = { gt: 5 };
+    }
 
-    return this.prisma.product.findMany({
-      where,
-      skip,
-      take: limit,
-      select: {
-        id: true,
-        name: true,
-        price: true,
-        stockQuantity: true,
-        unit: true,
-        businessId: true,
-        isActive: true,
-        cashbackType: true,
-        cashbackValue: true,
-        imageThumbUrl: true,
-        imageCardUrl: true,
-        imageUrl: true,
-        imageKey: true,
-        category: { select: { id: true, name: true } },
-        variants: {
-          where: { isActive: true },
-          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-          select: {
-            id: true,
-            title: true,
-            flavor: true,
-            description: true,
-            price: true,
-            discountPrice: true,
-            stock: true,
-            imageUrl: true,
-          },
+    const orderBy: Prisma.ProductOrderByWithRelationInput =
+      opts?.sortBy === 'stock_asc'
+        ? { stockQuantity: 'asc' }
+        : opts?.sortBy === 'stock_desc'
+          ? { stockQuantity: 'desc' }
+          : opts?.sortBy === 'price_asc'
+            ? { price: 'asc' }
+            : opts?.sortBy === 'price_desc'
+              ? { price: 'desc' }
+              : { updatedAt: 'desc' };
+
+    const select = {
+      id: true,
+      name: true,
+      price: true,
+      stockQuantity: true,
+      unit: true,
+      businessId: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+      cashbackType: true,
+      cashbackValue: true,
+      imageThumbUrl: true,
+      imageCardUrl: true,
+      imageUrl: true,
+      imageKey: true,
+      category: { select: { id: true, name: true } },
+      variants: {
+        where: { isActive: true },
+        orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],
+        select: {
+          id: true,
+          title: true,
+          flavor: true,
+          description: true,
+          price: true,
+          discountPrice: true,
+          stock: true,
+          sku: true,
+          imageUrl: true,
         },
       },
-      orderBy: { updatedAt: 'desc' },
-    });
+    };
+
+    return Promise.all([
+      this.prisma.product.findMany({
+        where,
+        skip,
+        take: limit,
+        select,
+        orderBy,
+      }),
+      this.prisma.product.count({ where }),
+    ]).then(([items, total]) => ({ items, total, page, limit }));
   }
 
   async search(term: string, page = 1, limit = 20) {
