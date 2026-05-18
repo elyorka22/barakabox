@@ -43,9 +43,9 @@ function ProductCardCartControlBase({ variantId, productId, sellingMode, unit, d
         disabled={disabled}
         aria-label={disabled ? 'Mahsulot tugagan' : "Savatga qo'shish"}
         aria-busy={pending}
-        className="product-card-add-btn flex h-11 w-11 items-center justify-center rounded-full bg-[#22c55e] text-white shadow-[0_6px_20px_rgba(34,197,94,0.42)] transition-transform duration-200 active:scale-[0.88] disabled:opacity-45"
+        className="product-card-add-btn flex h-9 w-9 items-center justify-center rounded-full bg-[#22c55e] text-white shadow-[0_4px_14px_rgba(34,197,94,0.35)] transition-transform duration-200 active:scale-[0.88] disabled:opacity-45"
       >
-        <Plus className="h-5 w-5" strokeWidth={2.75} />
+        <Plus className="h-[18px] w-[18px]" strokeWidth={2.75} />
       </button>
     );
   }

@@ -273,3 +273,7 @@ body {
   transform: scale(0.88);
 }
 
+.detail-cta-btn:active {
+  transform: scale(0.98);
+}
+

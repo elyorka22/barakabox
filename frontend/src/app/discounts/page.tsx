@@ -101,7 +101,7 @@ export default function DiscountsPage() {
           </button>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="mt-4 grid grid-cols-2 gap-2">
           {discountedProducts.map((product, idx) => (
             <motion.div
               key={product.id}

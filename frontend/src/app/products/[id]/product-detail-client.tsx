@@ -3,17 +3,16 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { ChevronLeft } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatMoneyUz } from '@/lib/format';
-import { MobileNav } from '@/components/app-nav';
-import { absoluteUrl } from '@/lib/seo';
 import { SafeImage } from '@/components/safe-image';
+import { QuantitySelector } from '@/components/quantity-selector';
 import { incrementCart } from '@/lib/cart-store';
 import {
   DEFAULT_PRODUCT_UNIT,
   PRODUCT_UNIT_LABEL_UZ,
   calculateSellingModeLineTotal,
-  formatQuantityWithUnit,
   formatSellingModeQuantity,
   getSellingModeDecreaseDelta,
   getSellingModeMin,
@@ -27,14 +26,12 @@ type Product = {
   name: string;
   price: string;
   imageUrl?: string | null;
-  description?: string | null;
   unit?: string | null;
   unitType?: string | null;
   sellingMode?: string | null;
   variants?: Array<{
     id: string;
     flavor?: string | null;
-    description?: string | null;
     price: number;
     discountPrice?: number | null;
     stock: number;
@@ -70,12 +67,7 @@ export default function ProductDetailClientPage() {
 
   useEffect(() => {
     setImageLoaded(false);
-  }, [product?.imageUrl, activeVariant?.id, activeVariant?.imageUrl]);
-
-  const goToVariant = (targetIndex: number) => {
-    if (!variants.length) return;
-    setVariantIndex(Math.max(0, Math.min(targetIndex, variants.length - 1)));
-  };
+  }, [activeVariant?.id, activeVariant?.imageUrl, product?.imageUrl]);
 
   const handleTouchEnd = (touchEndX: number) => {
     if (touchStartX === null || variants.length <= 1) return;
@@ -84,150 +76,74 @@ export default function ProductDetailClientPage() {
       setTouchStartX(null);
       return;
     }
-    if (diff > 0) {
-      goToVariant(variantIndex + 1);
-    } else {
-      goToVariant(variantIndex - 1);
-    }
+    setVariantIndex((i) =>
+      Math.max(0, Math.min(i + (diff > 0 ? 1 : -1), variants.length - 1)),
+    );
     setTouchStartX(null);
   };
 
-  const unitPrice = useMemo(() => {
-    if (!product) return 0;
-    const basePrice = Number(activeVariant?.price ?? product.price);
-    const salePrice =
-      activeVariant?.discountPrice &&
-      Number(activeVariant.discountPrice) > 0 &&
-      Number(activeVariant.discountPrice) < basePrice
-        ? Number(activeVariant.discountPrice)
-        : null;
-    return salePrice ?? basePrice;
-  }, [product, activeVariant?.price, activeVariant?.discountPrice]);
+  const basePrice = Number(activeVariant?.price ?? product?.price ?? 0);
+  const salePrice =
+    activeVariant?.discountPrice &&
+    Number(activeVariant.discountPrice) > 0 &&
+    Number(activeVariant.discountPrice) < basePrice
+      ? Number(activeVariant.discountPrice)
+      : null;
+  const unitPrice = salePrice ?? basePrice;
 
   const total = useMemo(
     () => calculateSellingModeLineTotal(unitPrice, quantity, sellingMode),
     [unitPrice, quantity, sellingMode],
   );
 
-  const quantityStep = getSellingModeStep(sellingMode);
   const quantityMin = getSellingModeMin(sellingMode);
+  const quantityStep = getSellingModeStep(sellingMode);
+  const quantityLabel = formatSellingModeQuantity(quantity, sellingMode, saleUnit);
+  const outOfStock = (activeVariant?.stock ?? 0) <= 0;
 
-  const decreaseQuantity = () => {
-    setQuantity((q) => {
-      const delta = getSellingModeDecreaseDelta(q, sellingMode);
-      const next = q + delta;
-      return next < quantityMin ? quantityMin : next;
-    });
-  };
-
-  const increaseQuantity = () => {
-    setQuantity((q) => q + quantityStep);
-  };
+  const unitHint = formatSellingModeQuantity(quantityMin, sellingMode, saleUnit);
 
   const addToCart = () => {
-    if (!product || !activeVariant?.id) return;
+    if (!product || !activeVariant?.id || outOfStock) return;
     incrementCart(activeVariant.id, product.id, quantity);
   };
 
-  const breadcrumbLd = useMemo(
-    () =>
-      product
-        ? {
-            '@context': 'https://schema.org',
-            '@type': 'BreadcrumbList',
-            itemListElement: [
-              {
-                '@type': 'ListItem',
-                position: 1,
-                name: 'Bosh sahifa',
-                item: absoluteUrl('/'),
-              },
-              {
-                '@type': 'ListItem',
-                position: 2,
-                name: 'Mahsulotlar',
-                item: absoluteUrl('/'),
-              },
-              {
-                '@type': 'ListItem',
-                position: 3,
-                name: product.name,
-                item: absoluteUrl(`/products/${product.id}`),
-              },
-            ],
-          }
-        : null,
-    [product],
-  );
-
-  const productLd = useMemo(() => {
-    if (!product) return null;
-    const basePrice = Number(activeVariant?.price ?? product.price ?? 0);
-    const finalPrice =
-      activeVariant?.discountPrice &&
-      Number(activeVariant.discountPrice) > 0 &&
-      Number(activeVariant.discountPrice) < basePrice
-        ? Number(activeVariant.discountPrice)
-        : basePrice;
-    return {
-      '@context': 'https://schema.org',
-      '@type': 'Product',
-      name: product.name,
-      image: [activeVariant?.imageUrl ?? product.imageUrl ?? absoluteUrl('/og-image.png')],
-      description: activeVariant?.description || product.description || `${product.name} mahsuloti`,
-      sku: activeVariant?.id || product.id,
-      offers: {
-        '@type': 'Offer',
-        url: absoluteUrl(`/products/${product.id}`),
-        priceCurrency: 'UZS',
-        price: String(finalPrice),
-        availability:
-          Number(activeVariant?.stock ?? 0) > 0
-            ? 'https://schema.org/InStock'
-            : 'https://schema.org/OutOfStock',
-      },
-    };
-  }, [activeVariant?.description, activeVariant?.discountPrice, activeVariant?.id, activeVariant?.imageUrl, activeVariant?.stock, activeVariant?.price, product]);
+  const imageSrc = activeVariant?.imageUrl ?? product?.imageUrl;
 
   return (
-    <main className="bb-page">
-      {breadcrumbLd ? (
-        <script
-          type="application/ld+json"
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
-        />
-      ) : null}
-      {productLd ? (
-        <script
-          type="application/ld+json"
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(productLd) }}
-        />
-      ) : null}
-      <section className="bb-shell">
-        <Link href="/" className="text-sm text-gray-500">Orqaga</Link>
-        {(activeVariant?.imageUrl ?? product?.imageUrl) ? (
+    <main className="min-h-dvh bg-white pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
+      <header className="sticky top-0 z-20 flex items-center bg-white/95 px-2 py-2 backdrop-blur-md">
+        <Link
+          href="/"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-[#111827] transition active:bg-[#f3f4f6]"
+          aria-label="Orqaga"
+        >
+          <ChevronLeft className="h-6 w-6" strokeWidth={2} />
+        </Link>
+      </header>
+
+      <div className="px-4">
+        {imageSrc ? (
           <div
-            className="relative mt-3 aspect-[4/3] w-full overflow-hidden rounded-3xl bg-white"
-            onTouchStart={(event) => setTouchStartX(event.changedTouches[0]?.clientX ?? null)}
-            onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientX ?? 0)}
+            className="relative mx-auto flex max-h-[40vh] min-h-[200px] w-full items-center justify-center py-4"
+            onTouchStart={(e) => setTouchStartX(e.changedTouches[0]?.clientX ?? null)}
+            onTouchEnd={(e) => handleTouchEnd(e.changedTouches[0]?.clientX ?? 0)}
           >
-            {!imageLoaded ? <div className="bb-skeleton absolute inset-0" /> : null}
-            {variants.length > 0 ? (
+            {!imageLoaded ? <div className="absolute inset-0 animate-pulse bg-[#fafafa]" /> : null}
+            {variants.length > 1 ? (
               <div
                 className="flex h-full w-full transition-transform duration-300 ease-out"
                 style={{ transform: `translateX(-${variantIndex * 100}%)` }}
               >
-                {variants.map((variant) => (
-                  <div key={variant.id} className="h-full min-w-full">
+                {variants.map((v) => (
+                  <div key={v.id} className="flex min-w-full items-center justify-center">
                     <SafeImage
-                      src={variant.imageUrl ?? undefined}
-                      alt={variant.flavor ?? product?.name ?? 'Product'}
-                      loading="lazy"
-                      decoding="async"
-                      className="h-full w-full object-contain object-center"
-                      fallbackClassName="h-full w-full bg-gradient-to-br from-green-200 to-green-100"
+                      src={v.imageUrl ?? undefined}
+                      alt={product?.name ?? ''}
+                      className={`max-h-[36vh] w-auto max-w-full object-contain transition-opacity duration-300 ${
+                        imageLoaded ? 'opacity-100' : 'opacity-0'
+                      }`}
+                      fallbackClassName="h-48 w-full bg-[#fafafa]"
                       onLoad={() => setImageLoaded(true)}
                     />
                   </div>
@@ -235,119 +151,95 @@ export default function ProductDetailClientPage() {
               </div>
             ) : (
               <SafeImage
-                src={product?.imageUrl ?? undefined}
-                alt={product?.name ?? 'Product'}
-                loading="lazy"
-                decoding="async"
-                className="h-full w-full object-contain object-center"
-                fallbackClassName="h-full w-full bg-gradient-to-br from-green-200 to-green-100"
+                src={imageSrc}
+                alt={product?.name ?? ''}
+                className={`max-h-[36vh] w-auto max-w-full object-contain transition-opacity duration-300 ${
+                  imageLoaded ? 'opacity-100' : 'opacity-0'
+                }`}
+                fallbackClassName="h-48 w-full bg-[#fafafa]"
                 onLoad={() => setImageLoaded(true)}
               />
             )}
-            {variants.length > 1 ? (
-              <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
-                {variants.map((variant, idx) => (
-                  <button
-                    key={variant.id}
-                    type="button"
-                    onClick={() => goToVariant(idx)}
-                    className={`h-1.5 w-1.5 rounded-full ${idx === variantIndex ? 'bg-[#16A34A]' : 'bg-slate-300'}`}
-                  >
-                    <span className="sr-only">{`Variant ${idx + 1}`}</span>
-                  </button>
-                ))}
-              </div>
-            ) : null}
           </div>
         ) : (
-          <div className="mt-3 aspect-[4/3] rounded-3xl bg-gradient-to-br from-green-200 to-green-100" />
+          <div className="mx-auto flex h-48 w-full items-center justify-center bg-[#fafafa]" />
         )}
-        <h1 className="mt-4 text-2xl font-bold text-[#121212]">{product?.name ?? 'Mahsulot'}</h1>
-        {activeVariant?.flavor ? <p className="mt-1 text-sm font-medium text-slate-700">{activeVariant.flavor}</p> : null}
-        <p className="mt-1 text-sm text-gray-500">⭐ 4.8 • Yangi va sifatli mahsulot</p>
-        {(() => {
-          const basePrice = Number(activeVariant?.price ?? product?.price ?? 0);
-          const salePrice =
-            activeVariant?.discountPrice &&
-            Number(activeVariant.discountPrice) > 0 &&
-            Number(activeVariant.discountPrice) < basePrice
-              ? Number(activeVariant.discountPrice)
-              : null;
-          if (salePrice) {
-            return (
-              <div className="mt-2 flex flex-col">
-                <p className="text-sm font-medium leading-none text-slate-400 line-through opacity-80">
-                  {formatMoneyUz(basePrice)}
-                </p>
-                <p className="mt-1 text-2xl font-bold leading-tight tracking-tight text-[#121212] tabular-nums">
-                  {formatMoneyUz(salePrice)}
-                </p>
-              </div>
-            );
-          }
-          return (
-            <p className="mt-2 text-2xl font-bold leading-tight tracking-tight text-[#121212] tabular-nums">
-              {formatMoneyUz(basePrice)}
-            </p>
-          );
-        })()}
-        <p className="mt-0.5 text-xs font-medium text-slate-500">/ {PRODUCT_UNIT_LABEL_UZ[saleUnit]}</p>
-        <p className={`mt-1 text-xs font-medium ${Number(activeVariant?.stock ?? 0) > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-          {Number(activeVariant?.stock ?? 0) > 0
-            ? `Mavjud: ${formatQuantityWithUnit(Number(activeVariant?.stock ?? 0), saleUnit)}`
-            : 'Hozircha mavjud emas'}
-        </p>
-        {activeVariant?.description ? (
-          <p className="mt-2 text-sm text-gray-500 line-clamp-2">{activeVariant.description}</p>
-        ) : null}
-        {product?.variants?.length ? (
-          <div className="bb-scrollbar-hide mt-3 flex gap-2 overflow-x-auto">
-            {product.variants.map((variant, idx) => (
+
+        {variants.length > 1 ? (
+          <div className="bb-scrollbar-hide -mx-1 mb-3 flex gap-1.5 overflow-x-auto px-1">
+            {variants.map((v, idx) => (
               <button
-                key={variant.id}
-                className={`rounded-full px-3 py-1 text-xs ${
-                  idx === variantIndex ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
-                }`}
+                key={v.id}
+                type="button"
                 onClick={() => setVariantIndex(idx)}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-[12px] font-medium transition ${
+                  idx === variantIndex
+                    ? 'bg-[#22c55e] text-white'
+                    : 'bg-[#f3f4f6] text-[#6b7280]'
+                }`}
               >
-                {variant.flavor ?? `Variant ${idx + 1}`}
+                {v.flavor ?? `№${idx + 1}`}
               </button>
             ))}
           </div>
         ) : null}
-        <div className="mt-5 flex w-fit items-center gap-4 rounded-2xl bg-white px-4 py-2 shadow-sm">
-          <button
-            type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-xl font-bold active:scale-95 disabled:opacity-40"
-            onClick={decreaseQuantity}
-            disabled={quantity <= quantityMin}
-          >
-            -
-          </button>
-          <span className="min-w-[5rem] text-center text-base font-semibold">
-            {formatSellingModeQuantity(quantity, sellingMode, saleUnit)}
-          </span>
-          <button
-            type="button"
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-600 text-xl font-bold text-white active:scale-95"
-            onClick={increaseQuantity}
-          >
-            +
-          </button>
+
+        <h1 className="text-[22px] font-bold leading-tight tracking-tight text-[#111827]">
+          {product?.name ?? 'Mahsulot'}
+        </h1>
+
+        {activeVariant?.flavor && variants.length <= 1 ? (
+          <p className="mt-0.5 text-[13px] font-medium text-[#9ca3af]">{activeVariant.flavor}</p>
+        ) : null}
+
+        <p className="mt-1 text-[13px] text-[#9ca3af]">{unitHint}</p>
+
+        <div className="mt-3">
+          {salePrice ? (
+            <p className="text-[13px] font-medium text-[#9ca3af] line-through">
+              {formatMoneyUz(basePrice)}
+            </p>
+          ) : null}
+          <p className="text-[28px] font-bold leading-none tabular-nums tracking-tight text-[#111827]">
+            {formatMoneyUz(unitPrice)}
+          </p>
+          <p className="mt-1 text-[13px] text-[#9ca3af]">
+            / {PRODUCT_UNIT_LABEL_UZ[saleUnit]}
+          </p>
         </div>
-        <div
-          className="fixed inset-x-0 z-20 bg-white p-4 shadow-[0_-8px_20px_rgba(0,0,0,0.08)]"
-          style={{
-            bottom: 'calc(var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))',
-          }}
+
+        <div className="mt-8">
+          <QuantitySelector
+            variant="detail"
+            displayLabel={quantityLabel}
+            disabled={outOfStock}
+            onDecrease={() =>
+              setQuantity((q) => {
+                const delta = getSellingModeDecreaseDelta(q, sellingMode);
+                const next = q + delta;
+                return next < quantityMin ? quantityMin : next;
+              })
+            }
+            onIncrease={() => setQuantity((q) => q + quantityStep)}
+          />
+        </div>
+      </div>
+
+      <div
+        className="fixed inset-x-0 z-30 px-4 pt-2"
+        style={{ bottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
+      >
+        <button
+          type="button"
+          onClick={addToCart}
+          disabled={!product || outOfStock}
+          className="detail-cta-btn w-full rounded-[24px] bg-[#22c55e] py-4 text-[15px] font-semibold text-white shadow-[0_8px_24px_rgba(34,197,94,0.35)] transition active:scale-[0.98] disabled:opacity-50"
         >
-          <button onClick={addToCart} disabled={!product} className="w-full rounded-2xl bg-[#16A34A] py-3 text-sm font-semibold text-white transition active:scale-[0.98] disabled:opacity-60">
-            {`Savatga qo'shish • ${formatMoneyUz(total)}`}
-          </button>
-        </div>
-      </section>
-      <MobileNav />
+          {outOfStock
+            ? 'Hozircha mavjud emas'
+            : `Savatga qo'shish • ${formatMoneyUz(total)}`}
+        </button>
+      </div>
     </main>
   );
 }
-

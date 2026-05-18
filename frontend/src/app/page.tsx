@@ -279,7 +279,7 @@ export default function Home() {
               Barchasini ko'rish
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             {loadingProducts
               ? Array.from({ length: 4 }).map((_, idx) => (
                   <div key={idx} className="rounded-3xl bg-white p-3">
@@ -315,7 +315,7 @@ export default function Home() {
               Yana
             </Link>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             {loadingProducts
               ? Array.from({ length: 4 }).map((_, idx) => (
                   <div key={idx} className="rounded-3xl bg-white p-3">
@@ -348,7 +348,7 @@ export default function Home() {
           <div className="mt-5 space-y-4 pb-24">
             <div className="bb-skeleton h-36 rounded-3xl" />
             <div className="bb-skeleton h-24 rounded-3xl" />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               {Array.from({ length: 4 }).map((_, idx) => (
                 <div key={idx} className="rounded-3xl bg-white p-3">
                   <div className="bb-skeleton h-36 w-full rounded-2xl" />
