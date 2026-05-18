@@ -11,7 +11,7 @@ import {
   hasEnoughStock,
   normalizeIncomingProductUnit,
   normalizedProductSaleUnit,
-} from '@onlinebozor/product-units';
+} from '../../common/utils/product-units';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { CartService } from '../cart/cart.service';
 import { CustomersService } from '../customers/customers.service';
