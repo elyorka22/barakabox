@@ -239,3 +239,37 @@ body {
   }
 }
 
+@keyframes product-card-qty-pop {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes product-card-qty-enter {
+  0% {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.product-card-qty-label {
+  animation: product-card-qty-pop 180ms ease-out;
+}
+
+.product-card-qty-enter {
+  animation: product-card-qty-enter 220ms cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+.product-card-add-btn:active {
+  transform: scale(0.88);
+}
+

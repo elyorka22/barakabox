@@ -139,6 +139,7 @@ export default function CategoryProductsClientPage() {
                   price={String(item.price)}
                   unit={(item.unit ?? item.unitType) ?? undefined}
                   sellingMode={item.sellingMode ?? undefined}
+                  categoryName={data?.category.name}
                   variants={item.variants?.map((variant) => ({
                     ...variant,
                     imageUrl: variant.imageUrl ?? item.imageCardUrl ?? item.imageUrl,
