@@ -5,7 +5,10 @@ import { ImageUploader } from '@/components/admin/image-uploader';
 import {
   DEFAULT_PRODUCT_UNIT,
   PRODUCT_UNIT_SELECT_OPTIONS,
+  SELLING_MODE_OPTIONS,
+  fallbackSellingModeFromUnit,
   type ProductUnitCode,
+  type SellingMode,
 } from '@onlinebozor/product-units';
 
 export type VariantFormRow = {
@@ -24,6 +27,7 @@ export type ProductFormState = {
   id: string;
   name: string;
   unit: ProductUnitCode;
+  sellingMode: SellingMode;
   businessId: string;
   categoryId: string;
   cashbackType: 'NONE' | 'PERCENT' | 'FIXED_AMOUNT';
@@ -89,7 +93,7 @@ export function AdminProductFormDrawer({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-700">O&apos;lchov birligi</label>
+              <label className="mb-1 block text-xs font-medium text-slate-700">O&apos;lchov birligi (narx yorlig&apos;i)</label>
               <input
                 className="mb-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 placeholder="Qidirish..."
@@ -99,7 +103,16 @@ export function AdminProductFormDrawer({
               <select
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 value={form.unit}
-                onChange={(e) => setForm((p) => ({ ...p, unit: e.target.value as ProductUnitCode }))}
+                onChange={(e) =>
+                  setForm((p) => {
+                    const nextUnit = e.target.value as ProductUnitCode;
+                    return {
+                      ...p,
+                      unit: nextUnit,
+                      sellingMode: p.id ? p.sellingMode : fallbackSellingModeFromUnit(nextUnit),
+                    };
+                  })
+                }
               >
                 {filteredUnitOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -107,6 +120,44 @@ export function AdminProductFormDrawer({
                   </option>
                 ))}
               </select>
+              <p className="mt-1 text-[11px] text-slate-500">Narx ko&apos;rsatkichida ko&apos;rinadi (masalan: &quot;14&nbsp;000 so&apos;m / kg&quot;).</p>
+            </div>
+            <div>
+              <span className="mb-1 block text-xs font-semibold text-slate-800">Mahsulot qanday sotiladi?</span>
+              <p className="mb-2 text-[11px] text-slate-500">
+                Bu sotuv qadamini belgilaydi. Narx birligidan mustaqil tanlanadi.
+              </p>
+              <div className="grid gap-2">
+                {SELLING_MODE_OPTIONS.map((opt) => {
+                  const selected = form.sellingMode === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setForm((p) => ({ ...p, sellingMode: opt.value }))}
+                      className={`flex flex-col items-start rounded-lg border px-3 py-2 text-left transition ${
+                        selected
+                          ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500/30'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                      aria-pressed={selected}
+                    >
+                      <div className="flex w-full items-center justify-between gap-2">
+                        <span className="text-sm font-semibold text-slate-900">{opt.label}</span>
+                        <span
+                          className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                            selected ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 bg-white'
+                          }`}
+                          aria-hidden="true"
+                        >
+                          {selected ? <span className="h-1.5 w-1.5 rounded-full bg-white" /> : null}
+                        </span>
+                      </div>
+                      <span className="mt-0.5 text-[11px] leading-snug text-slate-600">{opt.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             {!form.id ? (
               <div>

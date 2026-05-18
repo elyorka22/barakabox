@@ -18,6 +18,7 @@ type Product = {
   price: string;
   unit?: string | null;
   unitType?: string | null;
+  sellingMode?: string | null;
   categoryId?: string | null;
   imageUrl?: string | null;
   imageCardUrl?: string | null;
@@ -293,6 +294,7 @@ export default function Home() {
                 name={product.name}
                 price={product.price}
                 unit={(product.unit ?? product.unitType) ?? undefined}
+                sellingMode={product.sellingMode ?? undefined}
                 variants={product.variants?.map((variant) => ({
                   ...variant,
                   imageUrl: variant.imageUrl ?? product.imageCardUrl ?? product.imageUrl,
@@ -328,6 +330,7 @@ export default function Home() {
                 name={product.name}
                 price={product.price}
                 unit={(product.unit ?? product.unitType) ?? undefined}
+                sellingMode={product.sellingMode ?? undefined}
                 variants={product.variants?.map((variant) => ({
                   ...variant,
                   imageUrl: variant.imageUrl ?? product.imageCardUrl ?? product.imageUrl,

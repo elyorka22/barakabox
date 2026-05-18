@@ -74,7 +74,7 @@ export function ProfileReorderSection({ order }: Props) {
           >
             <p className="line-clamp-2 text-[12px] font-medium leading-snug text-[#111827]">{line.title}</p>
             <p className="mt-1 text-[11px] text-[#6B7280]">
-              {formatOrderItemQuantity(line.quantity, line.unitType ?? DEFAULT_PRODUCT_UNIT)}
+              {formatOrderItemQuantity(line.quantity, line.unitType ?? DEFAULT_PRODUCT_UNIT, line.sellingMode)}
             </p>
           </motion.div>
         ))}

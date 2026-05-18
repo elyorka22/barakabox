@@ -7,6 +7,7 @@ export type PickerOrderItem = {
   title: string;
   quantity: number;
   unitType?: string;
+  sellingMode?: string | null;
   price: number;
   product?: { imageUrl?: string | null; name?: string } | null;
   variant?: { imageUrl?: string | null; title?: string } | null;

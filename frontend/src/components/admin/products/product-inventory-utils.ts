@@ -1,4 +1,4 @@
-import type { ProductUnitCode } from '@onlinebozor/product-units';
+import type { ProductUnitCode, SellingMode } from '@onlinebozor/product-units';
 
 export type AdminProductVariant = {
   id?: string;
@@ -19,6 +19,7 @@ export type AdminInventoryProduct = {
   stockQuantity: number;
   unit: string;
   unitType?: string | null;
+  sellingMode?: SellingMode | string | null;
   businessId: string;
   categoryId?: string | null;
   category?: { id: string; name: string } | null;
@@ -82,6 +83,7 @@ export function statusBadgeClass(product: AdminInventoryProduct) {
 export function buildQuickStockPatch(product: AdminInventoryProduct, newTotal: number) {
   const variants = product.variants ?? [];
   const stockQuantity = Math.max(0, newTotal);
+  const sellingMode = product.sellingMode ?? undefined;
 
   if (variants.length === 0) {
     return {
@@ -89,6 +91,7 @@ export function buildQuickStockPatch(product: AdminInventoryProduct, newTotal: n
       price: Number(product.price),
       stockQuantity,
       unit: product.unit as ProductUnitCode,
+      ...(sellingMode ? { sellingMode } : {}),
     };
   }
 
@@ -117,6 +120,7 @@ export function buildQuickStockPatch(product: AdminInventoryProduct, newTotal: n
     price: Number(product.price),
     stockQuantity,
     unit: product.unit as ProductUnitCode,
+    ...(sellingMode ? { sellingMode } : {}),
     variants: mapped,
   };
 }

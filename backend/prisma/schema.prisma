@@ -57,6 +57,14 @@ enum ProductUnit {
   toplam
 }
 
+/// How a product is sold from the cart: piece, gram steps, or kilogram steps.
+/// Decoupled from `unit` (price label) so admin can sell potatoes by kilo and pistachio by gram.
+enum SellingMode {
+  PIECE
+  GRAM_STEP
+  KILOGRAM_STEP
+}
+
 enum InventoryReason {
   INCOME
   SALE
@@ -258,6 +266,7 @@ model Product {
   imageThumbUrl String?
   imageThumbKey String?
   unit         ProductUnit @default(dona)
+  sellingMode  SellingMode @default(PIECE)
   price        Int
   stockQuantity Int     @default(0)
   isActive     Boolean  @default(true)
@@ -488,6 +497,7 @@ model OrderItem {
   variantId  String?
   boxId      String?
   unitType   UnitType @default(dona)
+  sellingMode SellingMode @default(PIECE)
   quantity   Int
   price      Int
   title      String

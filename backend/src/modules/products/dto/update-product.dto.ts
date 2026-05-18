@@ -1,6 +1,21 @@
-import { ProductUnit, CashbackType } from '@prisma/client';
+import { ProductUnit, CashbackType, SellingMode } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import { IsArray, IsEnum, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+
+const SELLING_MODE_INPUT_MAP: Record<string, SellingMode> = {
+  piece: 'PIECE',
+  PIECE: 'PIECE',
+  gram_step: 'GRAM_STEP',
+  GRAM_STEP: 'GRAM_STEP',
+  kilogram_step: 'KILOGRAM_STEP',
+  KILOGRAM_STEP: 'KILOGRAM_STEP',
+};
+
+function normalizeSellingModeInput(value: unknown): SellingMode | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value !== 'string') return undefined;
+  return SELLING_MODE_INPUT_MAP[value.trim()] ?? undefined;
+}
 
 class ProductVariantUpdateDto {
   @IsOptional()
@@ -75,6 +90,11 @@ export class UpdateProductDto {
   @Transform(({ value }) => (value === 'piece' ? 'dona' : value))
   @IsEnum(ProductUnit, { message: 'Noto‘g‘ri o‘lchov birligi' })
   unit?: ProductUnit;
+
+  @IsOptional()
+  @Transform(({ value }) => normalizeSellingModeInput(value))
+  @IsEnum(SellingMode, { message: 'Noto‘g‘ri sotuv rejimi' })
+  sellingMode?: SellingMode;
 
   @IsOptional()
   @IsString()

@@ -1,8 +1,14 @@
-import { ProductUnit, CashbackType, Prisma } from '@prisma/client';
+import { ProductUnit, CashbackType, Prisma, SellingMode } from '@prisma/client';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { UploadService } from '../upload/upload.service';
 import type { UpdateProductDto } from './dto/update-product.dto';
+
+function defaultSellingModeForUnit(unit: ProductUnit): SellingMode {
+  if (unit === 'kg') return 'KILOGRAM_STEP';
+  if (unit === 'gramm') return 'GRAM_STEP';
+  return 'PIECE';
+}
 
 @Injectable()
 export class ProductsService {
@@ -86,6 +92,7 @@ export class ProductsService {
       price: true,
       stockQuantity: true,
       unit: true,
+      sellingMode: true,
       businessId: true,
       isActive: true,
       createdAt: true,
@@ -168,6 +175,7 @@ export class ProductsService {
       price: number;
       stockQuantity: number;
       unit: ProductUnit;
+      sellingMode?: SellingMode;
       cashbackType?: CashbackType;
       cashbackValue?: number;
       categoryId?: string;
@@ -199,6 +207,7 @@ export class ProductsService {
       throw new NotFoundException('Approved business not found');
     }
 
+    const sellingMode = data.sellingMode ?? defaultSellingModeForUnit(data.unit);
     return this.prisma.$transaction(async (tx) => {
       const product = await tx.product.create({
         data: {
@@ -206,6 +215,7 @@ export class ProductsService {
           name: data.name,
           description: data.description,
           unit: data.unit,
+          sellingMode,
           price: data.price,
           stockQuantity: data.stockQuantity,
           categoryId: data.categoryId,
@@ -282,6 +292,7 @@ export class ProductsService {
       price?: number;
       stockQuantity?: number;
       unit?: ProductUnit;
+      sellingMode?: SellingMode;
       cashbackType?: CashbackType;
       cashbackValue?: number;
       categoryId?: string;
@@ -383,6 +394,7 @@ export class ProductsService {
           price: data.price,
           stockQuantity: data.stockQuantity,
           ...(data.unit !== undefined ? { unit: data.unit } : {}),
+          ...(data.sellingMode !== undefined ? { sellingMode: data.sellingMode } : {}),
           ...(data.cashbackType !== undefined ? { cashbackType: data.cashbackType } : {}),
           ...(data.cashbackValue !== undefined ? { cashbackValue: data.cashbackValue } : {}),
           categoryId: data.categoryId,

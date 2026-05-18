@@ -14,6 +14,7 @@ type Product = {
   price: number;
   unit?: string | null;
   unitType?: string | null;
+  sellingMode?: string | null;
   imageUrl?: string | null;
   imageCardUrl?: string | null;
   cashbackType?: string | null;
@@ -137,6 +138,7 @@ export default function CategoryProductsClientPage() {
                   name={item.name}
                   price={String(item.price)}
                   unit={(item.unit ?? item.unitType) ?? undefined}
+                  sellingMode={item.sellingMode ?? undefined}
                   variants={item.variants?.map((variant) => ({
                     ...variant,
                     imageUrl: variant.imageUrl ?? item.imageCardUrl ?? item.imageUrl,

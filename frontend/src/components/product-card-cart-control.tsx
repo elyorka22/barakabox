@@ -6,14 +6,17 @@ import { QuantitySelector } from '@/components/quantity-selector';
 import { adjustCart } from '@/lib/cart-store';
 import { useCartPending, useCartQuantity } from '@/lib/use-cart-store';
 import {
-  formatCartQuantityDisplay,
+  DEFAULT_PRODUCT_UNIT,
+  formatSellingModeQuantity,
   type ProductUnitCode,
+  type SellingMode,
 } from '@onlinebozor/product-units';
 
 type Props = {
   variantId: string;
   productId: string;
-  unit: ProductUnitCode;
+  sellingMode: SellingMode;
+  unit?: ProductUnitCode;
   disabled?: boolean;
 };
 
@@ -22,10 +25,10 @@ function stopLinkNavigation(event: React.SyntheticEvent) {
   event.stopPropagation();
 }
 
-function ProductCardCartControlBase({ variantId, productId, unit, disabled }: Props) {
+function ProductCardCartControlBase({ variantId, productId, sellingMode, unit, disabled }: Props) {
   const quantity = useCartQuantity(variantId);
   const pending = useCartPending(variantId);
-  const displayLabel = formatCartQuantityDisplay(quantity, unit);
+  const displayLabel = formatSellingModeQuantity(quantity, sellingMode, unit ?? DEFAULT_PRODUCT_UNIT);
 
   if (quantity <= 0) {
     return (
@@ -34,7 +37,7 @@ function ProductCardCartControlBase({ variantId, productId, unit, disabled }: Pr
         onClick={(event) => {
           stopLinkNavigation(event);
           if (disabled) return;
-          adjustCart(variantId, productId, unit, 'add');
+          adjustCart(variantId, productId, sellingMode, 'add');
         }}
         disabled={disabled}
         aria-label={disabled ? 'Mahsulot tugagan' : "Savatga qo'shish"}
@@ -53,8 +56,8 @@ function ProductCardCartControlBase({ variantId, productId, unit, disabled }: Pr
         size="sm"
         pending={pending}
         disabled={disabled}
-        onDecrease={() => adjustCart(variantId, productId, unit, 'decrease')}
-        onIncrease={() => adjustCart(variantId, productId, unit, 'increase')}
+        onDecrease={() => adjustCart(variantId, productId, sellingMode, 'decrease')}
+        onIncrease={() => adjustCart(variantId, productId, sellingMode, 'increase')}
       />
     </div>
   );

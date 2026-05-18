@@ -6,6 +6,7 @@ import { normalizeAssetUrl } from '@/lib/asset-url';
 import {
   formatOrderItemQuantity,
   normalizeIncomingProductUnit,
+  normalizeSellingMode,
   DEFAULT_PRODUCT_UNIT,
 } from '@onlinebozor/product-units';
 import type { PickerOrderItem } from '@/lib/picker-types';
@@ -46,6 +47,7 @@ export function PickerProductChecklist({ items, checkedIds, notFoundIds, onToggl
           const missing = notFoundIds.includes(item.id);
           const img = itemImageUrl(item);
           const unit = normalizeIncomingProductUnit(item.unitType) ?? DEFAULT_PRODUCT_UNIT;
+          const sellingMode = normalizeSellingMode(item.sellingMode) ?? undefined;
           return (
             <li
               key={item.id}
@@ -63,7 +65,7 @@ export function PickerProductChecklist({ items, checkedIds, notFoundIds, onToggl
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold leading-snug text-[#111827]">{item.title}</p>
                   <p className="mt-0.5 text-xs font-medium text-[#6B7280]">
-                    {formatOrderItemQuantity(item.quantity, unit)}
+                    {formatOrderItemQuantity(item.quantity, unit, sellingMode)}
                   </p>
                   <div className="mt-2 flex gap-2">
                     <button

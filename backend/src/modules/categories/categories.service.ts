@@ -210,6 +210,7 @@ export class CategoriesService {
           name: true,
           price: true,
           unit: true,
+          sellingMode: true,
           imageUrl: true,
           imageCardUrl: true,
           imageThumbUrl: true,

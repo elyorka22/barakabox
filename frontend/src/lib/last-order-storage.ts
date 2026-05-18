@@ -1,9 +1,12 @@
 import type { CartItem } from '@/lib/cart-store';
 import {
   type ProductUnitCode,
+  type SellingMode,
   DEFAULT_PRODUCT_UNIT,
   normalizeIncomingProductUnit,
+  normalizeSellingMode,
   normalizedProductSaleUnit,
+  resolveSellingMode,
 } from '@onlinebozor/product-units';
 import {
   customerOrderProgressPercent,
@@ -17,6 +20,7 @@ export type LastOrderItemLine = {
   title: string;
   quantity: number;
   unitType?: ProductUnitCode;
+  sellingMode?: SellingMode;
   variantId?: string | null;
   productId?: string | null;
   boxId?: string | null;
@@ -38,14 +42,16 @@ export function enrichOrderLinesFromCart(cartItems: CartItem[]): LastOrderItemLi
     const productId = v?.product?.id;
     if (v?.id && productId) {
       const title = (v.title || v.flavor || item.product?.name || 'Mahsulot').trim() || 'Mahsulot';
-      const unitType =
-        normalizedProductSaleUnit(v?.product ?? item.product ?? undefined) ?? DEFAULT_PRODUCT_UNIT;
+      const productForMeta = v?.product ?? item.product;
+      const unitType = normalizedProductSaleUnit(productForMeta ?? undefined) ?? DEFAULT_PRODUCT_UNIT;
+      const sellingMode = resolveSellingMode(productForMeta);
       lines.push({
         title,
         quantity: item.quantity,
         variantId: v.id,
         productId,
         unitType,
+        sellingMode,
       });
     }
   }
@@ -80,10 +86,12 @@ function normalizeItems(raw: unknown, enrich: LastOrderItemLine[]): LastOrderIte
     }
     const unitRaw = row.unitType ?? row.unit;
     const unitType = normalizeIncomingProductUnit(unitRaw) ?? DEFAULT_PRODUCT_UNIT;
+    const sellingMode = normalizeSellingMode(row.sellingMode) ?? undefined;
     return {
       title: typeof row.title === 'string' ? row.title : 'Mahsulot',
       quantity: typeof row.quantity === 'number' && row.quantity > 0 ? row.quantity : 1,
       unitType,
+      sellingMode,
       variantId,
       productId,
       boxId: typeof row.boxId === 'string' ? row.boxId : null,

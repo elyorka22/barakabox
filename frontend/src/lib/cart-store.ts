@@ -1,10 +1,10 @@
 'use client';
 
 import {
-  getCartDecreaseDelta,
-  getCartMinQuantity,
-  getCartQuantityStep,
-  type ProductUnitCode,
+  getSellingModeDecreaseDelta,
+  getSellingModeMin,
+  getSellingModeStep,
+  type SellingMode,
 } from '@onlinebozor/product-units';
 import { api, authStorage, authEvents } from './api';
 import { showToast } from './toast';
@@ -18,6 +18,7 @@ export type CartItem = {
     price: string;
     unit?: string | null;
     unitType?: string | null;
+    sellingMode?: string | null;
     cashbackType?: string | null;
     cashbackValue?: number | null;
   } | null;
@@ -34,6 +35,7 @@ export type CartItem = {
       name: string;
       unit?: string | null;
       unitType?: string | null;
+      sellingMode?: string | null;
       cashbackType?: string | null;
       cashbackValue?: number | null;
     } | null;
@@ -338,18 +340,18 @@ async function flushVariant(variantId: string) {
 export function adjustCart(
   variantId: string,
   productId: string,
-  unit: ProductUnitCode,
+  sellingMode: SellingMode,
   action: 'add' | 'increase' | 'decrease',
 ): void {
   if (!variantId || !productId) return;
   const current = getVariantQuantity(variantId);
   let delta: number;
   if (action === 'add') {
-    delta = current > 0 ? getCartQuantityStep(unit) : getCartMinQuantity(unit);
+    delta = current > 0 ? getSellingModeStep(sellingMode) : getSellingModeMin(sellingMode);
   } else if (action === 'increase') {
-    delta = getCartQuantityStep(unit);
+    delta = getSellingModeStep(sellingMode);
   } else {
-    delta = getCartDecreaseDelta(current, unit);
+    delta = getSellingModeDecreaseDelta(current, sellingMode);
   }
   incrementCart(variantId, productId, delta);
 }

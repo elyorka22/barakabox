@@ -6,10 +6,12 @@ import { formatMoneyUz } from '@/lib/format';
 import {
   DEFAULT_PRODUCT_UNIT,
   type ProductUnitCode,
+  type SellingMode,
   PRODUCT_UNIT_LABEL_UZ,
   normalizeIncomingProductUnit,
-  calculateCartLineTotal,
-  formatCartQuantityDisplay,
+  calculateSellingModeLineTotal,
+  formatSellingModeQuantity,
+  resolveSellingMode,
 } from '@onlinebozor/product-units';
 import { SafeImage } from '@/components/safe-image';
 import { getCashbackPromoLabel } from '@/lib/cashback';
@@ -32,6 +34,7 @@ type ProductCardProps = {
   name: string;
   price: string;
   unit?: ProductUnitCode | string | null;
+  sellingMode?: SellingMode | string | null;
   variants?: Variant[];
   href?: string;
   imageUrl?: string | null;
@@ -44,6 +47,7 @@ function ProductCardBase({
   name,
   price,
   unit: unitProp,
+  sellingMode: sellingModeProp,
   href,
   variants,
   cashbackType,
@@ -51,6 +55,7 @@ function ProductCardBase({
 }: ProductCardProps) {
   const cashbackPromo = getCashbackPromoLabel(cashbackType ?? 'NONE', Number(cashbackValue ?? 0));
   const unitType = normalizeIncomingProductUnit(unitProp) ?? DEFAULT_PRODUCT_UNIT;
+  const sellingMode = resolveSellingMode({ sellingMode: sellingModeProp, unit: unitProp ?? unitType });
   const effectiveVariants = variants ?? EMPTY_VARIANTS;
   const [activeVariantIndex, setActiveVariantIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -82,8 +87,8 @@ function ProductCardBase({
 
   const displayQuantity = activeQuantity;
   const lineTotal = useMemo(
-    () => calculateCartLineTotal(unitPrice, displayQuantity, unitType),
-    [unitPrice, displayQuantity, unitType],
+    () => calculateSellingModeLineTotal(unitPrice, displayQuantity, sellingMode),
+    [unitPrice, displayQuantity, sellingMode],
   );
 
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -181,6 +186,7 @@ function ProductCardBase({
               <ProductCardCartControl
                 variantId={activeVariant.id}
                 productId={id}
+                sellingMode={sellingMode}
                 unit={unitType}
                 disabled={outOfStock}
               />
@@ -198,7 +204,7 @@ function ProductCardBase({
           {inCart ? (
             <div className="mt-2 rounded-xl bg-emerald-50/90 px-2.5 py-2 ring-1 ring-emerald-100">
               <p className="text-[12px] font-bold leading-tight text-emerald-900">
-                {formatCartQuantityDisplay(activeQuantity, unitType)}
+                {formatSellingModeQuantity(activeQuantity, sellingMode, unitType)}
               </p>
               <p className="mt-0.5 text-[15px] font-extrabold tabular-nums tracking-tight text-[#121212]">
                 {formatMoneyUz(lineTotal)}
@@ -266,6 +272,7 @@ function arePropsEqual(prev: ProductCardProps, next: ProductCardProps): boolean 
   if ((prev.cashbackType ?? '') !== (next.cashbackType ?? '')) return false;
   if ((prev.cashbackValue ?? 0) !== (next.cashbackValue ?? 0)) return false;
   if ((prev.unit ?? '') !== (next.unit ?? '')) return false;
+  if ((prev.sellingMode ?? '') !== (next.sellingMode ?? '')) return false;
   if ((prev.imageUrl ?? '') !== (next.imageUrl ?? '')) return false;
   return areVariantsEqual(prev.variants, next.variants);
 }

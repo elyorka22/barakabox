@@ -18,9 +18,13 @@ import {
 } from '@/components/admin/products/product-inventory-utils';
 import {
   DEFAULT_PRODUCT_UNIT,
+  DEFAULT_SELLING_MODE,
   PRODUCT_UNIT_SELECT_OPTIONS,
   type ProductUnitCode,
+  type SellingMode,
+  fallbackSellingModeFromUnit,
   normalizeIncomingProductUnit,
+  normalizeSellingMode,
 } from '@onlinebozor/product-units';
 
 type Business = { id: string; displayName: string };
@@ -49,6 +53,7 @@ const defaultForm = (businessId: string, categoryId: string): ProductFormState =
   id: '',
   name: '',
   unit: DEFAULT_PRODUCT_UNIT,
+  sellingMode: DEFAULT_SELLING_MODE,
   businessId,
   categoryId,
   cashbackType: 'NONE',
@@ -189,10 +194,14 @@ export default function AdminProductsPage() {
 
   const openEdit = useCallback((item: AdminInventoryProduct) => {
     setUnitSearch('');
+    const editUnit = normalizeIncomingProductUnit(item.unit ?? item.unitType) ?? DEFAULT_PRODUCT_UNIT;
+    const editSellingMode: SellingMode =
+      normalizeSellingMode(item.sellingMode) ?? fallbackSellingModeFromUnit(editUnit);
     setForm({
       id: item.id,
       name: item.name,
-      unit: normalizeIncomingProductUnit(item.unit ?? item.unitType) ?? DEFAULT_PRODUCT_UNIT,
+      unit: editUnit,
+      sellingMode: editSellingMode,
       businessId: item.businessId,
       categoryId: item.category?.id ?? '',
       cashbackType: (item.cashbackType as ProductFormState['cashbackType']) ?? 'NONE',
@@ -260,6 +269,7 @@ export default function AdminProductsPage() {
       price: first.price,
       stockQuantity: normalizedVariants.reduce((s, v) => s + v.stock, 0),
       unit: form.unit,
+      sellingMode: form.sellingMode,
       cashbackType: form.cashbackType,
       cashbackValue: Math.max(0, Math.floor(Number(form.cashbackValue) || 0)),
       ...(form.categoryId ? { categoryId: form.categoryId } : {}),

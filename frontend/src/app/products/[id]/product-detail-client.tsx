@@ -12,13 +12,14 @@ import { incrementCart } from '@/lib/cart-store';
 import {
   DEFAULT_PRODUCT_UNIT,
   PRODUCT_UNIT_LABEL_UZ,
-  calculateCartLineTotal,
-  formatCartQuantityDisplay,
+  calculateSellingModeLineTotal,
   formatQuantityWithUnit,
-  getCartDecreaseDelta,
-  getCartMinQuantity,
-  getCartQuantityStep,
+  formatSellingModeQuantity,
+  getSellingModeDecreaseDelta,
+  getSellingModeMin,
+  getSellingModeStep,
   normalizedProductSaleUnit,
+  resolveSellingMode,
 } from '@onlinebozor/product-units';
 
 type Product = {
@@ -29,6 +30,7 @@ type Product = {
   description?: string | null;
   unit?: string | null;
   unitType?: string | null;
+  sellingMode?: string | null;
   variants?: Array<{
     id: string;
     flavor?: string | null;
@@ -43,7 +45,7 @@ type Product = {
 export default function ProductDetailClientPage() {
   const params = useParams<{ id: string }>();
   const [product, setProduct] = useState<Product | null>(null);
-  const [quantity, setQuantity] = useState(() => getCartMinQuantity(DEFAULT_PRODUCT_UNIT));
+  const [quantity, setQuantity] = useState(() => getSellingModeMin('piece'));
   const [imageLoaded, setImageLoaded] = useState(false);
   const [variantIndex, setVariantIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -59,11 +61,11 @@ export default function ProductDetailClientPage() {
   const activeVariant = product?.variants?.[variantIndex] ?? null;
   const variants = product?.variants ?? [];
   const saleUnit = normalizedProductSaleUnit(product) ?? DEFAULT_PRODUCT_UNIT;
+  const sellingMode = resolveSellingMode(product);
 
   useEffect(() => {
     setVariantIndex(0);
-    const unit = normalizedProductSaleUnit(product) ?? DEFAULT_PRODUCT_UNIT;
-    setQuantity(getCartMinQuantity(unit));
+    setQuantity(getSellingModeMin(resolveSellingMode(product)));
   }, [product?.id, product]);
 
   useEffect(() => {
@@ -103,16 +105,16 @@ export default function ProductDetailClientPage() {
   }, [product, activeVariant?.price, activeVariant?.discountPrice]);
 
   const total = useMemo(
-    () => calculateCartLineTotal(unitPrice, quantity, saleUnit),
-    [unitPrice, quantity, saleUnit],
+    () => calculateSellingModeLineTotal(unitPrice, quantity, sellingMode),
+    [unitPrice, quantity, sellingMode],
   );
 
-  const quantityStep = getCartQuantityStep(saleUnit);
-  const quantityMin = getCartMinQuantity(saleUnit);
+  const quantityStep = getSellingModeStep(sellingMode);
+  const quantityMin = getSellingModeMin(sellingMode);
 
   const decreaseQuantity = () => {
     setQuantity((q) => {
-      const delta = getCartDecreaseDelta(q, saleUnit);
+      const delta = getSellingModeDecreaseDelta(q, sellingMode);
       const next = q + delta;
       return next < quantityMin ? quantityMin : next;
     });
@@ -323,7 +325,7 @@ export default function ProductDetailClientPage() {
             -
           </button>
           <span className="min-w-[5rem] text-center text-base font-semibold">
-            {formatCartQuantityDisplay(quantity, saleUnit)}
+            {formatSellingModeQuantity(quantity, sellingMode, saleUnit)}
           </span>
           <button
             type="button"

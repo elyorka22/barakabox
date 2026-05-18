@@ -9,9 +9,10 @@ import { adjustCart, deleteCartLine } from '@/lib/cart-store';
 import {
   DEFAULT_PRODUCT_UNIT,
   PRODUCT_UNIT_LABEL_UZ,
-  formatCartQuantityDisplay,
-  getCartMinQuantity,
+  formatSellingModeQuantity,
+  getSellingModeMin,
   normalizedProductSaleUnit,
+  resolveSellingMode,
 } from '@onlinebozor/product-units';
 import { useCartPending, useCartQuantity } from '@/lib/use-cart-store';
 import { cartLineBaseUnitPrice, cartLineTotal, cartLineUnitPrice } from '@/lib/cart-totals';
@@ -37,10 +38,12 @@ export function CartLineCard({ item }: CartLineCardProps) {
   const unitPrice = cartLineUnitPrice(item);
   const baseUnit = cartLineBaseUnitPrice(item);
   const subtitle = item.variant?.flavor ?? item.variant?.title ?? (item.box ? 'Set' : '');
+  const productForMode = item.variant?.product ?? item.product;
   const unit =
-    normalizedProductSaleUnit(item.variant?.product ?? item.product ?? undefined) ?? DEFAULT_PRODUCT_UNIT;
+    normalizedProductSaleUnit(productForMode ?? undefined) ?? DEFAULT_PRODUCT_UNIT;
+  const sellingMode = item.box ? 'piece' : resolveSellingMode(productForMode);
   const unitLabel = PRODUCT_UNIT_LABEL_UZ[unit];
-  const quantityLabel = formatCartQuantityDisplay(displayedQuantity, unit);
+  const quantityLabel = formatSellingModeQuantity(displayedQuantity, sellingMode, unit);
   const lineTotal = cartLineTotal(item, displayedQuantity);
   const productForCashback = item.variant?.product ?? item.product;
   const cashbackType = productForCashback?.cashbackType ?? 'NONE';
@@ -50,16 +53,16 @@ export function CartLineCard({ item }: CartLineCardProps) {
 
   const handleDecrease = () => {
     if (!variantId || !productId) return;
-    if (displayedQuantity <= getCartMinQuantity(unit)) {
+    if (displayedQuantity <= getSellingModeMin(sellingMode)) {
       void deleteCartLine(variantId, productId);
       return;
     }
-    adjustCart(variantId, productId, unit, 'decrease');
+    adjustCart(variantId, productId, sellingMode, 'decrease');
   };
 
   const handleIncrease = () => {
     if (!variantId || !productId) return;
-    adjustCart(variantId, productId, unit, 'increase');
+    adjustCart(variantId, productId, sellingMode, 'increase');
   };
 
   const handleRemove = () => {

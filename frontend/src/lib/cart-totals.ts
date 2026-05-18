@@ -1,9 +1,8 @@
 import type { CartItem } from '@/lib/cart-store';
 import { estimateLineCashbackTiyin } from '@/lib/cashback';
 import {
-  DEFAULT_PRODUCT_UNIT,
-  calculateCartLineTotal,
-  normalizedProductSaleUnit,
+  calculateSellingModeLineTotal,
+  resolveSellingMode,
 } from '@onlinebozor/product-units';
 
 export function cartLineUnitPrice(item: CartItem): number {
@@ -21,10 +20,11 @@ export function cartLineBaseUnitPrice(item: CartItem): number {
 }
 
 export function cartLineTotal(item: CartItem, quantity = item.quantity): number {
-  const unit =
-    normalizedProductSaleUnit(item.variant?.product ?? item.product ?? undefined) ??
-    DEFAULT_PRODUCT_UNIT;
-  return calculateCartLineTotal(cartLineUnitPrice(item), quantity, unit);
+  if (item.box) {
+    return calculateSellingModeLineTotal(cartLineUnitPrice(item), quantity, 'piece');
+  }
+  const mode = resolveSellingMode(item.variant?.product ?? item.product ?? undefined);
+  return calculateSellingModeLineTotal(cartLineUnitPrice(item), quantity, mode);
 }
 
 export function cartSubtotal(items: CartItem[]): number {

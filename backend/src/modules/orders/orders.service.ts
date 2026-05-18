@@ -6,11 +6,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
-  calculateCartLineTotal,
-  deductStockUnits,
-  hasEnoughStock,
-  normalizeIncomingProductUnit,
-  normalizedProductSaleUnit,
+  calculateSellingModeLineTotal,
+  deductStockForMode,
+  hasEnoughStockForMode,
+  resolveSellingMode,
+  type SellingMode,
 } from '../../common/utils/product-units';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { CartService } from '../cart/cart.service';
@@ -48,6 +48,7 @@ type PreparedLine = {
   price: number;
   quantity: number;
   unitType: UnitType;
+  sellingMode: SellingMode;
   cashbackPendingTiyin: number;
 };
 
@@ -116,10 +117,10 @@ export class OrdersService {
       if (item.variant) {
         const p = item.variant.product;
         const unitType = (p?.unit ?? 'dona') as UnitType;
-        const saleUnit = normalizedProductSaleUnit(p) ?? 'dona';
+        const sellingMode = resolveSellingMode(p);
         const price = Number(item.variant.discountPrice ?? item.variant.price);
         const quantity = item.quantity;
-        const lineSubtotal = calculateCartLineTotal(price, quantity, saleUnit);
+        const lineSubtotal = calculateSellingModeLineTotal(price, quantity, sellingMode);
         const pending = p
           ? cashbackPendingForLine(lineSubtotal, p.cashbackType, p.cashbackValue)
           : 0;
@@ -134,15 +135,16 @@ export class OrdersService {
           price,
           quantity,
           unitType,
+          sellingMode,
           cashbackPendingTiyin: pending,
         });
       } else if (item.product) {
         const p = item.product;
         const unitType = (p.unit ?? 'dona') as UnitType;
-        const saleUnit = normalizedProductSaleUnit(p) ?? 'dona';
+        const sellingMode = resolveSellingMode(p);
         const price = Number(p.price);
         const quantity = item.quantity;
-        const lineSubtotal = calculateCartLineTotal(price, quantity, saleUnit);
+        const lineSubtotal = calculateSellingModeLineTotal(price, quantity, sellingMode);
         const pending = cashbackPendingForLine(lineSubtotal, p.cashbackType, p.cashbackValue);
         preparedLines.push({
           type: 'product',
@@ -155,6 +157,7 @@ export class OrdersService {
           price,
           quantity,
           unitType,
+          sellingMode,
           cashbackPendingTiyin: pending,
         });
       } else if (item.box) {
@@ -169,6 +172,7 @@ export class OrdersService {
           price: Number(item.box.price),
           quantity: item.quantity,
           unitType: 'dona' as UnitType,
+          sellingMode: 'piece',
           cashbackPendingTiyin: 0,
         });
       } else {
@@ -295,6 +299,12 @@ export class OrdersService {
               variantId: item.type === 'variant' ? item.entityId : null,
               boxId: item.type === 'box' ? item.entityId : null,
               unitType: item.unitType,
+              sellingMode:
+                item.sellingMode === 'piece'
+                  ? 'PIECE'
+                  : item.sellingMode === 'gram_step'
+                    ? 'GRAM_STEP'
+                    : 'KILOGRAM_STEP',
               title: item.title,
               variantSnapshotTitle: item.type === 'variant' ? item.title : null,
               variantSnapshotFlavor: item.type === 'variant' ? item.flavor : null,
@@ -344,13 +354,12 @@ export class OrdersService {
           if (!variant || !variant.isActive) {
             throw new BadRequestException('Variant not found');
           }
-          const saleUnit = normalizeIncomingProductUnit(item.unitType) ?? 'dona';
-          if (!hasEnoughStock(variant.stock, item.quantity, saleUnit)) {
+          if (!hasEnoughStockForMode(variant.stock, item.quantity, item.sellingMode)) {
             throw new BadRequestException(`Insufficient stock for ${item.title}`);
           }
           await tx.productVariant.update({
             where: { id: variant.id },
-            data: { stock: deductStockUnits(variant.stock, item.quantity, saleUnit) },
+            data: { stock: deductStockForMode(variant.stock, item.quantity, item.sellingMode) },
           });
         } else {
           const product = await tx.product.findUnique({
@@ -360,13 +369,12 @@ export class OrdersService {
           if (!product) {
             throw new BadRequestException('Product not found');
           }
-          const saleUnit = normalizeIncomingProductUnit(item.unitType) ?? 'dona';
-          if (!hasEnoughStock(product.stockQuantity, item.quantity, saleUnit)) {
+          if (!hasEnoughStockForMode(product.stockQuantity, item.quantity, item.sellingMode)) {
             throw new BadRequestException(`Insufficient stock for ${item.title}`);
           }
           await tx.product.update({
             where: { id: product.id },
-            data: { stockQuantity: deductStockUnits(product.stockQuantity, item.quantity, saleUnit) },
+            data: { stockQuantity: deductStockForMode(product.stockQuantity, item.quantity, item.sellingMode) },
           });
         }
         await tx.inventoryLog.create({
