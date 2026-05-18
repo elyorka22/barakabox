@@ -1,5 +1,10 @@
 import type { CartItem } from '@/lib/cart-store';
 import { estimateLineCashbackTiyin } from '@/lib/cashback';
+import {
+  DEFAULT_PRODUCT_UNIT,
+  calculateCartLineTotal,
+  normalizedProductSaleUnit,
+} from '@onlinebozor/product-units';
 
 export function cartLineUnitPrice(item: CartItem): number {
   if (item.variant) return Math.round(Number(item.variant.discountPrice ?? item.variant.price));
@@ -15,14 +20,21 @@ export function cartLineBaseUnitPrice(item: CartItem): number {
   return 0;
 }
 
+export function cartLineTotal(item: CartItem, quantity = item.quantity): number {
+  const unit =
+    normalizedProductSaleUnit(item.variant?.product ?? item.product ?? undefined) ??
+    DEFAULT_PRODUCT_UNIT;
+  return calculateCartLineTotal(cartLineUnitPrice(item), quantity, unit);
+}
+
 export function cartSubtotal(items: CartItem[]): number {
-  return items.reduce((sum, item) => sum + cartLineUnitPrice(item) * item.quantity, 0);
+  return items.reduce((sum, item) => sum + cartLineTotal(item), 0);
 }
 
 export function cartCashbackEarnEstimate(items: CartItem[]): number {
   return items.reduce((sum, item) => {
     if (item.variant?.product) {
-      const line = cartLineUnitPrice(item) * item.quantity;
+      const line = cartLineTotal(item);
       return (
         sum +
         estimateLineCashbackTiyin(
@@ -33,7 +45,7 @@ export function cartCashbackEarnEstimate(items: CartItem[]): number {
       );
     }
     if (item.product) {
-      const line = cartLineUnitPrice(item) * item.quantity;
+      const line = cartLineTotal(item);
       return (
         sum +
         estimateLineCashbackTiyin(

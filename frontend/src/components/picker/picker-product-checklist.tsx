@@ -3,7 +3,11 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, PackageX } from 'lucide-react';
 import { normalizeAssetUrl } from '@/lib/asset-url';
-import { formatQuantityWithUnit, normalizeIncomingProductUnit, DEFAULT_PRODUCT_UNIT } from '@onlinebozor/product-units';
+import {
+  formatOrderItemQuantity,
+  normalizeIncomingProductUnit,
+  DEFAULT_PRODUCT_UNIT,
+} from '@onlinebozor/product-units';
 import type { PickerOrderItem } from '@/lib/picker-types';
 import { itemImageUrl } from '@/lib/picker-order-utils';
 
@@ -59,7 +63,7 @@ export function PickerProductChecklist({ items, checkedIds, notFoundIds, onToggl
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold leading-snug text-[#111827]">{item.title}</p>
                   <p className="mt-0.5 text-xs font-medium text-[#6B7280]">
-                    {formatQuantityWithUnit(item.quantity, unit)}
+                    {formatOrderItemQuantity(item.quantity, unit)}
                   </p>
                   <div className="mt-2 flex gap-2">
                     <button

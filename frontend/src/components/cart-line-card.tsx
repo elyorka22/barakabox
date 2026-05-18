@@ -5,14 +5,16 @@ import { CashbackBadge } from '@/components/cashback-badge';
 import { QuantitySelector } from '@/components/quantity-selector';
 import { formatMoneyUz } from '@/lib/format';
 import type { CartItem } from '@/lib/cart-store';
-import { deleteCartLine, incrementCart } from '@/lib/cart-store';
+import { adjustCart, deleteCartLine } from '@/lib/cart-store';
 import {
   DEFAULT_PRODUCT_UNIT,
   PRODUCT_UNIT_LABEL_UZ,
+  formatCartQuantityDisplay,
+  getCartMinQuantity,
   normalizedProductSaleUnit,
 } from '@onlinebozor/product-units';
 import { useCartPending, useCartQuantity } from '@/lib/use-cart-store';
-import { cartLineBaseUnitPrice, cartLineUnitPrice } from '@/lib/cart-totals';
+import { cartLineBaseUnitPrice, cartLineTotal, cartLineUnitPrice } from '@/lib/cart-totals';
 
 function discountPercentLabel(base: number, sale: number): string | null {
   if (base <= 0 || sale >= base) return null;
@@ -38,7 +40,8 @@ export function CartLineCard({ item }: CartLineCardProps) {
   const unit =
     normalizedProductSaleUnit(item.variant?.product ?? item.product ?? undefined) ?? DEFAULT_PRODUCT_UNIT;
   const unitLabel = PRODUCT_UNIT_LABEL_UZ[unit];
-  const lineTotal = unitPrice * displayedQuantity;
+  const quantityLabel = formatCartQuantityDisplay(displayedQuantity, unit);
+  const lineTotal = cartLineTotal(item, displayedQuantity);
   const productForCashback = item.variant?.product ?? item.product;
   const cashbackType = productForCashback?.cashbackType ?? 'NONE';
   const cashbackValue = Number(productForCashback?.cashbackValue ?? 0);
@@ -47,16 +50,16 @@ export function CartLineCard({ item }: CartLineCardProps) {
 
   const handleDecrease = () => {
     if (!variantId || !productId) return;
-    if (displayedQuantity <= 1) {
+    if (displayedQuantity <= getCartMinQuantity(unit)) {
       void deleteCartLine(variantId, productId);
       return;
     }
-    incrementCart(variantId, productId, -1);
+    adjustCart(variantId, productId, unit, 'decrease');
   };
 
   const handleIncrease = () => {
     if (!variantId || !productId) return;
-    incrementCart(variantId, productId, 1);
+    adjustCart(variantId, productId, unit, 'increase');
   };
 
   const handleRemove = () => {
@@ -81,6 +84,7 @@ export function CartLineCard({ item }: CartLineCardProps) {
               {subtitle ? (
                 <p className="mt-0.5 line-clamp-1 text-[10px] font-medium text-slate-500">{subtitle}</p>
               ) : null}
+              <p className="mt-1 text-[11px] font-semibold text-emerald-800">{quantityLabel}</p>
             </div>
             {variantId && productId ? (
               <button
@@ -120,7 +124,7 @@ export function CartLineCard({ item }: CartLineCardProps) {
             <div className="flex shrink-0 items-center gap-2">
               {variantId && productId ? (
                 <QuantitySelector
-                  value={displayedQuantity}
+                  displayLabel={quantityLabel}
                   onDecrease={handleDecrease}
                   onIncrease={handleIncrease}
                   pending={pending}
@@ -128,7 +132,7 @@ export function CartLineCard({ item }: CartLineCardProps) {
                 />
               ) : (
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
-                  {displayedQuantity}×
+                  {quantityLabel}
                 </span>
               )}
               <p className="text-[13px] font-bold tabular-nums text-[#121212]">{formatMoneyUz(lineTotal)}</p>

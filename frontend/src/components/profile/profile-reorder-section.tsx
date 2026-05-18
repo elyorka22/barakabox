@@ -6,7 +6,7 @@ import { Plus, ShoppingBag } from 'lucide-react';
 import { showToast } from '@/lib/toast';
 import { incrementCart } from '@/lib/cart-store';
 import type { LastOrderSnapshot } from '@/lib/last-order-storage';
-import { DEFAULT_PRODUCT_UNIT, formatQuantityWithUnit } from '@onlinebozor/product-units';
+import { DEFAULT_PRODUCT_UNIT, formatOrderItemQuantity } from '@onlinebozor/product-units';
 
 type Props = {
   order: LastOrderSnapshot | null;
@@ -74,7 +74,7 @@ export function ProfileReorderSection({ order }: Props) {
           >
             <p className="line-clamp-2 text-[12px] font-medium leading-snug text-[#111827]">{line.title}</p>
             <p className="mt-1 text-[11px] text-[#6B7280]">
-              {formatQuantityWithUnit(line.quantity, line.unitType ?? DEFAULT_PRODUCT_UNIT)}
+              {formatOrderItemQuantity(line.quantity, line.unitType ?? DEFAULT_PRODUCT_UNIT)}
             </p>
           </motion.div>
         ))}

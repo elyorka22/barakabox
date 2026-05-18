@@ -1,20 +1,21 @@
 'use client';
 
 import Link from 'next/link';
-import { Minus, Plus } from 'lucide-react';
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { formatMoneyUz } from '@/lib/format';
 import {
   DEFAULT_PRODUCT_UNIT,
   type ProductUnitCode,
   PRODUCT_UNIT_LABEL_UZ,
   normalizeIncomingProductUnit,
+  calculateCartLineTotal,
+  formatCartQuantityDisplay,
 } from '@onlinebozor/product-units';
 import { SafeImage } from '@/components/safe-image';
-import { incrementCart } from '@/lib/cart-store';
 import { getCashbackPromoLabel } from '@/lib/cashback';
 import { CashbackBadge } from '@/components/cashback-badge';
-import { useCartPending, useCartQuantity } from '@/lib/use-cart-store';
+import { useCartQuantity } from '@/lib/use-cart-store';
+import { ProductCardCartControl } from '@/components/product-card-cart-control';
 
 type Variant = {
   id: string;
@@ -38,11 +39,6 @@ type ProductCardProps = {
   cashbackValue?: number | null;
 };
 
-function stopLinkNavigation(event: React.SyntheticEvent) {
-  event.preventDefault();
-  event.stopPropagation();
-}
-
 function ProductCardBase({
   id,
   name,
@@ -54,8 +50,7 @@ function ProductCardBase({
   cashbackValue,
 }: ProductCardProps) {
   const cashbackPromo = getCashbackPromoLabel(cashbackType ?? 'NONE', Number(cashbackValue ?? 0));
-  const unitType =
-    normalizeIncomingProductUnit(unitProp) ?? DEFAULT_PRODUCT_UNIT;
+  const unitType = normalizeIncomingProductUnit(unitProp) ?? DEFAULT_PRODUCT_UNIT;
   const effectiveVariants = variants ?? EMPTY_VARIANTS;
   const [activeVariantIndex, setActiveVariantIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -72,18 +67,24 @@ function ProductCardBase({
       ? effectiveVariants[Math.min(activeVariantIndex, effectiveVariants.length - 1)]
       : null;
 
-  const activeVariantId = activeVariant?.id;
+  const activeVariantId = activeVariant?.id ?? '';
   const activeQuantity = useCartQuantity(activeVariantId);
-  const activeSyncing = useCartPending(activeVariantId);
 
   const activeBasePrice = Number(activeVariant?.price ?? price);
   const activeDiscountPrice =
     activeVariant?.discountPrice && activeVariant.discountPrice > 0 && activeVariant.discountPrice < activeBasePrice
       ? Number(activeVariant.discountPrice)
       : null;
+  const unitPrice = activeDiscountPrice ?? activeBasePrice;
   const discountPercent = activeDiscountPrice
     ? Math.max(1, Math.round(((activeBasePrice - activeDiscountPrice) / activeBasePrice) * 100))
     : null;
+
+  const displayQuantity = activeQuantity;
+  const lineTotal = useMemo(
+    () => calculateCartLineTotal(unitPrice, displayQuantity, unitType),
+    [unitPrice, displayQuantity, unitType],
+  );
 
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageKey, setImageKey] = useState(activeVariantId ?? '');
@@ -113,27 +114,14 @@ function ProductCardBase({
   };
 
   const outOfStock = activeVariant ? (activeVariant.stock ?? 0) <= 0 : true;
-
-  const handleAdd = (event: React.SyntheticEvent) => {
-    stopLinkNavigation(event);
-    if (!activeVariant) return;
-    incrementCart(activeVariant.id, id, 1);
-  };
-
-  const handleIncrease = (event: React.SyntheticEvent) => {
-    stopLinkNavigation(event);
-    if (!activeVariant) return;
-    incrementCart(activeVariant.id, id, 1);
-  };
-
-  const handleDecrease = (event: React.SyntheticEvent) => {
-    stopLinkNavigation(event);
-    if (!activeVariant) return;
-    incrementCart(activeVariant.id, id, -1);
-  };
+  const inCart = activeQuantity > 0;
 
   return (
-    <article className="overflow-hidden rounded-3xl bg-white shadow-sm">
+    <article
+      className={`overflow-hidden rounded-3xl bg-white shadow-sm transition-shadow duration-200 ${
+        inCart ? 'ring-2 ring-emerald-500/25' : ''
+      }`}
+    >
       <Link href={href ?? '#'} className="block">
         {activeVariant ? (
           <div
@@ -177,7 +165,8 @@ function ProductCardBase({
                     type="button"
                     key={variant.id}
                     onClick={(event) => {
-                      stopLinkNavigation(event);
+                      event.preventDefault();
+                      event.stopPropagation();
                       goToVariant(idx);
                     }}
                     className={`h-1.5 w-1.5 rounded-full ${idx === activeVariantIndex ? 'bg-[#16A34A]' : 'bg-slate-300'}`}
@@ -188,46 +177,13 @@ function ProductCardBase({
               </div>
             ) : null}
 
-            <div className="absolute bottom-2 right-2 z-10 flex items-center">
-              {activeQuantity > 0 ? (
-                <div
-                  className="flex items-center gap-1 rounded-full bg-white/95 p-1 shadow-[0_4px_12px_rgba(15,23,42,0.18)] backdrop-blur-sm"
-                  onClick={stopLinkNavigation}
-                >
-                  <button
-                    type="button"
-                    onClick={handleDecrease}
-                    aria-label="Sonni kamaytirish"
-                    aria-busy={activeSyncing}
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-gray-700 transition active:scale-90"
-                  >
-                    <Minus className="h-3.5 w-3.5" strokeWidth={2.4} />
-                  </button>
-                  <span className="min-w-5 text-center text-xs font-semibold text-[#121212] tabular-nums">
-                    {activeQuantity}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleIncrease}
-                    aria-label="Sonni oshirish"
-                    aria-busy={activeSyncing}
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-[#16A34A] text-white transition active:scale-90"
-                  >
-                    <Plus className="h-3.5 w-3.5" strokeWidth={2.4} />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleAdd}
-                  disabled={outOfStock}
-                  aria-label={outOfStock ? 'Mahsulot tugagan' : 'Savatga qo‘shish'}
-                  aria-busy={activeSyncing}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[#16A34A] text-white shadow-[0_4px_12px_rgba(22,163,74,0.35)] transition active:scale-90 disabled:opacity-50"
-                >
-                  <Plus className="h-4 w-4" strokeWidth={2.6} />
-                </button>
-              )}
+            <div className="absolute bottom-2 right-2 z-10">
+              <ProductCardCartControl
+                variantId={activeVariant.id}
+                productId={id}
+                unit={unitType}
+                disabled={outOfStock}
+              />
             </div>
           </div>
         ) : (
@@ -235,8 +191,20 @@ function ProductCardBase({
         )}
         <div className="px-3 pb-3 pt-2.5 sm:px-3.5">
           <h3 className="line-clamp-1 text-[13px] font-semibold text-[#121212]">{name}</h3>
-          <p className="mt-0.5 line-clamp-1 min-h-4 text-[11px] font-medium text-slate-600">{activeVariant?.flavor ?? ''}</p>
-          {activeVariant ? (
+          <p className="mt-0.5 line-clamp-1 min-h-4 text-[11px] font-medium text-slate-600">
+            {activeVariant?.flavor ?? ''}
+          </p>
+
+          {inCart ? (
+            <div className="mt-2 rounded-xl bg-emerald-50/90 px-2.5 py-2 ring-1 ring-emerald-100">
+              <p className="text-[12px] font-bold leading-tight text-emerald-900">
+                {formatCartQuantityDisplay(activeQuantity, unitType)}
+              </p>
+              <p className="mt-0.5 text-[15px] font-extrabold tabular-nums tracking-tight text-[#121212]">
+                {formatMoneyUz(lineTotal)}
+              </p>
+            </div>
+          ) : activeVariant ? (
             activeDiscountPrice ? (
               <div className="mt-1.5 flex flex-col">
                 <p className="text-[11px] font-medium leading-none text-slate-400 line-through opacity-80">

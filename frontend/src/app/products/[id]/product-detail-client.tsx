@@ -12,7 +12,12 @@ import { incrementCart } from '@/lib/cart-store';
 import {
   DEFAULT_PRODUCT_UNIT,
   PRODUCT_UNIT_LABEL_UZ,
+  calculateCartLineTotal,
+  formatCartQuantityDisplay,
   formatQuantityWithUnit,
+  getCartDecreaseDelta,
+  getCartMinQuantity,
+  getCartQuantityStep,
   normalizedProductSaleUnit,
 } from '@onlinebozor/product-units';
 
@@ -38,7 +43,7 @@ type Product = {
 export default function ProductDetailClientPage() {
   const params = useParams<{ id: string }>();
   const [product, setProduct] = useState<Product | null>(null);
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(() => getCartMinQuantity(DEFAULT_PRODUCT_UNIT));
   const [imageLoaded, setImageLoaded] = useState(false);
   const [variantIndex, setVariantIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
@@ -57,7 +62,9 @@ export default function ProductDetailClientPage() {
 
   useEffect(() => {
     setVariantIndex(0);
-  }, [product?.id]);
+    const unit = normalizedProductSaleUnit(product) ?? DEFAULT_PRODUCT_UNIT;
+    setQuantity(getCartMinQuantity(unit));
+  }, [product?.id, product]);
 
   useEffect(() => {
     setImageLoaded(false);
@@ -83,20 +90,37 @@ export default function ProductDetailClientPage() {
     setTouchStartX(null);
   };
 
+  const unitPrice = useMemo(() => {
+    if (!product) return 0;
+    const basePrice = Number(activeVariant?.price ?? product.price);
+    const salePrice =
+      activeVariant?.discountPrice &&
+      Number(activeVariant.discountPrice) > 0 &&
+      Number(activeVariant.discountPrice) < basePrice
+        ? Number(activeVariant.discountPrice)
+        : null;
+    return salePrice ?? basePrice;
+  }, [product, activeVariant?.price, activeVariant?.discountPrice]);
+
   const total = useMemo(
-    () => {
-      if (!product) return 0;
-      const basePrice = Number(activeVariant?.price ?? product.price);
-      const salePrice =
-        activeVariant?.discountPrice &&
-        Number(activeVariant.discountPrice) > 0 &&
-        Number(activeVariant.discountPrice) < basePrice
-          ? Number(activeVariant.discountPrice)
-          : null;
-      return (salePrice ?? basePrice) * quantity;
-    },
-    [product, quantity, activeVariant?.price, activeVariant?.discountPrice],
+    () => calculateCartLineTotal(unitPrice, quantity, saleUnit),
+    [unitPrice, quantity, saleUnit],
   );
+
+  const quantityStep = getCartQuantityStep(saleUnit);
+  const quantityMin = getCartMinQuantity(saleUnit);
+
+  const decreaseQuantity = () => {
+    setQuantity((q) => {
+      const delta = getCartDecreaseDelta(q, saleUnit);
+      const next = q + delta;
+      return next < quantityMin ? quantityMin : next;
+    });
+  };
+
+  const increaseQuantity = () => {
+    setQuantity((q) => q + quantityStep);
+  };
 
   const addToCart = () => {
     if (!product || !activeVariant?.id) return;
@@ -290,9 +314,24 @@ export default function ProductDetailClientPage() {
           </div>
         ) : null}
         <div className="mt-5 flex w-fit items-center gap-4 rounded-2xl bg-white px-4 py-2 shadow-sm">
-          <button className="text-xl font-bold" onClick={() => setQuantity((q) => Math.max(1, q - 1))}>-</button>
-          <span className="text-base font-semibold">{formatQuantityWithUnit(quantity, saleUnit)}</span>
-          <button className="text-xl font-bold" onClick={() => setQuantity((q) => q + 1)}>+</button>
+          <button
+            type="button"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-xl font-bold active:scale-95 disabled:opacity-40"
+            onClick={decreaseQuantity}
+            disabled={quantity <= quantityMin}
+          >
+            -
+          </button>
+          <span className="min-w-[5rem] text-center text-base font-semibold">
+            {formatCartQuantityDisplay(quantity, saleUnit)}
+          </span>
+          <button
+            type="button"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-600 text-xl font-bold text-white active:scale-95"
+            onClick={increaseQuantity}
+          >
+            +
+          </button>
         </div>
         <div
           className="fixed inset-x-0 z-20 bg-white p-4 shadow-[0_-8px_20px_rgba(0,0,0,0.08)]"

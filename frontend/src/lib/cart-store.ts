@@ -1,5 +1,11 @@
 'use client';
 
+import {
+  getCartDecreaseDelta,
+  getCartMinQuantity,
+  getCartQuantityStep,
+  type ProductUnitCode,
+} from '@onlinebozor/product-units';
 import { api, authStorage, authEvents } from './api';
 import { showToast } from './toast';
 
@@ -220,17 +226,32 @@ export function getCartItems(): CartItem[] {
 }
 
 export function getCartTotalCount(): number {
-  let total = 0;
+  const seen = new Set<string>();
+  let lines = 0;
   for (const item of state.items) {
-    total += item.quantity;
+    const variantId = item.variant?.id;
+    if (!variantId) continue;
+    const qty = getVariantQuantity(variantId);
+    if (qty > 0 && !seen.has(variantId)) {
+      seen.add(variantId);
+      lines += 1;
+    }
   }
   for (const variantId of Object.keys(state.pendingByVariant)) {
-    total += state.pendingByVariant[variantId] ?? 0;
+    const qty = getVariantQuantity(variantId);
+    if (qty > 0 && !seen.has(variantId)) {
+      seen.add(variantId);
+      lines += 1;
+    }
   }
   for (const variantId of Object.keys(state.inFlightByVariant)) {
-    total += state.inFlightByVariant[variantId] ?? 0;
+    const qty = getVariantQuantity(variantId);
+    if (qty > 0 && !seen.has(variantId)) {
+      seen.add(variantId);
+      lines += 1;
+    }
   }
-  return Math.max(0, total);
+  return lines;
 }
 
 export function getCartHydrated(): boolean {
@@ -312,6 +333,25 @@ async function flushVariant(variantId: string) {
   if ((state.pendingByVariant[variantId] ?? 0) !== 0) {
     scheduleFlush(variantId);
   }
+}
+
+export function adjustCart(
+  variantId: string,
+  productId: string,
+  unit: ProductUnitCode,
+  action: 'add' | 'increase' | 'decrease',
+): void {
+  if (!variantId || !productId) return;
+  const current = getVariantQuantity(variantId);
+  let delta: number;
+  if (action === 'add') {
+    delta = current > 0 ? getCartQuantityStep(unit) : getCartMinQuantity(unit);
+  } else if (action === 'increase') {
+    delta = getCartQuantityStep(unit);
+  } else {
+    delta = getCartDecreaseDelta(current, unit);
+  }
+  incrementCart(variantId, productId, delta);
 }
 
 export function incrementCart(
