@@ -1,6 +1,7 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { AdminService } from './admin.service';
+import { AdminDashboardService, type DashboardPeriod } from './admin-dashboard.service';
 import { CustomersService } from '../customers/customers.service';
 import { UsersService } from '../users/users.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -14,9 +15,17 @@ import type { CustomerLoyaltyTier } from '../customers/customers.utils';
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
+    private readonly dashboardService: AdminDashboardService,
     private readonly customersService: CustomersService,
     private readonly usersService: UsersService,
   ) {}
+
+  @Get('dashboard')
+  dashboard(@Query('period') period?: string) {
+    const allowed: DashboardPeriod[] = ['day', 'week', 'month', 'year'];
+    const p = allowed.includes(period as DashboardPeriod) ? (period as DashboardPeriod) : 'month';
+    return this.dashboardService.getDashboard(p);
+  }
 
   @Get('employees')
   listEmployees(
