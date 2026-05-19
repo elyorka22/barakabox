@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api, authStorage } from '@/lib/api';
 import { showToast } from '@/lib/toast';
 import { fetchPublicSettings, type PublicSettings } from '@/lib/public-settings';
+import { fetchHomepageBannerAdmin, type HomepageBanner } from '@/lib/homepage-banner';
 
 export default function AdminSettingsPage() {
   const token = authStorage.getAccessToken();
@@ -13,6 +14,13 @@ export default function AdminSettingsPage() {
   const [supportSaving, setSupportSaving] = useState(false);
   const [supportTelegramUrl, setSupportTelegramUrl] = useState('');
   const [supportTitle, setSupportTitle] = useState('');
+  const [bannerLoading, setBannerLoading] = useState(true);
+  const [bannerSaving, setBannerSaving] = useState(false);
+  const [bannerTitle, setBannerTitle] = useState('');
+  const [bannerSubtitle, setBannerSubtitle] = useState('');
+  const [bannerAmount, setBannerAmount] = useState('50000');
+  const [bannerColor, setBannerColor] = useState('#F2E5CC');
+  const [bannerActive, setBannerActive] = useState(true);
 
   useEffect(() => {
     if (!token) return;
@@ -45,6 +53,60 @@ export default function AdminSettingsPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        if (!token) return;
+        const data = await fetchHomepageBannerAdmin(token);
+        if (cancelled || !data) return;
+        setBannerTitle(data.title);
+        setBannerSubtitle(data.subtitle ?? '');
+        setBannerAmount(String(data.freeDeliveryAmount));
+        setBannerColor(data.backgroundColor);
+        setBannerActive(data.isActive);
+      } catch {
+        if (!cancelled) showToast({ type: 'error', message: 'Banner yuklanmadi' });
+      } finally {
+        if (!cancelled) setBannerLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const saveBanner = async () => {
+    if (!token) return;
+    setBannerSaving(true);
+    try {
+      const saved = await api.patch<HomepageBanner>(
+        '/admin/settings/homepage-banner',
+        {
+          title: bannerTitle.trim(),
+          subtitle: bannerSubtitle.trim() || null,
+          freeDeliveryAmount: Number(bannerAmount),
+          backgroundColor: bannerColor,
+          isActive: bannerActive,
+        },
+        token,
+      );
+      setBannerTitle(saved.title);
+      setBannerSubtitle(saved.subtitle ?? '');
+      setBannerAmount(String(saved.freeDeliveryAmount));
+      setBannerColor(saved.backgroundColor);
+      setBannerActive(saved.isActive);
+      showToast({ type: 'success', message: 'Bosh sahifa banneri saqlandi' });
+    } catch (err) {
+      showToast({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Saqlashda xatolik',
+      });
+    } finally {
+      setBannerSaving(false);
+    }
+  };
 
   const saveSupport = async () => {
     if (!token) {
@@ -112,6 +174,40 @@ export default function AdminSettingsPage() {
               className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
               {supportSaving ? 'Saqlanmoqda...' : 'Saqlash'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h3 className="text-sm font-semibold">Bosh sahifa — bepul yetkazish banneri</h3>
+        <p className="mt-1 text-xs text-slate-500">Sarlavhada {'{amount}'} — bepul yetkazish summasi.</p>
+        {bannerLoading ? (
+          <p className="mt-3 text-sm text-slate-500">Yuklanmoqda...</p>
+        ) : (
+          <div className="mt-4 space-y-3">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={bannerActive} onChange={(e) => setBannerActive(e.target.checked)} />
+              <span className="font-medium text-slate-700">Faol</span>
+            </label>
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Sarlavha</span>
+              <input className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" value={bannerTitle} onChange={(e) => setBannerTitle(e.target.value)} />
+            </label>
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Pastki matn</span>
+              <input className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" value={bannerSubtitle} onChange={(e) => setBannerSubtitle(e.target.value)} />
+            </label>
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Bepul yetkazish summasi</span>
+              <input type="number" min={0} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" value={bannerAmount} onChange={(e) => setBannerAmount(e.target.value)} />
+            </label>
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Fon rangi</span>
+              <input type="color" value={bannerColor} onChange={(e) => setBannerColor(e.target.value)} className="mt-1 h-10 w-full rounded border border-slate-200" />
+            </label>
+            <button type="button" disabled={bannerSaving} onClick={() => void saveBanner()} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+              {bannerSaving ? 'Saqlanmoqda...' : 'Bannerni saqlash'}
             </button>
           </div>
         )}

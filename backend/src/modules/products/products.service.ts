@@ -93,6 +93,8 @@ export class ProductsService {
       stockQuantity: true,
       unit: true,
       sellingMode: true,
+      stepAmount: true,
+      minimumAmount: true,
       businessId: true,
       isActive: true,
       createdAt: true,
@@ -176,6 +178,8 @@ export class ProductsService {
       stockQuantity: number;
       unit: ProductUnit;
       sellingMode?: SellingMode;
+      stepAmount?: number;
+      minimumAmount?: number;
       cashbackType?: CashbackType;
       cashbackValue?: number;
       categoryId?: string;
@@ -216,6 +220,8 @@ export class ProductsService {
           description: data.description,
           unit: data.unit,
           sellingMode,
+          stepAmount: data.stepAmount ?? null,
+          minimumAmount: data.minimumAmount ?? null,
           price: data.price,
           stockQuantity: data.stockQuantity,
           categoryId: data.categoryId,
@@ -293,6 +299,8 @@ export class ProductsService {
       stockQuantity?: number;
       unit?: ProductUnit;
       sellingMode?: SellingMode;
+      stepAmount?: number;
+      minimumAmount?: number;
       cashbackType?: CashbackType;
       cashbackValue?: number;
       categoryId?: string;
@@ -395,6 +403,8 @@ export class ProductsService {
           stockQuantity: data.stockQuantity,
           ...(data.unit !== undefined ? { unit: data.unit } : {}),
           ...(data.sellingMode !== undefined ? { sellingMode: data.sellingMode } : {}),
+          ...(data.stepAmount !== undefined ? { stepAmount: data.stepAmount } : {}),
+          ...(data.minimumAmount !== undefined ? { minimumAmount: data.minimumAmount } : {}),
           ...(data.cashbackType !== undefined ? { cashbackType: data.cashbackType } : {}),
           ...(data.cashbackValue !== undefined ? { cashbackValue: data.cashbackValue } : {}),
           categoryId: data.categoryId,

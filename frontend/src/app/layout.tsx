@@ -6,6 +6,7 @@ import { AuthBootstrap } from "@/components/auth-bootstrap";
 import { ApplePwaHead } from "@/components/pwa/ApplePwaHead";
 import { PWAProvider } from "@/components/pwa/PWAProvider";
 import { StorefrontScrollRestore } from "@/components/navigation/storefront-scroll-restore";
+import { StorefrontShell } from "@/components/storefront/storefront-shell";
 import { absoluteUrl, getSiteUrl } from "@/lib/seo";
 import "./globals.css";
 
@@ -146,7 +147,7 @@ export default function RootLayout({
           <ToastHost />
           <RippleProvider />
           <StorefrontScrollRestore />
-          {children}
+          <StorefrontShell>{children}</StorefrontShell>
         </PWAProvider>
       </body>
     </html>

@@ -8,6 +8,14 @@ export type PublicSettingsDto = {
   supportTitle: string | null;
 };
 
+export type HomepageBannerDto = {
+  title: string;
+  subtitle: string | null;
+  freeDeliveryAmount: number;
+  backgroundColor: string;
+  isActive: boolean;
+};
+
 function isValidTelegramSupportUrl(raw: string): boolean {
   const value = raw.trim();
   if (!value) return false;
@@ -78,6 +86,71 @@ export class SettingsService {
     return {
       supportTelegramUrl: row.supportTelegramUrl?.trim() || null,
       supportTitle: row.supportTitle?.trim() || null,
+    };
+  }
+
+  private async ensureHomepageBanner() {
+    return this.prisma.homepageBanner.upsert({
+      where: { id: 'default' },
+      create: { id: 'default' },
+      update: {},
+    });
+  }
+
+  async getHomepageBanner(): Promise<HomepageBannerDto> {
+    const row = await this.ensureHomepageBanner();
+    return {
+      title: row.title?.trim() || '',
+      subtitle: row.subtitle?.trim() || null,
+      freeDeliveryAmount: row.freeDeliveryAmount,
+      backgroundColor: row.backgroundColor?.trim() || '#F2E5CC',
+      isActive: row.isActive,
+    };
+  }
+
+  async updateHomepageBanner(input: Partial<HomepageBannerDto>): Promise<HomepageBannerDto> {
+    await this.ensureHomepageBanner();
+    const data: Record<string, unknown> = {};
+    if (input.title !== undefined) data.title = String(input.title).trim();
+    if (input.subtitle !== undefined) {
+      data.subtitle = input.subtitle === null ? null : String(input.subtitle).trim() || null;
+    }
+    if (input.freeDeliveryAmount !== undefined) {
+      const amount = Math.round(Number(input.freeDeliveryAmount));
+      if (!Number.isFinite(amount) || amount < 0) {
+        throw new BadRequestException('Bepul yetkazish summasi noto‘g‘ri');
+      }
+      data.freeDeliveryAmount = amount;
+    }
+    if (input.backgroundColor !== undefined) {
+      const color = String(input.backgroundColor).trim();
+      if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
+        throw new BadRequestException('Rang kodi #RRGGBB formatida bo‘lishi kerak');
+      }
+      data.backgroundColor = color;
+    }
+    if (input.isActive !== undefined) data.isActive = Boolean(input.isActive);
+
+    const row = await this.prisma.homepageBanner.update({
+      where: { id: 'default' },
+      data,
+    });
+    return this.getHomepageBannerFromRow(row);
+  }
+
+  private getHomepageBannerFromRow(row: {
+    title: string;
+    subtitle: string | null;
+    freeDeliveryAmount: number;
+    backgroundColor: string;
+    isActive: boolean;
+  }): HomepageBannerDto {
+    return {
+      title: row.title?.trim() || '',
+      subtitle: row.subtitle?.trim() || null,
+      freeDeliveryAmount: row.freeDeliveryAmount,
+      backgroundColor: row.backgroundColor?.trim() || '#F2E5CC',
+      isActive: row.isActive,
     };
   }
 }

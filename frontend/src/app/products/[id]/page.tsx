@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import ProductDetailClientPage from './product-detail-client';
+import { ProductRedirectClient } from './product-redirect-client';
 import { absoluteUrl, getApiBaseUrl } from '@/lib/seo';
 import { normalizeAssetUrl } from '@/lib/asset-url';
 
@@ -71,5 +71,5 @@ export async function generateMetadata({
 }
 
 export default function ProductDetailPage() {
-  return <ProductDetailClientPage />;
+  return <ProductRedirectClient />;
 }

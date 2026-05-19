@@ -15,6 +15,8 @@ type Product = {
   unit?: string | null;
   unitType?: string | null;
   sellingMode?: string | null;
+  stepAmount?: number | null;
+  minimumAmount?: number | null;
   imageUrl?: string | null;
   imageCardUrl?: string | null;
   cashbackType?: string | null;
@@ -93,8 +95,7 @@ export default function DiscountsPage() {
           <p className="mt-1 text-sm text-white/85">Chegirmalarni boy bermang</p>
         </div>
 
-        <div className="mt-3 flex items-center justify-between rounded-2xl bg-white px-3 py-2">
-          <p className="text-sm font-medium text-[#111111]">Aksiya tugashiga 03 : 12 : 45</p>
+        <div className="mt-3 flex items-center justify-end rounded-2xl bg-white px-3 py-2">
           <button className="flex items-center gap-1 rounded-xl bg-[#F3F4F6] px-3 py-2 text-xs font-medium text-slate-600">
             <Filter className="h-3.5 w-3.5" />
             Filtr
@@ -119,8 +120,9 @@ export default function DiscountsPage() {
                   ...variant,
                   imageUrl: variant.imageUrl ?? product.imageCardUrl ?? product.imageUrl,
                 }))}
-                href={`/products/${product.id}`}
                 imageUrl={product.imageCardUrl ?? product.imageUrl}
+                stepAmount={product.stepAmount}
+                minimumAmount={product.minimumAmount}
                 imageCardUrl={product.imageCardUrl}
                 cashbackType={product.cashbackType ?? undefined}
                 cashbackValue={product.cashbackValue ?? undefined}

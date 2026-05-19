@@ -97,6 +97,16 @@ export class UpdateProductDto {
   sellingMode?: SellingMode;
 
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  stepAmount?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  minimumAmount?: number;
+
+  @IsOptional()
   @IsString()
   categoryId?: string;
 

@@ -9,4 +9,9 @@ export class SettingsController {
   getPublic() {
     return this.settingsService.getPublicSettings();
   }
+
+  @Get('homepage-banner')
+  getHomepageBanner() {
+    return this.settingsService.getHomepageBanner();
+  }
 }

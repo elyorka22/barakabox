@@ -15,6 +15,8 @@ type Product = {
   unit?: string | null;
   unitType?: string | null;
   sellingMode?: string | null;
+  stepAmount?: number | null;
+  minimumAmount?: number | null;
   imageUrl?: string | null;
   imageCardUrl?: string | null;
   cashbackType?: string | null;
@@ -144,8 +146,9 @@ export default function CategoryProductsClientPage() {
                     ...variant,
                     imageUrl: variant.imageUrl ?? item.imageCardUrl ?? item.imageUrl,
                   }))}
-                  href={`/products/${item.id}`}
                   imageUrl={item.imageCardUrl ?? item.imageUrl}
+                  stepAmount={item.stepAmount}
+                  minimumAmount={item.minimumAmount}
                   imageCardUrl={item.imageCardUrl}
                   cashbackType={item.cashbackType ?? undefined}
                   cashbackValue={item.cashbackValue ?? undefined}

@@ -9,8 +9,11 @@ import { HomeBannerCarousel } from '@/components/home/home-banner-carousel';
 import { CategoryCard, CategoryCardSkeleton } from '@/components/home/category-card';
 import { HomeInstallCard } from '@/components/pwa/HomeInstallCard';
 import { ProductCard } from '@/components/product-card';
+import { HomeDeliveryBanner } from '@/components/home/home-delivery-banner';
 import { SafeImage } from '@/components/safe-image';
 import { formatMoneyUz } from '@/lib/format';
+import { useProductSheet } from '@/lib/product-sheet-context';
+import type { StorefrontProduct } from '@/types/storefront-product';
 
 type Product = {
   id: string;
@@ -19,6 +22,8 @@ type Product = {
   unit?: string | null;
   unitType?: string | null;
   sellingMode?: string | null;
+  stepAmount?: number | null;
+  minimumAmount?: number | null;
   categoryId?: string | null;
   imageUrl?: string | null;
   imageCardUrl?: string | null;
@@ -60,6 +65,7 @@ function categoryEmoji(name: string) {
 }
 
 export default function Home() {
+  const { openProduct, registerCatalog } = useProductSheet();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
@@ -126,6 +132,24 @@ export default function Home() {
   );
   const popularProducts = useMemo(() => renderableProducts.slice(0, 6), [renderableProducts]);
   const recommendedProducts = useMemo(() => renderableProducts.slice(6, 12), [renderableProducts]);
+
+  useEffect(() => {
+    registerCatalog(renderableProducts as StorefrontProduct[]);
+  }, [renderableProducts, registerCatalog]);
+
+  const toStorefrontProduct = (product: Product): StorefrontProduct => ({
+    id: product.id,
+    name: product.name,
+    price: product.price,
+    unit: product.unit ?? product.unitType,
+    sellingMode: product.sellingMode,
+    stepAmount: product.stepAmount,
+    minimumAmount: product.minimumAmount,
+    imageUrl: product.imageUrl,
+    imageCardUrl: product.imageCardUrl,
+    imageThumbUrl: product.imageThumbUrl,
+    variants: product.variants,
+  });
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -214,7 +238,6 @@ export default function Home() {
             <section className="mt-5 rounded-3xl bg-gradient-to-br from-[#FF6B35] to-[#F43F5E] p-3 text-white shadow-[0_12px_24px_rgba(244,63,94,0.28)]">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold">Aksiya va chegirmalar</h2>
-            <div className="rounded-xl bg-white/20 px-2 py-1 text-[11px]">03 : 12 : 45</div>
           </div>
           <div className="bb-scrollbar-hide mt-3 flex gap-2 overflow-x-auto pb-1">
             {loadingProducts
@@ -229,10 +252,11 @@ export default function Home() {
               const basePrice = Number(variant?.price ?? product.price);
               const salePrice = Number(variant?.discountPrice ?? basePrice);
               return (
-                <Link
+                <button
                   key={product.id}
-                  href={`/products/${product.id}`}
-                  className="min-w-[130px] rounded-2xl bg-white p-2 text-[#111111]"
+                  type="button"
+                  onClick={() => openProduct(toStorefrontProduct(product))}
+                  className="min-w-[130px] rounded-2xl bg-white p-2 text-left text-[#111111] transition active:scale-[0.98]"
                 >
                   <div className="relative h-20 overflow-hidden rounded-xl bg-white">
                     <SafeImage
@@ -255,7 +279,7 @@ export default function Home() {
                       {formatMoneyUz(salePrice)}
                     </p>
                   </div>
-                </Link>
+                </button>
               );
             })}
           </div>
@@ -268,10 +292,7 @@ export default function Home() {
           </Link>
             </section>
 
-            <section className="mt-4 rounded-3xl bg-[#F2E5CC] p-4">
-          <p className="text-base font-semibold text-[#111111]">50 000 so'mdan boshlab bepul yetkazib berish</p>
-          <p className="mt-1 text-xs text-slate-600">Tezkor delivery xizmati har kuni 24/7</p>
-            </section>
+            <HomeDeliveryBanner />
 
             <section className="mt-5">
           <div className="mb-3 flex items-center justify-between">
@@ -300,8 +321,9 @@ export default function Home() {
                   ...variant,
                   imageUrl: variant.imageUrl ?? product.imageCardUrl ?? product.imageUrl,
                 }))}
-                href={`/products/${product.id}`}
                 imageUrl={product.imageCardUrl ?? product.imageUrl}
+                stepAmount={product.stepAmount}
+                minimumAmount={product.minimumAmount}
                 imageCardUrl={product.imageCardUrl}
                 imageThumbUrl={product.imageThumbUrl}
                 cashbackType={product.cashbackType ?? undefined}
@@ -338,8 +360,9 @@ export default function Home() {
                   ...variant,
                   imageUrl: variant.imageUrl ?? product.imageCardUrl ?? product.imageUrl,
                 }))}
-                href={`/products/${product.id}`}
                 imageUrl={product.imageCardUrl ?? product.imageUrl}
+                stepAmount={product.stepAmount}
+                minimumAmount={product.minimumAmount}
                 imageCardUrl={product.imageCardUrl}
                 imageThumbUrl={product.imageThumbUrl}
                 cashbackType={product.cashbackType ?? undefined}

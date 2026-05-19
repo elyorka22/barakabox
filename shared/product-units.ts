@@ -118,21 +118,49 @@ export function resolveSellingMode(
   return fallbackSellingModeFromUnit(unit);
 }
 
-export function getSellingModeStep(mode: SellingMode): number {
+export type SellingConfigProduct = {
+  sellingMode?: unknown;
+  unit?: unknown;
+  unitType?: unknown;
+  stepAmount?: number | null;
+  minimumAmount?: number | null;
+};
+
+function positiveInt(value: unknown): number | null {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
+
+export function getSellingModeStep(
+  mode: SellingMode,
+  product?: SellingConfigProduct | null,
+): number {
+  const custom = positiveInt(product?.stepAmount);
+  if (custom) return custom;
   if (mode === 'gram_step') return GRAM_STEP;
   if (mode === 'kilogram_step') return KILOGRAM_STEP;
   return PIECE_STEP;
 }
 
-export function getSellingModeMin(mode: SellingMode): number {
+export function getSellingModeMin(
+  mode: SellingMode,
+  product?: SellingConfigProduct | null,
+): number {
+  const custom = positiveInt(product?.minimumAmount);
+  if (custom) return custom;
   if (mode === 'gram_step') return GRAM_MIN;
   if (mode === 'kilogram_step') return KILOGRAM_MIN;
   return PIECE_MIN;
 }
 
-export function getSellingModeDecreaseDelta(currentQuantity: number, mode: SellingMode): number {
-  const step = getSellingModeStep(mode);
-  const min = getSellingModeMin(mode);
+export function getSellingModeDecreaseDelta(
+  currentQuantity: number,
+  mode: SellingMode,
+  product?: SellingConfigProduct | null,
+): number {
+  const step = getSellingModeStep(mode, product);
+  const min = getSellingModeMin(mode, product);
   if (currentQuantity <= min) {
     return -currentQuantity;
   }

@@ -267,6 +267,8 @@ model Product {
   imageThumbKey String?
   unit         ProductUnit @default(dona)
   sellingMode  SellingMode @default(PIECE)
+  stepAmount   Int?
+  minimumAmount Int?
   price        Int
   stockQuantity Int     @default(0)
   isActive     Boolean  @default(true)
@@ -580,5 +582,16 @@ model SiteSettings {
   id                 String   @id @default("global")
   supportTelegramUrl String?
   supportTitle       String?
+  updatedAt          DateTime @updatedAt
+}
+
+model HomepageBanner {
+  id                 String   @id @default("default")
+  title              String   @default("")
+  subtitle           String?
+  freeDeliveryAmount Int      @default(50000)
+  backgroundColor    String   @default("#F2E5CC")
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }

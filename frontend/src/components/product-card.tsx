@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { memo, useMemo, useState } from 'react';
 import {
   DEFAULT_PRODUCT_UNIT,
@@ -13,9 +12,11 @@ import {
 } from '@onlinebozor/product-units';
 import { SafeImage } from '@/components/safe-image';
 import { resolveVariantImageUrl } from '@/lib/product-image';
+import { useProductSheet } from '@/lib/product-sheet-context';
 import { useCartQuantity } from '@/lib/use-cart-store';
 import { ProductCardCartControl } from '@/components/product-card/product-card-cart-control';
 import { ProductCardFooter } from '@/components/product-card/product-card-footer';
+import type { StorefrontProduct } from '@/types/storefront-product';
 
 type Variant = {
   id: string;
@@ -33,10 +34,11 @@ export type ProductCardProps = {
   price: string;
   unit?: ProductUnitCode | string | null;
   sellingMode?: SellingMode | string | null;
+  stepAmount?: number | null;
+  minimumAmount?: number | null;
   subtitle?: string | null;
   categoryName?: string | null;
   variants?: Variant[];
-  href?: string;
   imageUrl?: string | null;
   imageCardUrl?: string | null;
   imageThumbUrl?: string | null;
@@ -50,14 +52,16 @@ function ProductCardBase({
   price,
   unit: unitProp,
   sellingMode: sellingModeProp,
+  stepAmount,
+  minimumAmount,
   subtitle,
   categoryName,
-  href,
   variants,
   imageUrl: productImageUrl,
   imageCardUrl,
   imageThumbUrl,
 }: ProductCardProps) {
+  const { openProduct } = useProductSheet();
   const productImages = { imageUrl: productImageUrl, imageCardUrl, imageThumbUrl };
   const unitType = normalizeIncomingProductUnit(unitProp) ?? DEFAULT_PRODUCT_UNIT;
   const sellingMode = resolveSellingMode({ sellingMode: sellingModeProp, unit: unitProp ?? unitType });
@@ -122,16 +126,54 @@ function ProductCardBase({
   const subtitleLine =
     activeVariant?.flavor?.trim() || subtitle?.trim() || categoryName?.trim() || '';
 
+  const storefrontProduct: StorefrontProduct = {
+    id,
+    name,
+    price,
+    unit: unitProp,
+    sellingMode: sellingModeProp,
+    stepAmount,
+    minimumAmount,
+    imageUrl: productImageUrl,
+    imageCardUrl,
+    imageThumbUrl,
+    variants: effectiveVariants.map((v) => ({
+      id: v.id,
+      flavor: v.flavor,
+      description: v.description,
+      price: Number(v.price),
+      discountPrice: v.discountPrice,
+      stock: v.stock ?? 0,
+      imageUrl: v.imageUrl,
+    })),
+  };
+
+  const openSheet = () => openProduct(storefrontProduct);
+
   return (
-    <article className="product-card flex h-full flex-col overflow-hidden rounded-[22px] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.05)]">
-      <Link href={href ?? '#'} className="flex min-h-0 flex-1 flex-col">
+    <article
+      className={`product-card flex h-full flex-col overflow-hidden rounded-[18px] bg-white shadow-[0_2px_10px_rgba(0,0,0,0.05)] transition-shadow duration-200 ${
+        inCart ? 'ring-2 ring-[#22c55e]/35' : 'ring-1 ring-black/[0.04]'
+      }`}
+    >
+      <button
+        type="button"
+        onClick={openSheet}
+        className="flex min-h-0 flex-1 flex-col text-left"
+      >
         {activeVariant ? (
           <div
-            className="relative aspect-square w-full shrink-0 overflow-hidden bg-white"
-            onTouchStart={(e) => setTouchStartX(e.changedTouches[0]?.clientX ?? null)}
-            onTouchEnd={(e) => handleTouchEnd(e.changedTouches[0]?.clientX ?? 0)}
+            className="relative aspect-square w-full shrink-0 overflow-hidden bg-[#fafafa]"
+            onTouchStart={(e) => {
+              e.stopPropagation();
+              setTouchStartX(e.changedTouches[0]?.clientX ?? null);
+            }}
+            onTouchEnd={(e) => {
+              e.stopPropagation();
+              handleTouchEnd(e.changedTouches[0]?.clientX ?? 0);
+            }}
           >
-            {!imageLoaded ? <div className="absolute inset-0 bg-[#fafafa]" /> : null}
+            {!imageLoaded ? <div className="absolute inset-0 bg-[#f5f5f5]" /> : null}
             <div
               className="flex h-full w-full transition-transform duration-300 ease-out"
               style={{ transform: `translateX(-${activeVariantIndex * 100}%)` }}
@@ -139,7 +181,7 @@ function ProductCardBase({
               {effectiveVariants.map((variant) => {
                 const src = resolveVariantImageUrl(variant, productImages);
                 return (
-                  <div key={variant.id} className="flex h-full min-w-full items-center justify-center p-2">
+                  <div key={variant.id} className="flex h-full min-w-full items-center justify-center p-1.5">
                     <SafeImage
                       src={src || undefined}
                       alt={variant.flavor || name}
@@ -157,12 +199,12 @@ function ProductCardBase({
             </div>
 
             {activeDiscountPrice ? (
-              <span className="pointer-events-none absolute left-2 top-2 rounded-md bg-[#ef4444] px-1.5 py-0.5 text-[9px] font-bold text-white">
+              <span className="pointer-events-none absolute left-1.5 top-1.5 rounded-md bg-[#ef4444] px-1.5 py-0.5 text-[9px] font-bold text-white">
                 -{Math.max(1, Math.round(((activeBasePrice - activeDiscountPrice) / activeBasePrice) * 100))}%
               </span>
             ) : null}
 
-            <div className="absolute bottom-2 right-2 z-10">
+            <div className="absolute bottom-1.5 right-1.5 z-10" onClick={(e) => e.stopPropagation()}>
               <ProductCardCartControl
                 variantId={activeVariant.id}
                 productId={id}
@@ -176,8 +218,8 @@ function ProductCardBase({
           <div className="aspect-square shrink-0 bg-[#fafafa]" />
         )}
 
-        <div className="flex flex-1 flex-col px-2.5 pb-2.5 pt-2">
-          <h3 className="line-clamp-2 text-[13px] font-bold leading-[1.15] text-[#111827]">{name}</h3>
+        <div className="flex flex-1 flex-col px-2 pb-2 pt-1.5">
+          <h3 className="line-clamp-2 text-[13px] font-bold leading-[1.12] text-[#111827]">{name}</h3>
           {subtitleLine ? (
             <p className="mt-0.5 line-clamp-1 text-[10px] font-medium text-[#9ca3af]">{subtitleLine}</p>
           ) : null}
@@ -191,7 +233,7 @@ function ProductCardBase({
             unit={unitType}
           />
         </div>
-      </Link>
+      </button>
     </article>
   );
 }
@@ -227,6 +269,8 @@ function arePropsEqual(prev: ProductCardProps, next: ProductCardProps): boolean 
   if (prev.price !== next.price) return false;
   if ((prev.unit ?? '') !== (next.unit ?? '')) return false;
   if ((prev.sellingMode ?? '') !== (next.sellingMode ?? '')) return false;
+  if ((prev.stepAmount ?? '') !== (next.stepAmount ?? '')) return false;
+  if ((prev.minimumAmount ?? '') !== (next.minimumAmount ?? '')) return false;
   if ((prev.subtitle ?? '') !== (next.subtitle ?? '')) return false;
   if ((prev.categoryName ?? '') !== (next.categoryName ?? '')) return false;
   if ((prev.imageUrl ?? '') !== (next.imageUrl ?? '')) return false;
