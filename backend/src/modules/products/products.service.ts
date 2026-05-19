@@ -47,6 +47,7 @@ export class ProductsService {
     limit?: number;
     q?: string;
     categoryId?: string;
+    businessId?: string;
     includeInactive?: boolean;
     stockFilter?: 'all' | 'in_stock' | 'low' | 'out';
     sortBy?: 'newest' | 'stock_asc' | 'stock_desc' | 'price_asc' | 'price_desc';
@@ -65,6 +66,9 @@ export class ProductsService {
     }
     if (opts?.categoryId) {
       where.categoryId = opts.categoryId;
+    }
+    if (opts?.businessId) {
+      where.businessId = opts.businessId;
     }
     const stockFilter = opts?.stockFilter ?? 'all';
     if (stockFilter === 'out') {
@@ -106,6 +110,7 @@ export class ProductsService {
       imageUrl: true,
       imageKey: true,
       category: { select: { id: true, name: true } },
+      business: { select: { id: true, displayName: true } },
       variants: {
         where: { isActive: true },
         orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],
@@ -273,6 +278,11 @@ export class ProductsService {
       }
       return product;
     });
+  }
+
+  async createByBusinessOwner(userId: string, data: Parameters<ProductsService['createByAdmin']>[1]) {
+    const business = await this.requireApprovedBusiness(userId);
+    return this.createByAdmin(business.id, data);
   }
 
   async listMine(userId: string) {

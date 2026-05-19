@@ -72,6 +72,7 @@ export default function AdminProductsPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [businessFilter, setBusinessFilter] = useState('ALL');
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
   const [sortBy, setSortBy] = useState<SortBy>('newest');
@@ -104,7 +105,7 @@ export default function AdminProductsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, categoryFilter, stockFilter, statusFilter, sortBy, pageSize]);
+  }, [debouncedSearch, categoryFilter, businessFilter, stockFilter, statusFilter, sortBy, pageSize]);
 
   const loadMeta = useCallback(async () => {
     if (!token) return;
@@ -139,6 +140,7 @@ export default function AdminProductsPage() {
       });
       if (debouncedSearch) params.set('q', debouncedSearch);
       if (categoryFilter !== 'ALL') params.set('categoryId', categoryFilter);
+      if (businessFilter !== 'ALL') params.set('businessId', businessFilter);
       if (statusFilter === 'inactive' || statusFilter === 'all') {
         params.set('includeInactive', 'true');
       }
@@ -157,7 +159,7 @@ export default function AdminProductsPage() {
       setListLoading(false);
       setLoading(false);
     }
-  }, [token, page, pageSize, debouncedSearch, categoryFilter, stockFilter, statusFilter, sortBy]);
+  }, [token, page, pageSize, debouncedSearch, categoryFilter, businessFilter, stockFilter, statusFilter, sortBy]);
 
   useEffect(() => {
     void loadMeta();
@@ -425,6 +427,18 @@ export default function AdminProductsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          <select
+            className="lg:col-span-2 rounded-lg border border-slate-200 px-2 py-2 text-sm"
+            value={businessFilter}
+            onChange={(e) => setBusinessFilter(e.target.value)}
+          >
+            <option value="ALL">Biznes</option>
+            {businesses.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.displayName}
+              </option>
+            ))}
+          </select>
           <select
             className="lg:col-span-2 rounded-lg border border-slate-200 px-2 py-2 text-sm"
             value={categoryFilter}

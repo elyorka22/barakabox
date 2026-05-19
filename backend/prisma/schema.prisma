@@ -20,6 +20,7 @@ enum BusinessStatus {
   PENDING
   APPROVED
   REJECTED
+  DISABLED
 }
 
 enum OrderStatus {
@@ -242,6 +243,9 @@ model BusinessProfile {
   userId      String         @unique
   displayName String
   phone       String?
+  address     String?
+  description String?
+  logoUrl     String?
   isActive    Boolean        @default(true)
   status      BusinessStatus @default(PENDING)
   createdAt   DateTime       @default(now())

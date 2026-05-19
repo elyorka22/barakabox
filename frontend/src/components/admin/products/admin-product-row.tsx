@@ -73,7 +73,12 @@ function AdminProductRowInner({
           <span className="text-[10px] font-medium text-slate-500">O&apos;chirilgan</span>
         ) : null}
       </td>
-      <td className="hidden whitespace-nowrap px-2 py-2 text-xs text-slate-600 md:table-cell">
+      <td className="hidden max-w-[140px] px-2 py-2 text-xs text-slate-600 md:table-cell">
+        <span className="line-clamp-2" title={product.business?.displayName}>
+          {product.business?.displayName ?? '—'}
+        </span>
+      </td>
+      <td className="hidden whitespace-nowrap px-2 py-2 text-xs text-slate-600 lg:table-cell">
         {product.category?.name ?? '—'}
       </td>
       <td className="whitespace-nowrap px-2 py-2 text-right text-sm tabular-nums text-slate-800">

@@ -1,10 +1,20 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { UsersService, staffEmailFromLogin } from '../users/users.service';
+import { BusinessDashboardService } from './business-dashboard.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class BusinessesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly usersService: UsersService,
+    private readonly dashboardService: BusinessDashboardService,
+  ) {}
 
   async registerBusiness(userId: string, displayName: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -28,7 +38,7 @@ export class BusinessesService {
 
   listApproved() {
     return this.prisma.businessProfile.findMany({
-      where: { status: 'APPROVED' },
+      where: { status: 'APPROVED', isActive: true },
       include: { user: true },
       orderBy: { createdAt: 'desc' },
     });
@@ -38,6 +48,71 @@ export class BusinessesService {
     return this.prisma.businessProfile.findMany({
       include: { user: true },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async createStoreByAdmin(data: {
+    name: string;
+    phone: string;
+    login: string;
+    password: string;
+    address?: string;
+    description?: string;
+    logoUrl?: string;
+  }) {
+    const login = data.login.trim().toLowerCase();
+    const displayName = data.name.trim();
+    const phone = data.phone.trim();
+
+    const existingLogin = await this.usersService.findByStaffLogin(login);
+    if (existingLogin) {
+      throw new ConflictException('Bu login band');
+    }
+    await this.usersService.assertStaffPhoneAvailable(phone);
+
+    const email = staffEmailFromLogin(login);
+    const existingEmail = await this.usersService.findByEmail(email);
+    if (existingEmail) {
+      throw new ConflictException('Bu login band');
+    }
+
+    const passwordHash = await bcrypt.hash(data.password, 10);
+
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email,
+          fullName: displayName,
+          role: 'BUSINESS',
+          passwordHash,
+          staffLogin: login,
+          phone,
+          isActive: true,
+        },
+      });
+      return tx.businessProfile.create({
+        data: {
+          userId: user.id,
+          displayName,
+          phone,
+          address: data.address?.trim() || null,
+          description: data.description?.trim() || null,
+          logoUrl: data.logoUrl?.trim() || null,
+          status: 'APPROVED',
+          isActive: true,
+        },
+        include: { user: true },
+      });
+    });
+  }
+
+  /** @deprecated Use createStoreByAdmin */
+  async createInlineByAdmin(data: { name: string; phone?: string }) {
+    return this.createStoreByAdmin({
+      name: data.name,
+      phone: data.phone?.trim() || '900000000',
+      login: `store-${Date.now()}`,
+      password: 'change-me-123',
     });
   }
 
@@ -53,89 +128,87 @@ export class BusinessesService {
     });
   }
 
-  async createInlineByAdmin(data: { name: string; phone?: string }) {
-    const emailPrefix = data.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'business';
-    const email = `${emailPrefix}-${Date.now()}@barakabox.local`;
-    const passwordHash = await bcrypt.hash('change-me-123', 10);
-    return this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: {
-          email,
-          fullName: data.name.trim(),
-          role: 'BUSINESS',
-          passwordHash,
-        },
-      });
-      return tx.businessProfile.create({
-        data: {
-          userId: user.id,
-          displayName: data.name.trim(),
-          phone: data.phone?.trim() || null,
-          status: 'APPROVED',
-          isActive: true,
-        },
-        include: { user: true },
-      });
-    });
-  }
-
-  updateByAdmin(id: string, data: { displayName?: string; phone?: string; isActive?: boolean }) {
+  updateByAdmin(
+    id: string,
+    data: {
+      displayName?: string;
+      phone?: string | null;
+      address?: string | null;
+      description?: string | null;
+      logoUrl?: string | null;
+      isActive?: boolean;
+      status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DISABLED';
+    },
+  ) {
     return this.prisma.businessProfile.update({
       where: { id },
-      data,
+      data: {
+        ...(data.displayName !== undefined ? { displayName: data.displayName } : {}),
+        ...(data.phone !== undefined ? { phone: data.phone } : {}),
+        ...(data.address !== undefined ? { address: data.address } : {}),
+        ...(data.description !== undefined ? { description: data.description } : {}),
+        ...(data.logoUrl !== undefined ? { logoUrl: data.logoUrl } : {}),
+        ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
+        ...(data.status !== undefined ? { status: data.status } : {}),
+      },
+      include: { user: true },
     });
   }
 
   removeByAdmin(id: string) {
     return this.prisma.businessProfile.update({
       where: { id },
-      data: { isActive: false },
+      data: { isActive: false, status: 'DISABLED' },
     });
   }
 
   approve(businessId: string) {
     return this.prisma.businessProfile.update({
       where: { id: businessId },
-      data: { status: 'APPROVED' },
+      data: { status: 'APPROVED', isActive: true },
     });
   }
 
-  async getMyStats(userId: string) {
-    const business = await this.prisma.businessProfile.findUnique({
-      where: { userId },
+  reject(businessId: string) {
+    return this.prisma.businessProfile.update({
+      where: { id: businessId },
+      data: { status: 'REJECTED', isActive: false },
     });
-    if (!business) {
-      throw new ForbiddenException('Business profile not found');
-    }
+  }
 
-    const [totalProducts, activeProducts, stockAgg, soldAgg, completedItems, ordersCount] = await Promise.all([
-      this.prisma.product.count({ where: { businessId: business.id } }),
-      this.prisma.product.count({ where: { businessId: business.id, isActive: true } }),
-      this.prisma.product.aggregate({ where: { businessId: business.id }, _sum: { stockQuantity: true } }),
-      this.prisma.orderItem.aggregate({
-        where: { product: { businessId: business.id }, order: { status: 'DELIVERED' } },
-        _sum: { quantity: true },
-      }),
-      this.prisma.orderItem.findMany({
-        where: { product: { businessId: business.id }, order: { status: 'DELIVERED' } },
-        select: { quantity: true, price: true },
-      }),
-      this.prisma.order.count({
-        where: { status: 'DELIVERED', items: { some: { product: { businessId: business.id } } } },
-      }),
-    ]);
+  getDashboard(userId: string) {
+    return this.dashboardService.getDashboard(userId);
+  }
 
-    const totalRevenue = completedItems.reduce((sum, item) => {
-      return sum + Number(item.price) * item.quantity;
-    }, 0);
+  getMyProfile(userId: string) {
+    return this.dashboardService.getProfile(userId);
+  }
 
+  updateMyProfile(
+    userId: string,
+    data: {
+      displayName?: string;
+      phone?: string | null;
+      address?: string | null;
+      description?: string | null;
+      logoUrl?: string | null;
+    },
+  ) {
+    return this.dashboardService.updateProfile(userId, data);
+  }
+
+  async getMyStats(userId: string) {
+    const dash = await this.dashboardService.getDashboard(userId);
     return {
-      totalProducts,
-      activeProducts,
-      totalStock: stockAgg._sum.stockQuantity ?? 0,
-      soldUnits: soldAgg._sum.quantity ?? 0,
-      totalRevenue,
-      completedOrders: ordersCount,
+      totalProducts: dash.kpis.totalProducts,
+      activeProducts: dash.kpis.activeProducts,
+      totalStock: 0,
+      soldUnits: 0,
+      totalRevenue: dash.kpis.totalRevenue,
+      completedOrders: dash.kpis.completedOrders,
+      todayOrders: dash.kpis.todayOrders,
+      todayRevenue: dash.kpis.todayRevenue,
+      pendingOrders: dash.kpis.pendingOrders,
     };
   }
 }

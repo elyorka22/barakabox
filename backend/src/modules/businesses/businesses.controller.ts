@@ -4,6 +4,8 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { BusinessesService } from './businesses.service';
+import { CreateBusinessStoreDto } from './dto/create-business-store.dto';
+import { UpdateBusinessByAdminDto, UpdateBusinessProfileDto } from './dto/update-business-profile.dto';
 
 @Controller('businesses')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -14,6 +16,24 @@ export class BusinessesController {
   @Roles('BUSINESS')
   register(@CurrentUser() user: { sub: string }, @Body() body: { displayName: string }) {
     return this.businessesService.registerBusiness(user.sub, body.displayName);
+  }
+
+  @Get('dashboard')
+  @Roles('BUSINESS')
+  dashboard(@CurrentUser() user: { sub: string }) {
+    return this.businessesService.getDashboard(user.sub);
+  }
+
+  @Get('me')
+  @Roles('BUSINESS')
+  me(@CurrentUser() user: { sub: string }) {
+    return this.businessesService.getMyProfile(user.sub);
+  }
+
+  @Patch('me')
+  @Roles('BUSINESS')
+  updateMe(@CurrentUser() user: { sub: string }, @Body() body: UpdateBusinessProfileDto) {
+    return this.businessesService.updateMyProfile(user.sub, body);
   }
 
   @Get('pending')
@@ -34,10 +54,10 @@ export class BusinessesController {
     return this.businessesService.listAll();
   }
 
-  @Post()
+  @Post('store')
   @Roles('ADMIN')
-  createByAdmin(@Body() body: { userId: string; displayName: string; phone?: string }) {
-    return this.businessesService.createByAdmin(body);
+  createStore(@Body() body: CreateBusinessStoreDto) {
+    return this.businessesService.createStoreByAdmin(body);
   }
 
   @Post('inline')
@@ -48,7 +68,7 @@ export class BusinessesController {
 
   @Patch(':businessId')
   @Roles('ADMIN')
-  updateByAdmin(@Param('businessId') businessId: string, @Body() body: { displayName?: string; phone?: string; isActive?: boolean }) {
+  updateByAdmin(@Param('businessId') businessId: string, @Body() body: UpdateBusinessByAdminDto) {
     return this.businessesService.updateByAdmin(businessId, body);
   }
 
@@ -62,6 +82,12 @@ export class BusinessesController {
   @Roles('ADMIN')
   approve(@Param('businessId') businessId: string) {
     return this.businessesService.approve(businessId);
+  }
+
+  @Patch(':businessId/reject')
+  @Roles('ADMIN')
+  reject(@Param('businessId') businessId: string) {
+    return this.businessesService.reject(businessId);
   }
 
   @Get('my-stats')

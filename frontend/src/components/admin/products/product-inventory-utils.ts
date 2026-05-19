@@ -23,6 +23,7 @@ export type AdminInventoryProduct = {
   businessId: string;
   categoryId?: string | null;
   category?: { id: string; name: string } | null;
+  business?: { id: string; displayName: string } | null;
   imageThumbUrl?: string | null;
   imageCardUrl?: string | null;
   imageUrl?: string | null;

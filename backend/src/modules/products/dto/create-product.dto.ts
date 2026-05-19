@@ -65,9 +65,10 @@ class ProductVariantDto {
 }
 
 export class CreateProductDto {
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  businessId!: string;
+  businessId?: string;
 
   @IsString()
   @IsNotEmpty()

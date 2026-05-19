@@ -69,7 +69,8 @@ function AdminProductsTableInner({
               <th className="px-2 py-2.5">ID</th>
               <th className="px-2 py-2.5">Rasm</th>
               <th className="px-2 py-2.5">Nomi</th>
-              <th className="hidden px-2 py-2.5 md:table-cell">Kategoriya</th>
+              <th className="hidden px-2 py-2.5 md:table-cell">Biznes</th>
+              <th className="hidden px-2 py-2.5 lg:table-cell">Kategoriya</th>
               <th className="px-2 py-2.5 text-right">Narx</th>
               <th className="px-2 py-2.5 text-right">Qoldiq</th>
               <th className="hidden px-2 py-2.5 lg:table-cell">SKU</th>

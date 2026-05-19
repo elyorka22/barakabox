@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -22,8 +22,15 @@ export class ProductsController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  create(@Body() body: CreateProductDto) {
+  @Roles('ADMIN', 'BUSINESS')
+  create(@CurrentUser() user: AuthUser, @Body() body: CreateProductDto) {
+    const r = (user.role ?? '').toUpperCase();
+    if (r === 'BUSINESS') {
+      return this.productsService.createByBusinessOwner(user.sub, body);
+    }
+    if (!body.businessId) {
+      throw new BadRequestException('businessId required');
+    }
     return this.productsService.createByAdmin(body.businessId, body);
   }
 
@@ -38,6 +45,7 @@ export class ProductsController {
     @Query('includeInactive') includeInactive?: string,
     @Query('stockFilter') stockFilter?: string,
     @Query('sortBy') sortBy?: string,
+    @Query('businessId') businessId?: string,
   ) {
     const allowedStock = new Set(['all', 'in_stock', 'low', 'out']);
     const allowedSort = new Set(['newest', 'stock_asc', 'stock_desc', 'price_asc', 'price_desc']);
@@ -49,6 +57,7 @@ export class ProductsController {
       includeInactive: includeInactive === '1' || includeInactive === 'true',
       stockFilter: allowedStock.has(stockFilter ?? '') ? (stockFilter as 'all' | 'in_stock' | 'low' | 'out') : 'all',
       sortBy: allowedSort.has(sortBy ?? '') ? (sortBy as 'newest' | 'stock_asc' | 'stock_desc' | 'price_asc' | 'price_desc') : 'newest',
+      businessId: businessId && businessId !== 'ALL' ? businessId : undefined,
     });
   }
 

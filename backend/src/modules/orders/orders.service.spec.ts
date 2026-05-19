@@ -16,6 +16,7 @@ describe('OrdersService transitions', () => {
       {} as never,
       {} as never,
       { get: jest.fn() } as never,
+      {} as never,
     );
     return { service, prisma };
   };
