@@ -31,3 +31,9 @@ export function resolveVariantImageUrl(
 export function resolveProductImageUrl(product: ProductImageFields | null | undefined): string {
   return resolveVariantImageUrl(null, product);
 }
+
+/** Unified white product image surface (cards, sheet, cart). */
+export const PRODUCT_IMAGE_SURFACE_CLASS = 'bg-white';
+
+export const PRODUCT_IMAGE_FALLBACK_CLASS =
+  'flex h-full w-full items-center justify-center bg-white text-slate-300';

@@ -7,7 +7,11 @@ import { SafeImage } from '@/components/safe-image';
 import { formatMoneyUz } from '@/lib/format';
 import type { CartItem } from '@/lib/cart-store';
 import { adjustCart, deleteCartLine } from '@/lib/cart-store';
-import { resolveVariantImageUrl } from '@/lib/product-image';
+import {
+  PRODUCT_IMAGE_FALLBACK_CLASS,
+  PRODUCT_IMAGE_SURFACE_CLASS,
+  resolveVariantImageUrl,
+} from '@/lib/product-image';
 import {
   DEFAULT_PRODUCT_UNIT,
   PRODUCT_UNIT_LABEL_UZ,
@@ -73,16 +77,18 @@ export function CartLineCard({ item }: CartLineCardProps) {
   };
 
   return (
-    <article className="overflow-hidden rounded-2xl bg-white shadow-[0_2px_12px_rgba(15,23,42,0.05)] ring-1 ring-slate-100/80">
-      <div className="flex gap-3 p-3">
-        <div className="relative h-[4.25rem] w-[4.25rem] shrink-0 overflow-hidden rounded-xl bg-[#fafafa] ring-1 ring-slate-100">
+    <article className="overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgba(15,23,42,0.05)]">
+      <div className="flex gap-2.5 p-2.5">
+        <div
+          className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-xl ${PRODUCT_IMAGE_SURFACE_CLASS}`}
+        >
           <SafeImage
             src={imageSrc || undefined}
             alt={title}
             loading="lazy"
             decoding="async"
-            className="h-full w-full object-contain p-1"
-            fallbackClassName="flex h-full w-full items-center justify-center bg-[#fafafa] text-[10px] text-slate-400"
+            className="h-full w-full object-contain p-0.5"
+            fallbackClassName={PRODUCT_IMAGE_FALLBACK_CLASS}
           />
         </div>
 

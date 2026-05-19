@@ -11,7 +11,11 @@ import {
   resolveSellingMode,
 } from '@onlinebozor/product-units';
 import { SafeImage } from '@/components/safe-image';
-import { resolveVariantImageUrl } from '@/lib/product-image';
+import {
+  PRODUCT_IMAGE_FALLBACK_CLASS,
+  PRODUCT_IMAGE_SURFACE_CLASS,
+  resolveVariantImageUrl,
+} from '@/lib/product-image';
 import { useProductSheet } from '@/lib/product-sheet-context';
 import { useCartQuantity } from '@/lib/use-cart-store';
 import { ProductCardCartControl } from '@/components/product-card/product-card-cart-control';
@@ -152,8 +156,8 @@ function ProductCardBase({
 
   return (
     <article
-      className={`product-card flex h-full flex-col overflow-hidden rounded-[18px] bg-white shadow-[0_2px_10px_rgba(0,0,0,0.05)] transition-shadow duration-200 ${
-        inCart ? 'ring-2 ring-[#22c55e]/35' : 'ring-1 ring-black/[0.04]'
+      className={`product-card flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.05)] transition-shadow duration-200 ${
+        inCart ? 'ring-2 ring-[#22c55e]/30' : ''
       }`}
     >
       <button
@@ -163,7 +167,7 @@ function ProductCardBase({
       >
         {activeVariant ? (
           <div
-            className="relative aspect-square w-full shrink-0 overflow-hidden bg-[#fafafa]"
+            className={`relative aspect-square w-full shrink-0 overflow-hidden ${PRODUCT_IMAGE_SURFACE_CLASS}`}
             onTouchStart={(e) => {
               e.stopPropagation();
               setTouchStartX(e.changedTouches[0]?.clientX ?? null);
@@ -173,7 +177,9 @@ function ProductCardBase({
               handleTouchEnd(e.changedTouches[0]?.clientX ?? 0);
             }}
           >
-            {!imageLoaded ? <div className="absolute inset-0 bg-[#f5f5f5]" /> : null}
+            {!imageLoaded ? (
+              <div className={`absolute inset-0 animate-pulse ${PRODUCT_IMAGE_SURFACE_CLASS}`} />
+            ) : null}
             <div
               className="flex h-full w-full transition-transform duration-300 ease-out"
               style={{ transform: `translateX(-${activeVariantIndex * 100}%)` }}
@@ -181,7 +187,7 @@ function ProductCardBase({
               {effectiveVariants.map((variant) => {
                 const src = resolveVariantImageUrl(variant, productImages);
                 return (
-                  <div key={variant.id} className="flex h-full min-w-full items-center justify-center p-1.5">
+                  <div key={variant.id} className="flex h-full min-w-full items-center justify-center p-1">
                     <SafeImage
                       src={src || undefined}
                       alt={variant.flavor || name}
@@ -190,7 +196,7 @@ function ProductCardBase({
                       className={`max-h-full max-w-full object-contain transition-opacity duration-300 ${
                         imageLoaded ? 'opacity-100' : 'opacity-0'
                       }`}
-                      fallbackClassName="flex h-full w-full items-center justify-center bg-[#fafafa]"
+                      fallbackClassName={PRODUCT_IMAGE_FALLBACK_CLASS}
                       onReady={() => setImageLoaded(true)}
                     />
                   </div>
@@ -215,13 +221,13 @@ function ProductCardBase({
             </div>
           </div>
         ) : (
-          <div className="aspect-square shrink-0 bg-[#fafafa]" />
+          <div className={`aspect-square shrink-0 ${PRODUCT_IMAGE_SURFACE_CLASS}`} />
         )}
 
-        <div className="flex flex-1 flex-col px-2 pb-2 pt-1.5">
-          <h3 className="line-clamp-2 text-[13px] font-bold leading-[1.12] text-[#111827]">{name}</h3>
+        <div className="flex flex-1 flex-col px-2 pb-1.5 pt-1">
+          <h3 className="line-clamp-2 text-[12px] font-bold leading-tight text-[#111827]">{name}</h3>
           {subtitleLine ? (
-            <p className="mt-0.5 line-clamp-1 text-[10px] font-medium text-[#9ca3af]">{subtitleLine}</p>
+            <p className="mt-px line-clamp-1 text-[10px] text-[#9ca3af]">{subtitleLine}</p>
           ) : null}
 
           <ProductCardFooter

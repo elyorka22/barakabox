@@ -23,14 +23,14 @@ function ProductCardFooterBase({
 }: Props) {
   if (inCart) {
     return (
-      <div className="mt-1.5 min-h-[2.25rem]">
+      <div className="mt-1 min-h-[1.5rem]">
         <p
           key={quantityLabel}
-          className="product-card-qty-label truncate text-[12px] font-semibold leading-tight text-[#22c55e]"
+          className="product-card-qty-label truncate text-[11px] font-semibold leading-tight text-[#22c55e]"
         >
           {quantityLabel}
         </p>
-        <p className="mt-0.5 truncate text-[15px] font-bold leading-none tabular-nums text-[#111827]">
+        <p className="mt-px truncate text-[14px] font-bold leading-none tabular-nums text-[#111827]">
           {formatMoneyUz(lineTotal)}
         </p>
       </div>
@@ -42,11 +42,11 @@ function ProductCardFooterBase({
 
   if (hasDiscount) {
     return (
-      <div className="mt-1 min-h-[2.25rem]">
+      <div className="mt-0.5 min-h-[1.5rem]">
         <p className="text-[10px] font-medium leading-none text-[#9ca3af] line-through">
           {formatMoneyUz(basePrice)}
         </p>
-        <p className="mt-0.5 truncate text-[15px] font-bold leading-none tabular-nums text-[#111827]">
+        <p className="mt-px truncate text-[14px] font-bold leading-none tabular-nums text-[#111827]">
           {formatMoneyUz(salePrice)}
           <span className="ml-0.5 text-[10px] font-medium text-[#9ca3af]">/ {unitSuffix}</span>
         </p>
@@ -55,7 +55,7 @@ function ProductCardFooterBase({
   }
 
   return (
-    <p className="mt-1 min-h-[2.25rem] truncate text-[15px] font-bold leading-tight tabular-nums text-[#111827]">
+    <p className="mt-0.5 min-h-[1.5rem] truncate text-[14px] font-bold leading-tight tabular-nums text-[#111827]">
       {formatMoneyUz(basePrice)}
       <span className="ml-0.5 text-[10px] font-medium text-[#9ca3af]">/ {unitSuffix}</span>
     </p>
