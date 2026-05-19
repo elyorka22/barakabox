@@ -12,6 +12,7 @@ import {
   resolveSellingMode,
 } from '@onlinebozor/product-units';
 import { SafeImage } from '@/components/safe-image';
+import { resolveVariantImageUrl } from '@/lib/product-image';
 import { useCartQuantity } from '@/lib/use-cart-store';
 import { ProductCardCartControl } from '@/components/product-card/product-card-cart-control';
 import { ProductCardFooter } from '@/components/product-card/product-card-footer';
@@ -37,6 +38,8 @@ export type ProductCardProps = {
   variants?: Variant[];
   href?: string;
   imageUrl?: string | null;
+  imageCardUrl?: string | null;
+  imageThumbUrl?: string | null;
   cashbackType?: string | null;
   cashbackValue?: number | null;
 };
@@ -51,7 +54,11 @@ function ProductCardBase({
   categoryName,
   href,
   variants,
+  imageUrl: productImageUrl,
+  imageCardUrl,
+  imageThumbUrl,
 }: ProductCardProps) {
+  const productImages = { imageUrl: productImageUrl, imageCardUrl, imageThumbUrl };
   const unitType = normalizeIncomingProductUnit(unitProp) ?? DEFAULT_PRODUCT_UNIT;
   const sellingMode = resolveSellingMode({ sellingMode: sellingModeProp, unit: unitProp ?? unitType });
   const effectiveVariants = variants ?? EMPTY_VARIANTS;
@@ -129,21 +136,24 @@ function ProductCardBase({
               className="flex h-full w-full transition-transform duration-300 ease-out"
               style={{ transform: `translateX(-${activeVariantIndex * 100}%)` }}
             >
-              {effectiveVariants.map((variant) => (
-                <div key={variant.id} className="flex h-full min-w-full items-center justify-center p-2">
-                  <SafeImage
-                    src={variant.imageUrl ?? undefined}
-                    alt={variant.flavor || name}
-                    loading="lazy"
-                    decoding="async"
-                    className={`max-h-full max-w-full object-contain transition-opacity duration-300 ${
-                      imageLoaded ? 'opacity-100' : 'opacity-0'
-                    }`}
-                    fallbackClassName="h-full w-full bg-[#fafafa]"
-                    onLoad={() => setImageLoaded(true)}
-                  />
-                </div>
-              ))}
+              {effectiveVariants.map((variant) => {
+                const src = resolveVariantImageUrl(variant, productImages);
+                return (
+                  <div key={variant.id} className="flex h-full min-w-full items-center justify-center p-2">
+                    <SafeImage
+                      src={src || undefined}
+                      alt={variant.flavor || name}
+                      loading="lazy"
+                      decoding="async"
+                      className={`max-h-full max-w-full object-contain transition-opacity duration-300 ${
+                        imageLoaded ? 'opacity-100' : 'opacity-0'
+                      }`}
+                      fallbackClassName="flex h-full w-full items-center justify-center bg-[#fafafa]"
+                      onReady={() => setImageLoaded(true)}
+                    />
+                  </div>
+                );
+              })}
             </div>
 
             {activeDiscountPrice ? (
@@ -219,6 +229,9 @@ function arePropsEqual(prev: ProductCardProps, next: ProductCardProps): boolean 
   if ((prev.sellingMode ?? '') !== (next.sellingMode ?? '')) return false;
   if ((prev.subtitle ?? '') !== (next.subtitle ?? '')) return false;
   if ((prev.categoryName ?? '') !== (next.categoryName ?? '')) return false;
+  if ((prev.imageUrl ?? '') !== (next.imageUrl ?? '')) return false;
+  if ((prev.imageCardUrl ?? '') !== (next.imageCardUrl ?? '')) return false;
+  if ((prev.imageThumbUrl ?? '') !== (next.imageThumbUrl ?? '')) return false;
   return areVariantsEqual(prev.variants, next.variants);
 }
 

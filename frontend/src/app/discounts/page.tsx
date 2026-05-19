@@ -121,6 +121,7 @@ export default function DiscountsPage() {
                 }))}
                 href={`/products/${product.id}`}
                 imageUrl={product.imageCardUrl ?? product.imageUrl}
+                imageCardUrl={product.imageCardUrl}
                 cashbackType={product.cashbackType ?? undefined}
                 cashbackValue={product.cashbackValue ?? undefined}
               />

@@ -9,6 +9,7 @@ import { formatMoneyUz } from '@/lib/format';
 import { SafeImage } from '@/components/safe-image';
 import { QuantitySelector } from '@/components/quantity-selector';
 import { incrementCart } from '@/lib/cart-store';
+import { resolveVariantImageUrl } from '@/lib/product-image';
 import {
   DEFAULT_PRODUCT_UNIT,
   PRODUCT_UNIT_LABEL_UZ,
@@ -26,6 +27,8 @@ type Product = {
   name: string;
   price: string;
   imageUrl?: string | null;
+  imageCardUrl?: string | null;
+  imageThumbUrl?: string | null;
   unit?: string | null;
   unitType?: string | null;
   sellingMode?: string | null;
@@ -43,9 +46,8 @@ export default function ProductDetailClientPage() {
   const params = useParams<{ id: string }>();
   const [product, setProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(() => getSellingModeMin('piece'));
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageReady, setImageReady] = useState(false);
   const [variantIndex, setVariantIndex] = useState(0);
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -65,22 +67,14 @@ export default function ProductDetailClientPage() {
     setQuantity(getSellingModeMin(resolveSellingMode(product)));
   }, [product?.id, product]);
 
-  useEffect(() => {
-    setImageLoaded(false);
-  }, [activeVariant?.id, activeVariant?.imageUrl, product?.imageUrl]);
+  const imageSrc = useMemo(
+    () => resolveVariantImageUrl(activeVariant, product),
+    [activeVariant, product],
+  );
 
-  const handleTouchEnd = (touchEndX: number) => {
-    if (touchStartX === null || variants.length <= 1) return;
-    const diff = touchStartX - touchEndX;
-    if (Math.abs(diff) < 30) {
-      setTouchStartX(null);
-      return;
-    }
-    setVariantIndex((i) =>
-      Math.max(0, Math.min(i + (diff > 0 ? 1 : -1), variants.length - 1)),
-    );
-    setTouchStartX(null);
-  };
+  useEffect(() => {
+    setImageReady(false);
+  }, [imageSrc, activeVariant?.id]);
 
   const basePrice = Number(activeVariant?.price ?? product?.price ?? 0);
   const salePrice =
@@ -100,15 +94,12 @@ export default function ProductDetailClientPage() {
   const quantityStep = getSellingModeStep(sellingMode);
   const quantityLabel = formatSellingModeQuantity(quantity, sellingMode, saleUnit);
   const outOfStock = (activeVariant?.stock ?? 0) <= 0;
-
   const unitHint = formatSellingModeQuantity(quantityMin, sellingMode, saleUnit);
 
   const addToCart = () => {
     if (!product || !activeVariant?.id || outOfStock) return;
     incrementCart(activeVariant.id, product.id, quantity);
   };
-
-  const imageSrc = activeVariant?.imageUrl ?? product?.imageUrl;
 
   return (
     <main className="min-h-dvh bg-white pb-[calc(5.5rem+env(safe-area-inset-bottom))]">
@@ -123,47 +114,23 @@ export default function ProductDetailClientPage() {
       </header>
 
       <div className="px-4">
-        {imageSrc ? (
-          <div
-            className="relative mx-auto flex max-h-[40vh] min-h-[200px] w-full items-center justify-center py-4"
-            onTouchStart={(e) => setTouchStartX(e.changedTouches[0]?.clientX ?? null)}
-            onTouchEnd={(e) => handleTouchEnd(e.changedTouches[0]?.clientX ?? 0)}
-          >
-            {!imageLoaded ? <div className="absolute inset-0 animate-pulse bg-[#fafafa]" /> : null}
-            {variants.length > 1 ? (
-              <div
-                className="flex h-full w-full transition-transform duration-300 ease-out"
-                style={{ transform: `translateX(-${variantIndex * 100}%)` }}
-              >
-                {variants.map((v) => (
-                  <div key={v.id} className="flex min-w-full items-center justify-center">
-                    <SafeImage
-                      src={v.imageUrl ?? undefined}
-                      alt={product?.name ?? ''}
-                      className={`max-h-[36vh] w-auto max-w-full object-contain transition-opacity duration-300 ${
-                        imageLoaded ? 'opacity-100' : 'opacity-0'
-                      }`}
-                      fallbackClassName="h-48 w-full bg-[#fafafa]"
-                      onLoad={() => setImageLoaded(true)}
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <SafeImage
-                src={imageSrc}
-                alt={product?.name ?? ''}
-                className={`max-h-[36vh] w-auto max-w-full object-contain transition-opacity duration-300 ${
-                  imageLoaded ? 'opacity-100' : 'opacity-0'
-                }`}
-                fallbackClassName="h-48 w-full bg-[#fafafa]"
-                onLoad={() => setImageLoaded(true)}
-              />
-            )}
-          </div>
-        ) : (
-          <div className="mx-auto flex h-48 w-full items-center justify-center bg-[#fafafa]" />
-        )}
+        <div className="relative mx-auto mb-2 aspect-square w-full max-w-[min(100%,340px)] overflow-hidden rounded-2xl bg-[#fafafa]">
+          {!imageReady ? (
+            <div className="pointer-events-none absolute inset-0 z-[1] animate-pulse bg-[#f5f5f5]" />
+          ) : null}
+          <SafeImage
+            key={imageSrc || activeVariant?.id || product?.id}
+            src={imageSrc || undefined}
+            alt={product?.name ?? 'Mahsulot'}
+            loading="eager"
+            decoding="async"
+            className={`h-full w-full object-contain p-3 transition-opacity duration-300 ${
+              imageReady ? 'opacity-100' : 'opacity-0'
+            }`}
+            fallbackClassName="flex h-full w-full items-center justify-center bg-[#fafafa]"
+            onReady={() => setImageReady(true)}
+          />
+        </div>
 
         {variants.length > 1 ? (
           <div className="bb-scrollbar-hide -mx-1 mb-3 flex gap-1.5 overflow-x-auto px-1">

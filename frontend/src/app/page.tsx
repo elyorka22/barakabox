@@ -22,6 +22,7 @@ type Product = {
   categoryId?: string | null;
   imageUrl?: string | null;
   imageCardUrl?: string | null;
+  imageThumbUrl?: string | null;
   cashbackType?: string | null;
   cashbackValue?: number | null;
   variants?: Array<{
@@ -301,6 +302,8 @@ export default function Home() {
                 }))}
                 href={`/products/${product.id}`}
                 imageUrl={product.imageCardUrl ?? product.imageUrl}
+                imageCardUrl={product.imageCardUrl}
+                imageThumbUrl={product.imageThumbUrl}
                 cashbackType={product.cashbackType ?? undefined}
                 cashbackValue={product.cashbackValue ?? undefined}
               />
@@ -337,6 +340,8 @@ export default function Home() {
                 }))}
                 href={`/products/${product.id}`}
                 imageUrl={product.imageCardUrl ?? product.imageUrl}
+                imageCardUrl={product.imageCardUrl}
+                imageThumbUrl={product.imageThumbUrl}
                 cashbackType={product.cashbackType ?? undefined}
                 cashbackValue={product.cashbackValue ?? undefined}
               />

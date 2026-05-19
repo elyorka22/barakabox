@@ -146,6 +146,7 @@ export default function CategoryProductsClientPage() {
                   }))}
                   href={`/products/${item.id}`}
                   imageUrl={item.imageCardUrl ?? item.imageUrl}
+                  imageCardUrl={item.imageCardUrl}
                   cashbackType={item.cashbackType ?? undefined}
                   cashbackValue={item.cashbackValue ?? undefined}
                 />

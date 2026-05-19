@@ -1,26 +1,33 @@
 import { normalizeAssetUrl } from '@/lib/asset-url';
 
-export type ProductImageSource = {
-  imageThumbUrl?: string | null;
+export type ProductImageFields = {
   imageUrl?: string | null;
   imageCardUrl?: string | null;
-  variants?: Array<{ imageUrl?: string | null }> | null;
+  imageThumbUrl?: string | null;
 };
 
-/** Resolve best display URL: product assets first, then first variant image. */
-export function resolveProductImageUrl(product: ProductImageSource): string {
+export type VariantImageFields = {
+  imageUrl?: string | null;
+};
+
+/** Resolve best display URL: variant → card → main → thumb. */
+export function resolveVariantImageUrl(
+  variant: VariantImageFields | null | undefined,
+  product: ProductImageFields | null | undefined,
+): string {
   const candidates = [
-    product.imageThumbUrl,
-    product.imageCardUrl,
-    product.imageUrl,
+    variant?.imageUrl,
+    product?.imageCardUrl,
+    product?.imageUrl,
+    product?.imageThumbUrl,
   ];
   for (const raw of candidates) {
-    const trimmed = raw?.trim();
-    if (trimmed) return normalizeAssetUrl(trimmed);
-  }
-  for (const variant of product.variants ?? []) {
-    const trimmed = variant.imageUrl?.trim();
-    if (trimmed) return normalizeAssetUrl(trimmed);
+    const url = normalizeAssetUrl(raw);
+    if (url) return url;
   }
   return '';
+}
+
+export function resolveProductImageUrl(product: ProductImageFields | null | undefined): string {
+  return resolveVariantImageUrl(null, product);
 }

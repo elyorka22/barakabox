@@ -3,9 +3,11 @@
 import { Trash2 } from 'lucide-react';
 import { CashbackBadge } from '@/components/cashback-badge';
 import { QuantitySelector } from '@/components/quantity-selector';
+import { SafeImage } from '@/components/safe-image';
 import { formatMoneyUz } from '@/lib/format';
 import type { CartItem } from '@/lib/cart-store';
 import { adjustCart, deleteCartLine } from '@/lib/cart-store';
+import { resolveVariantImageUrl } from '@/lib/product-image';
 import {
   DEFAULT_PRODUCT_UNIT,
   PRODUCT_UNIT_LABEL_UZ,
@@ -49,7 +51,7 @@ export function CartLineCard({ item }: CartLineCardProps) {
   const cashbackType = productForCashback?.cashbackType ?? 'NONE';
   const cashbackValue = Number(productForCashback?.cashbackValue ?? 0);
   const discountLabel = item.variant ? discountPercentLabel(baseUnit, unitPrice) : null;
-  const img = item.variant?.imageUrl ?? null;
+  const imageSrc = resolveVariantImageUrl(item.variant, null);
 
   const handleDecrease = () => {
     if (!variantId || !productId) return;
@@ -71,23 +73,28 @@ export function CartLineCard({ item }: CartLineCardProps) {
   };
 
   return (
-    <article className="overflow-hidden rounded-[18px] bg-white shadow-[0_2px_14px_rgba(15,23,42,0.05)] ring-1 ring-slate-100/90 transition-shadow duration-200 active:shadow-[0_4px_18px_rgba(15,23,42,0.07)]">
-      <div className="flex gap-2.5 p-2.5">
-        <div className="relative h-[4.5rem] w-[4.5rem] shrink-0 overflow-hidden rounded-xl bg-slate-50 ring-1 ring-slate-100 sm:h-[5.25rem] sm:w-[5.25rem]">
-          {img ? (
-            <img src={img} alt={title} className="h-full w-full object-cover" loading="lazy" decoding="async" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-[9px] text-slate-400">Rasm</div>
-          )}
+    <article className="overflow-hidden rounded-2xl bg-white shadow-[0_2px_12px_rgba(15,23,42,0.05)] ring-1 ring-slate-100/80">
+      <div className="flex gap-3 p-3">
+        <div className="relative h-[4.25rem] w-[4.25rem] shrink-0 overflow-hidden rounded-xl bg-[#fafafa] ring-1 ring-slate-100">
+          <SafeImage
+            src={imageSrc || undefined}
+            alt={title}
+            loading="lazy"
+            decoding="async"
+            className="h-full w-full object-contain p-1"
+            fallbackClassName="flex h-full w-full items-center justify-center bg-[#fafafa] text-[10px] text-slate-400"
+          />
         </div>
+
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-1.5">
-            <div className="min-w-0">
-              <h3 className="line-clamp-2 text-[13px] font-bold leading-snug text-[#121212]">{title}</h3>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <h3 className="line-clamp-2 text-[14px] font-semibold leading-snug text-[#111827]">
+                {title}
+              </h3>
               {subtitle ? (
-                <p className="mt-0.5 line-clamp-1 text-[10px] font-medium text-slate-500">{subtitle}</p>
+                <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">{subtitle}</p>
               ) : null}
-              <p className="mt-1 text-[11px] font-semibold text-emerald-800">{quantityLabel}</p>
             </div>
             {variantId && productId ? (
               <button
@@ -102,9 +109,9 @@ export function CartLineCard({ item }: CartLineCardProps) {
           </div>
 
           {(discountLabel || (cashbackType !== 'NONE' && cashbackValue > 0)) ? (
-            <div className="mt-1 flex flex-row flex-wrap items-center gap-1">
+            <div className="mt-1.5 flex flex-wrap items-center gap-1">
               {discountLabel ? (
-                <span className="inline-flex rounded-full bg-gradient-to-br from-rose-600 to-rose-700 px-1.5 py-px text-[9px] font-bold leading-tight text-white">
+                <span className="inline-flex rounded-full bg-rose-600 px-1.5 py-px text-[9px] font-bold text-white">
                   {discountLabel}
                 </span>
               ) : null}
@@ -114,33 +121,36 @@ export function CartLineCard({ item }: CartLineCardProps) {
             </div>
           ) : null}
 
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <div className="mt-2 flex items-baseline justify-between gap-2">
             <div className="min-w-0">
               {item.variant && baseUnit > unitPrice ? (
-                <p className="text-[10px] font-medium leading-none text-slate-400 line-through">{formatMoneyUz(baseUnit)}</p>
+                <p className="text-[10px] font-medium text-slate-400 line-through">
+                  {formatMoneyUz(baseUnit)}
+                </p>
               ) : null}
-              <p className="text-[11px] font-semibold tabular-nums leading-tight text-slate-700">
+              <p className="text-[12px] font-medium tabular-nums text-slate-600">
                 {formatMoneyUz(unitPrice)}
-                <span className="ml-0.5 text-[9px] font-medium text-slate-500">/{unitLabel}</span>
+                <span className="ml-0.5 text-[10px] text-slate-400">/{unitLabel}</span>
               </p>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {variantId && productId ? (
-                <QuantitySelector
-                  displayLabel={quantityLabel}
-                  onDecrease={handleDecrease}
-                  onIncrease={handleIncrease}
-                  pending={pending}
-                  size="sm"
-                />
-              ) : (
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
-                  {quantityLabel}
-                </span>
-              )}
-              <p className="text-[13px] font-bold tabular-nums text-[#121212]">{formatMoneyUz(lineTotal)}</p>
-            </div>
+            <p className="shrink-0 text-[15px] font-bold tabular-nums text-[#111827]">
+              {formatMoneyUz(lineTotal)}
+            </p>
           </div>
+
+          {variantId && productId ? (
+            <div className="mt-2.5 flex justify-end">
+              <QuantitySelector
+                variant="cart"
+                displayLabel={quantityLabel}
+                onDecrease={handleDecrease}
+                onIncrease={handleIncrease}
+                pending={pending}
+              />
+            </div>
+          ) : (
+            <p className="mt-2 text-right text-[11px] font-semibold text-slate-600">{quantityLabel}</p>
+          )}
         </div>
       </div>
     </article>
@@ -149,15 +159,14 @@ export function CartLineCard({ item }: CartLineCardProps) {
 
 export function CartLineSkeleton() {
   return (
-    <div className="animate-pulse overflow-hidden rounded-[18px] bg-white p-2.5 shadow-sm ring-1 ring-slate-100">
-      <div className="flex gap-2.5">
-        <div className="h-[4.5rem] w-[4.5rem] shrink-0 rounded-xl bg-slate-100" />
+    <div className="animate-pulse overflow-hidden rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-100">
+      <div className="flex gap-3">
+        <div className="h-[4.25rem] w-[4.25rem] shrink-0 rounded-xl bg-slate-100" />
         <div className="min-w-0 flex-1 space-y-2">
           <div className="h-3.5 w-[70%] rounded bg-slate-100" />
           <div className="h-3 w-[40%] rounded bg-slate-100" />
-          <div className="flex justify-between gap-2 pt-1">
-            <div className="h-6 w-16 rounded bg-slate-100" />
-            <div className="h-7 w-24 rounded-full bg-slate-100" />
+          <div className="flex justify-end pt-1">
+            <div className="h-9 w-28 rounded-full bg-slate-100" />
           </div>
         </div>
       </div>

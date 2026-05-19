@@ -1,13 +1,16 @@
 'use client';
 
 import type { CSSProperties, ImgHTMLAttributes, ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { normalizeAssetUrl } from '@/lib/asset-url';
 
 type SafeImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, 'onError'> & {
   src?: string | null;
   fallback?: ReactNode;
   fallbackClassName?: string;
   fallbackStyle?: CSSProperties;
+  /** Called when image is ready to show (loaded, error, or missing). */
+  onReady?: () => void;
 };
 
 export function SafeImage({
@@ -18,25 +21,35 @@ export function SafeImage({
   fallbackStyle,
   className,
   onLoad,
+  onReady,
   ...rest
 }: SafeImageProps) {
-  const [state, setState] = useState<{ src: string | null | undefined; errored: boolean }>(
-    () => ({ src, errored: false }),
-  );
+  const normalizedSrc = useMemo(() => normalizeAssetUrl(src), [src]);
+  const [state, setState] = useState<{ src: string; errored: boolean }>(() => ({
+    src: normalizedSrc,
+    errored: false,
+  }));
 
-  if (state.src !== src) {
-    setState({ src, errored: false });
+  if (state.src !== normalizedSrc) {
+    setState({ src: normalizedSrc, errored: false });
   }
 
   const errored = state.errored;
+  const showFallback = !normalizedSrc || errored;
 
-  if (!src || errored) {
+  useEffect(() => {
+    if (showFallback) onReady?.();
+  }, [showFallback, onReady]);
+
+  if (showFallback) {
     return (
       <div
-        aria-hidden="true"
+        aria-hidden={alt ? undefined : true}
+        role={alt ? 'img' : undefined}
+        aria-label={alt || undefined}
         className={
           fallbackClassName ??
-          'flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-100 to-emerald-50 text-emerald-500'
+          'flex h-full w-full items-center justify-center bg-gradient-to-br from-emerald-50 to-emerald-100/80 text-emerald-500'
         }
         style={fallbackStyle}
       >
@@ -64,11 +77,17 @@ export function SafeImage({
   return (
     <img
       {...rest}
-      src={src}
+      src={normalizedSrc}
       alt={alt}
       className={className}
-      onLoad={onLoad}
-      onError={() => setState((prev) => ({ ...prev, errored: true }))}
+      onLoad={(e) => {
+        onLoad?.(e);
+        onReady?.();
+      }}
+      onError={() => {
+        setState((prev) => ({ ...prev, errored: true }));
+        onReady?.();
+      }}
     />
   );
 }
