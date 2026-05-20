@@ -17,6 +17,15 @@ describe('OrdersService transitions', () => {
       {} as never,
       { get: jest.fn() } as never,
       {} as never,
+      {
+        getDeliveryQuote: jest.fn().mockResolvedValue({
+          subtotalAmount: 0,
+          deliveryFee: 15000,
+          isFreeDelivery: false,
+          remainingForFreeDelivery: 350000,
+          totalAmount: 15000,
+        }),
+      } as never,
     );
     return { service, prisma };
   };

@@ -1,11 +1,22 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import {
+  calculateDeliveryQuote,
+  defaultDeliverySettings,
+  type DeliveryQuote,
+  type DeliverySettings,
+} from '../../common/delivery/delivery-quote.util';
 
 const SETTINGS_ID = 'global';
+
+export type DeliverySettingsDto = DeliverySettings;
+
+export type DeliveryQuoteDto = DeliveryQuote;
 
 export type PublicSettingsDto = {
   supportTelegramUrl: string | null;
   supportTitle: string | null;
+  delivery: DeliverySettingsDto;
 };
 
 export type HomepageBannerDto = {
@@ -44,15 +55,82 @@ export class SettingsService {
     });
   }
 
+  private mapDeliverySettings(row: {
+    deliveryPrice?: number | null;
+    freeDeliveryEnabled?: boolean | null;
+    freeDeliveryThreshold?: number | null;
+  } | null): DeliverySettingsDto {
+    const defaults = defaultDeliverySettings();
+    if (!row) return defaults;
+    return {
+      deliveryPrice:
+        typeof row.deliveryPrice === 'number' ? row.deliveryPrice : defaults.deliveryPrice,
+      freeDeliveryEnabled:
+        typeof row.freeDeliveryEnabled === 'boolean'
+          ? row.freeDeliveryEnabled
+          : defaults.freeDeliveryEnabled,
+      freeDeliveryThreshold:
+        typeof row.freeDeliveryThreshold === 'number'
+          ? row.freeDeliveryThreshold
+          : defaults.freeDeliveryThreshold,
+    };
+  }
+
+  async getDeliverySettings(): Promise<DeliverySettingsDto> {
+    const row = await this.prisma.siteSettings.findUnique({ where: { id: SETTINGS_ID } });
+    return this.mapDeliverySettings(row);
+  }
+
+  async getDeliveryQuote(subtotalAmount: number): Promise<DeliveryQuoteDto> {
+    const settings = await this.getDeliverySettings();
+    return calculateDeliveryQuote(subtotalAmount, settings);
+  }
+
   async getPublicSettings(): Promise<PublicSettingsDto> {
     const row = await this.prisma.siteSettings.findUnique({ where: { id: SETTINGS_ID } });
     if (!row) {
-      return { supportTelegramUrl: null, supportTitle: null };
+      return {
+        supportTelegramUrl: null,
+        supportTitle: null,
+        delivery: defaultDeliverySettings(),
+      };
     }
     return {
       supportTelegramUrl: row.supportTelegramUrl?.trim() || null,
       supportTitle: row.supportTitle?.trim() || null,
+      delivery: this.mapDeliverySettings(row),
     };
+  }
+
+  async updateDeliverySettings(input: Partial<DeliverySettingsDto>): Promise<DeliverySettingsDto> {
+    await this.ensureRow();
+    const data: Record<string, number | boolean> = {};
+
+    if (input.deliveryPrice !== undefined) {
+      const price = Math.round(Number(input.deliveryPrice));
+      if (!Number.isFinite(price) || price < 0) {
+        throw new BadRequestException('Yetkazish narxi noto‘g‘ri');
+      }
+      data.deliveryPrice = price;
+    }
+
+    if (input.freeDeliveryEnabled !== undefined) {
+      data.freeDeliveryEnabled = Boolean(input.freeDeliveryEnabled);
+    }
+
+    if (input.freeDeliveryThreshold !== undefined) {
+      const threshold = Math.round(Number(input.freeDeliveryThreshold));
+      if (!Number.isFinite(threshold) || threshold < 0) {
+        throw new BadRequestException('Bepul yetkazish chegarasi noto‘g‘ri');
+      }
+      data.freeDeliveryThreshold = threshold;
+    }
+
+    const row = await this.prisma.siteSettings.update({
+      where: { id: SETTINGS_ID },
+      data,
+    });
+    return this.mapDeliverySettings(row);
   }
 
   async updateSupportSettings(input: {
@@ -86,6 +164,7 @@ export class SettingsService {
     return {
       supportTelegramUrl: row.supportTelegramUrl?.trim() || null,
       supportTitle: row.supportTitle?.trim() || null,
+      delivery: this.mapDeliverySettings(row),
     };
   }
 

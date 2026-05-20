@@ -600,6 +600,9 @@ model SiteSettings {
   id                 String   @id @default("global")
   supportTelegramUrl String?
   supportTitle       String?
+  deliveryPrice      Int      @default(15000)
+  freeDeliveryEnabled Boolean @default(true)
+  freeDeliveryThreshold Int   @default(350000)
   updatedAt          DateTime @updatedAt
 }
 

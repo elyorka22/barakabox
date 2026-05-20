@@ -71,7 +71,6 @@ export class OrdersController {
       manualAddress: body?.manualAddress,
       deliveryNote: body?.deliveryNote,
       addressLabel: body?.addressLabel,
-      deliverySpeed: body?.deliverySpeed ?? 'STANDARD',
       cashbackRedeemTiyin: body?.cashbackRedeemTiyin,
       couponCode: body?.couponCode,
     });

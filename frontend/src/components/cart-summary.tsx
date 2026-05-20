@@ -1,6 +1,7 @@
 'use client';
 
 import { formatMoneyUz } from '@/lib/format';
+import type { DeliveryConfig, DeliveryQuote } from '@/lib/delivery-pricing';
 
 export type CartSummaryRow = {
   key: string;
@@ -60,37 +61,34 @@ export function CartSummary({ rows, className = '' }: CartSummaryProps) {
   );
 }
 
-/** Progress line for free standard delivery (not express). */
-export function FreeDeliveryProgressLine(props: {
-  subtotal: number;
-  threshold: number;
-  speed: 'STANDARD' | 'EXPRESS';
+/** Free-delivery progress / success message for cart and checkout. */
+export function DeliveryFreeMessage(props: {
+  quote: DeliveryQuote | null;
+  config: DeliveryConfig | null;
 }) {
-  const { subtotal, threshold, speed } = props;
-  if (speed === 'EXPRESS') {
+  const { quote, config } = props;
+  if (!quote || !config || quote.subtotalAmount <= 0 || !config.freeDeliveryEnabled) {
+    return null;
+  }
+
+  if (quote.isFreeDelivery) {
     return (
-      <p className="rounded-2xl bg-slate-50 px-3 py-2 text-[12px] leading-snug text-slate-600">
-        Tezkor yetkazish — bepul yetkazish chegirmasi qo&apos;llanmaydi.
+      <p className="rounded-xl bg-emerald-50 px-3 py-2 text-[12px] font-medium leading-snug text-emerald-800">
+        Tabriklaymiz! Sizda bepul yetkazib berish mavjud
       </p>
     );
   }
-  if (subtotal <= 0) return null;
-  const left = Math.max(0, threshold - subtotal);
-  const pct = Math.min(100, Math.round((subtotal / threshold) * 100));
-  if (left === 0) {
-    return (
-      <div className="space-y-2">
-        <p className="text-[12px] font-semibold text-emerald-800">Bepul yetkazish shartlari bajarildi</p>
-        <div className="h-2 overflow-hidden rounded-full bg-emerald-100">
-          <div className="h-full w-full rounded-full bg-[#16A34A] transition-all duration-300" />
-        </div>
-      </div>
-    );
-  }
+
+  const pct = Math.min(100, Math.round((quote.subtotalAmount / config.freeDeliveryThreshold) * 100));
+
   return (
     <div className="space-y-2">
       <p className="text-[12px] leading-snug text-slate-600">
-        <span className="font-semibold text-[#121212]">{formatMoneyUz(left)}</span> yetishmaydi bepul yetkazish uchun
+        Yana{' '}
+        <span className="font-semibold text-[#121212]">
+          {formatMoneyUz(quote.remainingForFreeDelivery)}
+        </span>{' '}
+        lik xarid qilsangiz yetkazib berish bepul bo&apos;ladi
       </p>
       <div className="h-2 overflow-hidden rounded-full bg-slate-100">
         <div

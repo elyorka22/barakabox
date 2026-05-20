@@ -12,7 +12,8 @@ import { CartLineCard, CartLineSkeleton } from '@/components/cart-line-card';
 import type { CartSummaryRow } from '@/components/cart-summary';
 import { bootstrapCart } from '@/lib/cart-store';
 import { useCartHydrated, useCartItems } from '@/lib/use-cart-store';
-import { deliveryFeeFor, type DeliverySpeed } from '@/lib/delivery-pricing';
+import { computeDeliveryQuote } from '@/lib/delivery-pricing';
+import { useDeliveryConfig } from '@/hooks/use-delivery-config';
 import { cartCashbackEarnEstimate, cartSubtotal, countCashbackOfferLines } from '@/lib/cart-totals';
 import { useGuestOrderTracking } from '@/hooks/use-guest-order-tracking';
 import { GuestOrderCompletionBanner } from '@/components/order/guest-order-completion-banner';
@@ -28,7 +29,7 @@ export function CartScreen() {
   const hydrated = useCartHydrated();
   const [token, setToken] = useState('');
   const [error, setError] = useState('');
-  const [speed, setSpeed] = useState<DeliverySpeed>('STANDARD');
+  const { config: deliveryConfig } = useDeliveryConfig();
   const guestTracking = useGuestOrderTracking();
 
   useEffect(() => {
@@ -40,8 +41,12 @@ export function CartScreen() {
   }, []);
 
   const subtotal = useMemo(() => cartSubtotal(cartItems), [cartItems]);
-  const delivery = useMemo(() => deliveryFeeFor(speed, subtotal), [speed, subtotal]);
-  const grandTotal = subtotal > 0 ? subtotal + delivery : 0;
+  const deliveryQuote = useMemo(
+    () => (deliveryConfig ? computeDeliveryQuote(subtotal, deliveryConfig) : null),
+    [subtotal, deliveryConfig],
+  );
+  const delivery = deliveryQuote?.deliveryFee ?? 0;
+  const grandTotal = deliveryQuote?.totalAmount ?? (subtotal > 0 ? subtotal + delivery : 0);
   const earnEstimate = useMemo(() => cartCashbackEarnEstimate(cartItems), [cartItems]);
   const cashbackLines = useMemo(() => countCashbackOfferLines(cartItems), [cartItems]);
 
@@ -71,7 +76,7 @@ export function CartScreen() {
 
   const goQuickCheckout = () => {
     setError('');
-    router.push(speed === 'EXPRESS' ? '/checkout?speed=EXPRESS' : '/checkout');
+    router.push('/checkout');
   };
 
   const showSkeleton = !hydrated || !guestTracking.hydrated;
@@ -161,12 +166,12 @@ export function CartScreen() {
       {!empty && !trackingOnly ? (
         <CartBottomSheet
           bottom={NAV_BOTTOM}
-          speed={speed}
-          onSpeedChange={setSpeed}
           subtotal={subtotal}
           grandTotal={grandTotal}
           earnEstimate={earnEstimate}
           summaryRows={summaryRows}
+          deliveryQuote={deliveryQuote}
+          deliveryConfig={deliveryConfig}
           token={token}
           onQuickOrder={goQuickCheckout}
           checkoutDisabled={subtotal <= 0}

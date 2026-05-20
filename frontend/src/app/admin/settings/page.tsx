@@ -5,6 +5,11 @@ import { api, authStorage } from '@/lib/api';
 import { showToast } from '@/lib/toast';
 import { fetchPublicSettings, type PublicSettings } from '@/lib/public-settings';
 import { fetchHomepageBannerAdmin, type HomepageBanner } from '@/lib/homepage-banner';
+import {
+  fetchDeliveryConfig,
+  invalidateDeliveryConfigCache,
+  type DeliveryConfig,
+} from '@/lib/delivery-pricing';
 
 export default function AdminSettingsPage() {
   const token = authStorage.getAccessToken();
@@ -21,6 +26,11 @@ export default function AdminSettingsPage() {
   const [bannerAmount, setBannerAmount] = useState('50000');
   const [bannerColor, setBannerColor] = useState('#F2E5CC');
   const [bannerActive, setBannerActive] = useState(true);
+  const [deliveryLoading, setDeliveryLoading] = useState(true);
+  const [deliverySaving, setDeliverySaving] = useState(false);
+  const [deliveryPrice, setDeliveryPrice] = useState('15000');
+  const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState('350000');
+  const [freeDeliveryEnabled, setFreeDeliveryEnabled] = useState(true);
 
   useEffect(() => {
     if (!token) return;
@@ -76,6 +86,57 @@ export default function AdminSettingsPage() {
       cancelled = true;
     };
   }, [token]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await fetchDeliveryConfig();
+        if (cancelled) return;
+        setDeliveryPrice(String(data.deliveryPrice));
+        setFreeDeliveryThreshold(String(data.freeDeliveryThreshold));
+        setFreeDeliveryEnabled(data.freeDeliveryEnabled);
+      } catch {
+        if (!cancelled) showToast({ type: 'error', message: 'Yetkazish sozlamalarini yuklab bo‘lmadi' });
+      } finally {
+        if (!cancelled) setDeliveryLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const saveDelivery = async () => {
+    if (!token) {
+      showToast({ type: 'error', message: 'Avval tizimga kiring' });
+      return;
+    }
+    setDeliverySaving(true);
+    try {
+      const saved = await api.patch<DeliveryConfig>(
+        '/admin/settings/delivery',
+        {
+          deliveryPrice: Number(deliveryPrice),
+          freeDeliveryThreshold: Number(freeDeliveryThreshold),
+          freeDeliveryEnabled,
+        },
+        token,
+      );
+      setDeliveryPrice(String(saved.deliveryPrice));
+      setFreeDeliveryThreshold(String(saved.freeDeliveryThreshold));
+      setFreeDeliveryEnabled(saved.freeDeliveryEnabled);
+      invalidateDeliveryConfigCache();
+      showToast({ type: 'success', message: 'Yetkazish sozlamalari saqlandi' });
+    } catch (err) {
+      showToast({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Saqlashda xatolik',
+      });
+    } finally {
+      setDeliverySaving(false);
+    }
+  };
 
   const saveBanner = async () => {
     if (!token) return;
@@ -174,6 +235,57 @@ export default function AdminSettingsPage() {
               className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
               {supportSaving ? 'Saqlanmoqda...' : 'Saqlash'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h3 className="text-sm font-semibold">Yetkazish sozlamalari</h3>
+        <p className="mt-1 text-xs text-slate-500">
+          Bitta yetkazish narxi va ixtiyoriy bepul yetkazish chegarasi. Savatcha va checkout shu qoidalarga qarab
+          hisoblanadi.
+        </p>
+        {deliveryLoading ? (
+          <p className="mt-3 text-sm text-slate-500">Yuklanmoqda...</p>
+        ) : (
+          <div className="mt-4 space-y-3">
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Yetkazish narxi (so&apos;m)</span>
+              <input
+                type="number"
+                min={0}
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                value={deliveryPrice}
+                onChange={(e) => setDeliveryPrice(e.target.value)}
+              />
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={freeDeliveryEnabled}
+                onChange={(e) => setFreeDeliveryEnabled(e.target.checked)}
+              />
+              <span className="font-medium text-slate-700">Bepul yetkazish qoidasini yoqish</span>
+            </label>
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Bepul yetkazish chegarasi (so&apos;m)</span>
+              <input
+                type="number"
+                min={0}
+                disabled={!freeDeliveryEnabled}
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50"
+                value={freeDeliveryThreshold}
+                onChange={(e) => setFreeDeliveryThreshold(e.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={deliverySaving}
+              onClick={() => void saveDelivery()}
+              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            >
+              {deliverySaving ? 'Saqlanmoqda...' : 'Yetkazishni saqlash'}
             </button>
           </div>
         )}

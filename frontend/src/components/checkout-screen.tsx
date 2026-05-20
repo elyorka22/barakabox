@@ -2,23 +2,16 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { CheckCircle2, ChevronLeft, Loader2, MapPin, Trash2 } from 'lucide-react';
 import { api, authStorage } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
-import { CartSummary, FreeDeliveryProgressLine } from '@/components/cart-summary';
+import { CartSummary, DeliveryFreeMessage } from '@/components/cart-summary';
 import type { CartSummaryRow } from '@/components/cart-summary';
-import { DeliveryMethodCard } from '@/components/delivery-method-card';
 import { formatMoneyUz } from '@/lib/format';
 import type { CartItem } from '@/lib/cart-store';
 import { enrichOrderLinesFromCart, saveLastOrderSnapshot } from '@/lib/last-order-storage';
-import {
-  EXPRESS_DELIVERY_FEE,
-  FREE_DELIVERY_THRESHOLD,
-  STANDARD_DELIVERY_FEE,
-  deliveryFeeFor,
-  type DeliverySpeed,
-} from '@/lib/delivery-pricing';
+import { computeDeliveryQuote } from '@/lib/delivery-pricing';
+import { useDeliveryConfig } from '@/hooks/use-delivery-config';
 import { cartCashbackEarnEstimate, cartSubtotal } from '@/lib/cart-totals';
 import { calculateOrderTotals, parseCashbackRedeemInput } from '@/lib/order-totals';
 import {
@@ -47,17 +40,7 @@ export type SavedCustomerAddress = {
   isDefault: boolean;
 };
 
-function buildOrderAddress(input: { speed: DeliverySpeed; street: string }): string {
-  const method =
-    input.speed === 'EXPRESS'
-      ? 'Tezkor yetkazish (15–30 daqiqa)'
-      : 'Oddiy yetkazish (1–2 soat)';
-  const lines = [`[${method}]`, input.street.trim()].filter(Boolean);
-  return lines.join('\n');
-}
-
 export function CheckoutScreen() {
-  const searchParams = useSearchParams();
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
@@ -66,16 +49,10 @@ export function CheckoutScreen() {
   const autoAddressEditOpenRef = useRef(false);
   const [manualGeocodeLoading, setManualGeocodeLoading] = useState(false);
   const manualGeocodeSeq = useRef(0);
-  const [deliverySpeed, setDeliverySpeed] = useState<DeliverySpeed>('STANDARD');
+  const { config: deliveryConfig } = useDeliveryConfig();
   const guestTracking = useGuestOrderTracking();
   const showTrackingView = guestTracking.showTracking;
   const showCompletedFlash = guestTracking.showCompletedFlash;
-
-  useEffect(() => {
-    const s = searchParams.get('speed');
-    if (s === 'EXPRESS') setDeliverySpeed('EXPRESS');
-    else if (s === 'STANDARD') setDeliverySpeed('STANDARD');
-  }, [searchParams]);
   const [loading, setLoading] = useState(false);
   const [cartLoading, setCartLoading] = useState(true);
   const [error, setError] = useState('');
@@ -100,7 +77,11 @@ export function CheckoutScreen() {
   const apiPhone = phoneDigitsForApi(phone);
 
   const subtotal = useMemo(() => cartSubtotal(cartItems), [cartItems]);
-  const delivery = useMemo(() => deliveryFeeFor(deliverySpeed, subtotal), [deliverySpeed, subtotal]);
+  const deliveryQuote = useMemo(
+    () => (deliveryConfig ? computeDeliveryQuote(subtotal, deliveryConfig) : null),
+    [subtotal, deliveryConfig],
+  );
+  const delivery = deliveryQuote?.deliveryFee ?? 0;
   const earnEstimate = useMemo(() => cartCashbackEarnEstimate(cartItems), [cartItems]);
   const orderTotals = useMemo(
     () =>
@@ -443,17 +424,12 @@ export function CheckoutScreen() {
           : formattedOsmAddress?.trim() ||
             (address.trim() && !looksLikeCoordinateLine(address) ? address.trim() : '') ||
             'Avtomatik aniqlangan joylashuv';
-      const composedAddress = buildOrderAddress({
-        speed: deliverySpeed,
-        street: streetLine,
-      });
       const body: Record<string, unknown> = {
         name: fullName.trim() || undefined,
         phone: apiPhone,
-        address: composedAddress,
+        address: streetLine,
         deliveryNote: undefined,
         addressLabel: orderAddressLabel,
-        deliverySpeed,
         cashbackRedeemTiyin: redeemTiyin > 0 ? redeemTiyin : undefined,
         couponCode: couponAppliedCode || undefined,
       };
@@ -506,10 +482,6 @@ export function CheckoutScreen() {
       setLoading(false);
     }
   };
-
-  const standardPriceLabel =
-    subtotal >= FREE_DELIVERY_THRESHOLD ? 'Bepul' : formatMoneyUz(STANDARD_DELIVERY_FEE);
-  const expressPriceLabel = formatMoneyUz(EXPRESS_DELIVERY_FEE);
 
   return (
     <main className="min-h-dvh bg-[#F4F5F7]">
@@ -883,41 +855,13 @@ export function CheckoutScreen() {
                   </div>
 
                   <div className="rounded-2xl bg-white p-3 shadow-[0_4px_20px_rgba(15,23,42,0.05)] ring-1 ring-slate-100/90">
-                    <h2 className="text-[15px] font-bold text-[#121212]">Yetkazish turi</h2>
-                    <p className="text-[11px] text-slate-500">Narx darhol yangilanadi</p>
-                    <div className="mt-3 space-y-2.5">
-                      <DeliveryMethodCard
-                        speed="EXPRESS"
-                        selected={deliverySpeed === 'EXPRESS'}
-                        onSelect={setDeliverySpeed}
-                        title="Tezkor yetkazib berish"
-                        subtitle="15–30 minut"
-                        priceLabel={expressPriceLabel}
-                        highlight
-                      />
-                      <DeliveryMethodCard
-                        speed="STANDARD"
-                        selected={deliverySpeed === 'STANDARD'}
-                        onSelect={setDeliverySpeed}
-                        title="Oddiy yetkazib berish"
-                        subtitle="1–2 soat"
-                        priceLabel={standardPriceLabel}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl bg-white p-3 shadow-[0_4px_20px_rgba(15,23,42,0.05)] ring-1 ring-slate-100/90">
                     <h2 className="text-[15px] font-bold text-[#121212]">Xulosa</h2>
                     <div className="mt-3">
                       <CartSummary rows={summaryRows} />
                     </div>
-                    {deliverySpeed === 'STANDARD' && subtotal > 0 ? (
+                    {subtotal > 0 ? (
                       <div className="mt-4 border-t border-slate-100 pt-4">
-                        <FreeDeliveryProgressLine
-                          subtotal={subtotal}
-                          threshold={FREE_DELIVERY_THRESHOLD}
-                          speed={deliverySpeed}
-                        />
+                        <DeliveryFreeMessage quote={deliveryQuote} config={deliveryConfig} />
                       </div>
                     ) : null}
                     <div className="mt-4 rounded-[16px] border border-slate-200 bg-slate-50/80 p-3">

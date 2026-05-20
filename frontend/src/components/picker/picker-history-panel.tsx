@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
-import { deliveryTypeLabel } from '@/lib/picker-order-utils';
 import type { PickerHistoryEntry } from '@/lib/picker-types';
 
 type Props = {
@@ -67,12 +66,8 @@ export function PickerHistoryPanel({ items }: Props) {
           <li key={h.id} className="rounded-2xl border border-[#ECECEC] bg-white p-3 shadow-sm">
             <div className="flex items-center justify-between gap-2">
               <p className="font-mono text-sm font-bold text-[#111827]">#{h.orderLabel}</p>
-              <span
-                className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${
-                  h.deliveryType === 'tezkor' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600'
-                }`}
-              >
-                {deliveryTypeLabel(h.deliveryType)}
+              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                {h.deliveryLabel}
               </span>
             </div>
             <div className="mt-2 flex justify-between text-xs text-[#6B7280]">

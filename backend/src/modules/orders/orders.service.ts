@@ -27,6 +27,7 @@ import {
 } from '../customers/customers.utils';
 import { calculateOrderTotals } from './order-totals.util';
 import { CouponsService } from '../coupons/coupons.service';
+import { SettingsService } from '../settings/settings.service';
 
 const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   NEW: ['PICKING', 'CANCELLED'],
@@ -62,6 +63,7 @@ export class OrdersService {
     private readonly events: EventEmitterService,
     private readonly configService: ConfigService,
     private readonly couponsService: CouponsService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   async createFromCart(
@@ -76,7 +78,6 @@ export class OrdersService {
       manualAddress?: string;
       deliveryNote?: string;
       addressLabel?: string;
-      deliverySpeed?: 'STANDARD' | 'EXPRESS';
       cashbackRedeemTiyin?: number;
       couponCode?: string;
     },
@@ -206,16 +207,8 @@ export class OrdersService {
     }
 
     const subtotal = preparedLines.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const threshold = Number(this.configService.get('FREE_DELIVERY_THRESHOLD') ?? 30000);
-    const deliveryFeeValue = Number(this.configService.get('DELIVERY_FEE') ?? 3000);
-    const expressDeliveryFee = Number(this.configService.get('EXPRESS_DELIVERY_FEE') ?? 15000);
-    const speed = deliveryInfo?.deliverySpeed === 'EXPRESS' ? 'EXPRESS' : 'STANDARD';
-    const deliveryFee =
-      speed === 'EXPRESS'
-        ? expressDeliveryFee
-        : subtotal >= threshold
-          ? 0
-          : deliveryFeeValue;
+    const deliveryQuote = await this.settingsService.getDeliveryQuote(subtotal);
+    const deliveryFee = deliveryQuote.deliveryFee;
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
@@ -481,13 +474,12 @@ export class OrdersService {
     courierName: string | null,
   ) {
     const trackingToken = order.trackingToken ?? '';
-    const deliverySpeed = order.deliveryAddress.includes('Tezkor yetkazish') ? 'EXPRESS' : 'STANDARD';
     return {
       trackingToken,
       trackingCode: trackingToken ? trackingToken.slice(0, 8).toUpperCase() : '',
       status: order.status,
       createdAt: order.createdAt.toISOString(),
-      deliverySpeed,
+      deliverySpeed: 'STANDARD' as const,
       cashbackEarnedTiyin: order.cashbackEarnedSnapshotTiyin,
       cashbackCredited: Boolean(order.cashbackCreditedAt),
       courierName,

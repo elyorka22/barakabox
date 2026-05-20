@@ -1,27 +1,19 @@
-import { EXPRESS_DELIVERY_FEE } from './delivery-pricing';
-import type { PickerDeliveryType, PickerOrder } from './picker-types';
+import { formatMoneyUz } from './format';
+import type { PickerOrder } from './picker-types';
 
 export function internalOrderLabel(orderId: string): string {
   return orderId.slice(-8).toUpperCase();
 }
 
-export function orderDeliveryType(order: PickerOrder): PickerDeliveryType {
+export function orderDeliveryFeeLabel(order: PickerOrder): string {
   const fee = Number(order.deliveryFee ?? 0);
-  if (fee >= EXPRESS_DELIVERY_FEE - 500) return 'tezkor';
-  return 'oddiy';
-}
-
-export function deliveryTypeLabel(type: PickerDeliveryType): string {
-  return type === 'tezkor' ? 'Tezkor' : 'Oddiy';
+  return fee === 0 ? 'Bepul yetkazish' : `Yetkazish: ${formatMoneyUz(fee)}`;
 }
 
 export function sortPickerOrders(orders: PickerOrder[]): PickerOrder[] {
-  return [...orders].sort((a, b) => {
-    const ta = orderDeliveryType(a) === 'tezkor' ? 1 : 0;
-    const tb = orderDeliveryType(b) === 'tezkor' ? 1 : 0;
-    if (tb !== ta) return tb - ta;
-    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-  });
+  return [...orders].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  );
 }
 
 export function estimatePickMinutes(order: PickerOrder): number {

@@ -1,6 +1,5 @@
 import { Type } from 'class-transformer';
 import {
-  IsIn,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -60,10 +59,6 @@ export class CreateOrderDto {
   @IsString()
   @MaxLength(60)
   addressLabel?: string;
-
-  @IsOptional()
-  @IsIn(['STANDARD', 'EXPRESS'])
-  deliverySpeed?: 'STANDARD' | 'EXPRESS';
 
   @IsOptional()
   @Type(() => Number)

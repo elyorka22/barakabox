@@ -1,16 +1,81 @@
-/** Client-side delivery math — keep in sync with backend `orders.service` + env. */
+import { api } from '@/lib/api';
 
-export const FREE_DELIVERY_THRESHOLD = Number(process.env.NEXT_PUBLIC_FREE_DELIVERY_THRESHOLD ?? 30000);
-export const STANDARD_DELIVERY_FEE = Number(process.env.NEXT_PUBLIC_DELIVERY_FEE ?? 3000);
-export const EXPRESS_DELIVERY_FEE = Number(process.env.NEXT_PUBLIC_EXPRESS_DELIVERY_FEE ?? 15000);
+/** @deprecated Legacy type — single delivery mode only. */
+export type DeliverySpeed = 'STANDARD';
 
-export type DeliverySpeed = 'STANDARD' | 'EXPRESS';
+export type DeliveryConfig = {
+  deliveryPrice: number;
+  freeDeliveryEnabled: boolean;
+  freeDeliveryThreshold: number;
+};
 
-export function deliveryFeeFor(speed: DeliverySpeed, subtotal: number): number {
-  if (speed === 'EXPRESS') return EXPRESS_DELIVERY_FEE;
-  return subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : STANDARD_DELIVERY_FEE;
+export type DeliveryQuote = {
+  subtotalAmount: number;
+  deliveryFee: number;
+  isFreeDelivery: boolean;
+  remainingForFreeDelivery: number;
+  totalAmount: number;
+};
+
+const ENV_DEFAULTS: DeliveryConfig = {
+  deliveryPrice: Number(process.env.NEXT_PUBLIC_DELIVERY_FEE ?? 15000),
+  freeDeliveryEnabled: true,
+  freeDeliveryThreshold: Number(process.env.NEXT_PUBLIC_FREE_DELIVERY_THRESHOLD ?? 350000),
+};
+
+export function computeDeliveryQuote(subtotalAmount: number, config: DeliveryConfig): DeliveryQuote {
+  const subtotal = Math.max(0, Math.floor(subtotalAmount));
+  const deliveryPrice = Math.max(0, Math.floor(config.deliveryPrice));
+  const threshold = Math.max(0, Math.floor(config.freeDeliveryThreshold));
+
+  let deliveryFee = deliveryPrice;
+  let isFreeDelivery = false;
+
+  if (config.freeDeliveryEnabled && subtotal >= threshold) {
+    deliveryFee = 0;
+    isFreeDelivery = true;
+  }
+
+  const remainingForFreeDelivery =
+    config.freeDeliveryEnabled && !isFreeDelivery ? Math.max(0, threshold - subtotal) : 0;
+
+  return {
+    subtotalAmount: subtotal,
+    deliveryFee,
+    isFreeDelivery,
+    remainingForFreeDelivery,
+    totalAmount: subtotal + deliveryFee,
+  };
 }
 
-export function amountToFreeDelivery(subtotal: number): number {
-  return Math.max(0, FREE_DELIVERY_THRESHOLD - subtotal);
+let configCache: DeliveryConfig | null = null;
+let configPromise: Promise<DeliveryConfig> | null = null;
+
+export async function fetchDeliveryConfig(force = false): Promise<DeliveryConfig> {
+  if (!force && configCache) return configCache;
+  if (!force && configPromise) return configPromise;
+
+  configPromise = api
+    .get<DeliveryConfig>('/settings/delivery')
+    .then((data) => {
+      configCache = data;
+      return data;
+    })
+    .catch(() => {
+      configCache = ENV_DEFAULTS;
+      return ENV_DEFAULTS;
+    });
+
+  return configPromise;
+}
+
+export function invalidateDeliveryConfigCache() {
+  configCache = null;
+  configPromise = null;
+}
+
+/** @deprecated Use computeDeliveryQuote with fetched config. */
+export function deliveryFeeFor(_speed: DeliverySpeed, subtotal: number, config?: DeliveryConfig): number {
+  const cfg = config ?? ENV_DEFAULTS;
+  return computeDeliveryQuote(subtotal, cfg).deliveryFee;
 }

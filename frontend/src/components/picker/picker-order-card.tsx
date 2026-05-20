@@ -2,15 +2,14 @@
 
 import { memo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Box, Clock, Package, Timer, Zap } from 'lucide-react';
+import { Clock, Package, Timer, Truck } from 'lucide-react';
 import type { PickerOrder } from '@/lib/picker-types';
 import {
-  deliveryTypeLabel,
   estimatePickMinutes,
   formatOrderTime,
   internalOrderLabel,
   minutesSinceCreated,
-  orderDeliveryType,
+  orderDeliveryFeeLabel,
   statusLabelUz,
 } from '@/lib/picker-order-utils';
 import { readChecklist, writeChecklist, recordPickerNotFoundItem } from '@/lib/picker-storage';
@@ -33,8 +32,7 @@ function PickerQueueCard({
   busy?: boolean;
   onStart: () => Promise<void>;
 }) {
-  const deliveryType = orderDeliveryType(order);
-  const isExpress = deliveryType === 'tezkor';
+  const deliveryLabel = orderDeliveryFeeLabel(order);
   const label = internalOrderLabel(order.id);
 
   return (
@@ -50,13 +48,9 @@ function PickerQueueCard({
       </div>
 
       <div className="px-4 py-3.5">
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-bold uppercase tracking-wide ${
-            isExpress ? 'bg-rose-600 text-white' : 'bg-slate-100 text-slate-700'
-          }`}
-        >
-          {isExpress ? <Zap className="h-4 w-4" strokeWidth={2.5} /> : <Box className="h-4 w-4" strokeWidth={2} />}
-          {deliveryTypeLabel(deliveryType)}
+        <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-700">
+          <Truck className="h-4 w-4" strokeWidth={2} />
+          {deliveryLabel}
         </span>
 
         <div className="mt-3 grid grid-cols-3 gap-2">
@@ -97,7 +91,7 @@ function PickerQueueCard({
 function PickerOrderCardInner({ order, busy, onStart, onReady }: Props) {
   const isNew = order.status === 'NEW';
   const isPicking = order.status === 'PICKING';
-  const deliveryType = orderDeliveryType(order);
+  const deliveryLabel = orderDeliveryFeeLabel(order);
   const [checklist, setChecklist] = useState(() => readChecklist(order.id));
 
   const toggleItem = (itemId: string) => {
@@ -144,12 +138,8 @@ function PickerOrderCardInner({ order, busy, onStart, onReady }: Props) {
           <div className="flex items-center justify-between gap-2 border-b border-[#ECECEC] bg-[#F8FAFC] px-3 py-2.5">
             <p className="font-mono text-sm font-bold text-[#111827]">#{internalOrderLabel(order.id)}</p>
             <div className="flex items-center gap-2">
-              <span
-                className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase ${
-                  deliveryType === 'tezkor' ? 'bg-rose-100 text-rose-800' : 'bg-slate-200 text-slate-700'
-                }`}
-              >
-                {deliveryTypeLabel(deliveryType)}
+              <span className="rounded-md bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                {deliveryLabel}
               </span>
               <span className="rounded-md bg-[#DCFCE7] px-2 py-0.5 text-[10px] font-bold text-[#166534]">
                 {statusLabelUz(order.status)}

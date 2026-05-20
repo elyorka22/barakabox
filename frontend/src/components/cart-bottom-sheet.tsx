@@ -3,16 +3,10 @@
 import Link from 'next/link';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { motion, animate, useMotionValue, type PanInfo } from 'framer-motion';
-import { Zap } from 'lucide-react';
-import { CartSummary, FreeDeliveryProgressLine } from '@/components/cart-summary';
+import { CartSummary, DeliveryFreeMessage } from '@/components/cart-summary';
 import type { CartSummaryRow } from '@/components/cart-summary';
 import { formatMoneyUz } from '@/lib/format';
-import {
-  EXPRESS_DELIVERY_FEE,
-  FREE_DELIVERY_THRESHOLD,
-  STANDARD_DELIVERY_FEE,
-  type DeliverySpeed,
-} from '@/lib/delivery-pricing';
+import type { DeliveryConfig, DeliveryQuote } from '@/lib/delivery-pricing';
 
 /** Total sheet height when collapsed (handle + one-line totals + CTA). */
 const COLLAPSED_H = 138;
@@ -23,17 +17,17 @@ function computeExpandedHeight(): number {
   if (typeof window === 'undefined') return 480;
   const vh = window.visualViewport?.height ?? window.innerHeight;
   const nav = 78;
-  return Math.min(580, Math.max(300, Math.floor(vh * 0.72) - nav - 12));
+  return Math.min(520, Math.max(280, Math.floor(vh * 0.68) - nav - 12));
 }
 
 type CartBottomSheetProps = {
   bottom: string;
-  speed: DeliverySpeed;
-  onSpeedChange: (s: DeliverySpeed) => void;
   subtotal: number;
   grandTotal: number;
   earnEstimate: number;
   summaryRows: CartSummaryRow[];
+  deliveryQuote: DeliveryQuote | null;
+  deliveryConfig: DeliveryConfig | null;
   token: string;
   onQuickOrder: () => void;
   checkoutDisabled: boolean;
@@ -41,12 +35,12 @@ type CartBottomSheetProps = {
 
 export function CartBottomSheet({
   bottom,
-  speed,
-  onSpeedChange,
   subtotal,
   grandTotal,
   earnEstimate,
   summaryRows,
+  deliveryQuote,
+  deliveryConfig,
   token,
   onQuickOrder,
   checkoutDisabled,
@@ -116,11 +110,6 @@ export function CartBottomSheet({
     [h, snapTo],
   );
 
-  const standardFeeLabel =
-    subtotal >= FREE_DELIVERY_THRESHOLD ? 'Bepul' : formatMoneyUz(STANDARD_DELIVERY_FEE);
-
-  const checkoutHref = speed === 'EXPRESS' ? '/checkout?speed=EXPRESS' : '/checkout';
-
   return (
     <motion.section
       className="fixed inset-x-0 z-20 flex flex-col overflow-hidden rounded-t-[24px] border border-white/70 bg-white/92 shadow-[0_-16px_48px_rgba(15,23,42,0.12)] backdrop-blur-xl will-change-[height]"
@@ -160,7 +149,7 @@ export function CartBottomSheet({
           </div>
 
           <Link
-            href={checkoutHref}
+            href="/checkout"
             scroll={false}
             className={`flex min-h-[46px] w-full items-center justify-center rounded-[15px] text-[15px] font-bold text-white shadow-md transition active:scale-[0.99] ${
               checkoutDisabled ? 'pointer-events-none bg-green-300 shadow-none' : 'bg-[#16A34A] shadow-green-600/25'
@@ -186,51 +175,14 @@ export function CartBottomSheet({
               </div>
             </div>
 
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Yetkazish sharti</p>
-              <div className="mt-1.5">
-                <FreeDeliveryProgressLine
-                  subtotal={subtotal}
-                  threshold={FREE_DELIVERY_THRESHOLD}
-                  speed={speed}
-                />
+            {subtotal > 0 ? (
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Yetkazib berish</p>
+                <div className="mt-1.5">
+                  <DeliveryFreeMessage quote={deliveryQuote} config={deliveryConfig} />
+                </div>
               </div>
-            </div>
-
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Yetkazish turi</p>
-              <div className="mt-1.5 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => onSpeedChange('EXPRESS')}
-                  className={`flex min-h-[3.25rem] flex-col items-start rounded-[14px] border px-2.5 py-1.5 text-left transition active:scale-[0.99] ${
-                    speed === 'EXPRESS'
-                      ? 'border-[#16A34A] bg-green-50 ring-2 ring-[#16A34A]/20'
-                      : 'border-slate-200 bg-slate-50/90'
-                  }`}
-                >
-                  <span className="flex items-center gap-1 text-[11px] font-bold text-[#121212]">
-                    <Zap className="h-3.5 w-3.5 text-amber-500" aria-hidden />
-                    Tezkor
-                  </span>
-                  <span className="text-[10px] font-medium text-slate-500">15–30 daq</span>
-                  <span className="mt-0.5 text-[10px] font-semibold text-[#15803d]">{formatMoneyUz(EXPRESS_DELIVERY_FEE)}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onSpeedChange('STANDARD')}
-                  className={`flex min-h-[3.25rem] flex-col items-start rounded-[14px] border px-2.5 py-1.5 text-left transition active:scale-[0.99] ${
-                    speed === 'STANDARD'
-                      ? 'border-[#16A34A] bg-green-50 ring-2 ring-[#16A34A]/20'
-                      : 'border-slate-200 bg-slate-50/90'
-                  }`}
-                >
-                  <span className="text-[11px] font-bold text-[#121212]">Oddiy</span>
-                  <span className="text-[10px] font-medium text-slate-500">1–2 soat</span>
-                  <span className="mt-0.5 text-[10px] font-semibold text-slate-600">{standardFeeLabel}</span>
-                </button>
-              </div>
-            </div>
+            ) : null}
 
             <button
               type="button"

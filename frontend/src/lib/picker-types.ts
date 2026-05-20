@@ -1,7 +1,5 @@
 export type PickerOrderStatus = 'NEW' | 'PICKING' | 'READY' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED';
 
-export type PickerDeliveryType = 'oddiy' | 'tezkor';
-
 export type PickerOrderItem = {
   id: string;
   title: string;
@@ -38,7 +36,7 @@ export type PickerTab = 'active' | 'history' | 'stats' | 'profile';
 export type PickerHistoryEntry = {
   id: string;
   orderLabel: string;
-  deliveryType: PickerDeliveryType;
+  deliveryLabel: string;
   itemCount: number;
   completedAt: string;
   pickingMinutes: number;
