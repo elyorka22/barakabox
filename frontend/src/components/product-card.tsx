@@ -20,6 +20,7 @@ import { useProductSheet } from '@/lib/product-sheet-context';
 import { useCartQuantity } from '@/lib/use-cart-store';
 import { ProductCardCartControl } from '@/components/product-card/product-card-cart-control';
 import { ProductCardFooter } from '@/components/product-card/product-card-footer';
+import { CashbackBadge } from '@/components/cashback-badge';
 import type { StorefrontProduct } from '@/types/storefront-product';
 
 type Variant = {
@@ -48,6 +49,12 @@ export type ProductCardProps = {
   imageThumbUrl?: string | null;
   cashbackType?: string | null;
   cashbackValue?: number | null;
+  discountEnabled?: boolean;
+  discountedPrice?: number | null;
+  promotionBadge?: 'HOT' | 'TOP' | 'YANGI' | 'AKSIYA' | 'PREMIUM' | null;
+  promotionEnabled?: boolean;
+  promotionStartAt?: string | null;
+  promotionEndAt?: string | null;
 };
 
 function ProductCardBase({
@@ -64,6 +71,14 @@ function ProductCardBase({
   imageUrl: productImageUrl,
   imageCardUrl,
   imageThumbUrl,
+  cashbackType,
+  cashbackValue,
+  discountEnabled,
+  discountedPrice,
+  promotionBadge,
+  promotionEnabled,
+  promotionStartAt,
+  promotionEndAt,
 }: ProductCardProps) {
   const { openProduct } = useProductSheet();
   const productImages = { imageUrl: productImageUrl, imageCardUrl, imageThumbUrl };
@@ -93,7 +108,17 @@ function ProductCardBase({
     activeVariant?.discountPrice && activeVariant.discountPrice > 0 && activeVariant.discountPrice < activeBasePrice
       ? Number(activeVariant.discountPrice)
       : null;
-  const unitPrice = activeDiscountPrice ?? activeBasePrice;
+  const now = Date.now();
+  const inPromoWindow =
+    !promotionEnabled ||
+    ((promotionStartAt ? new Date(promotionStartAt).getTime() <= now : true) &&
+      (promotionEndAt ? new Date(promotionEndAt).getTime() >= now : true));
+  const productDiscountPrice =
+    discountEnabled && inPromoWindow && discountedPrice && discountedPrice > 0 && discountedPrice < activeBasePrice
+      ? Number(discountedPrice)
+      : null;
+  const effectiveDiscountPrice = activeDiscountPrice ?? productDiscountPrice;
+  const unitPrice = effectiveDiscountPrice ?? activeBasePrice;
 
   const quantityLabel = formatSellingModeQuantity(activeQuantity, sellingMode, unitType);
   const lineTotal = useMemo(
@@ -141,6 +166,14 @@ function ProductCardBase({
     imageUrl: productImageUrl,
     imageCardUrl,
     imageThumbUrl,
+    cashbackType,
+    cashbackValue,
+    discountEnabled,
+    discountedPrice,
+    promotionBadge,
+    promotionEnabled,
+    promotionStartAt,
+    promotionEndAt,
     variants: effectiveVariants.map((v) => ({
       id: v.id,
       flavor: v.flavor,
@@ -204,9 +237,14 @@ function ProductCardBase({
               })}
             </div>
 
-            {activeDiscountPrice ? (
+            {effectiveDiscountPrice ? (
               <span className="pointer-events-none absolute left-1.5 top-1.5 rounded-md bg-[#ef4444] px-1.5 py-0.5 text-[9px] font-bold text-white">
-                -{Math.max(1, Math.round(((activeBasePrice - activeDiscountPrice) / activeBasePrice) * 100))}%
+                -{Math.max(1, Math.round(((activeBasePrice - effectiveDiscountPrice) / activeBasePrice) * 100))}%
+              </span>
+            ) : null}
+            {promotionBadge && inPromoWindow ? (
+              <span className="pointer-events-none absolute right-1.5 top-1.5 rounded-md bg-[#111827] px-1.5 py-0.5 text-[9px] font-bold text-white">
+                {promotionBadge}
               </span>
             ) : null}
 
@@ -229,13 +267,16 @@ function ProductCardBase({
           {subtitleLine ? (
             <p className="mt-px line-clamp-1 text-[10px] text-[#9ca3af]">{subtitleLine}</p>
           ) : null}
+          <div className="mt-1 min-h-[14px]">
+            <CashbackBadge cashbackType={cashbackType} cashbackValue={cashbackValue} variant="promo" />
+          </div>
 
           <ProductCardFooter
             inCart={inCart}
             quantityLabel={quantityLabel}
             lineTotal={lineTotal}
             basePrice={activeBasePrice}
-            salePrice={activeDiscountPrice}
+            salePrice={effectiveDiscountPrice}
             unit={unitType}
           />
         </div>
@@ -282,6 +323,14 @@ function arePropsEqual(prev: ProductCardProps, next: ProductCardProps): boolean 
   if ((prev.imageUrl ?? '') !== (next.imageUrl ?? '')) return false;
   if ((prev.imageCardUrl ?? '') !== (next.imageCardUrl ?? '')) return false;
   if ((prev.imageThumbUrl ?? '') !== (next.imageThumbUrl ?? '')) return false;
+  if ((prev.cashbackType ?? '') !== (next.cashbackType ?? '')) return false;
+  if ((prev.cashbackValue ?? 0) !== (next.cashbackValue ?? 0)) return false;
+  if ((prev.discountEnabled ?? false) !== (next.discountEnabled ?? false)) return false;
+  if ((prev.discountedPrice ?? 0) !== (next.discountedPrice ?? 0)) return false;
+  if ((prev.promotionBadge ?? '') !== (next.promotionBadge ?? '')) return false;
+  if ((prev.promotionEnabled ?? false) !== (next.promotionEnabled ?? false)) return false;
+  if ((prev.promotionStartAt ?? '') !== (next.promotionStartAt ?? '')) return false;
+  if ((prev.promotionEndAt ?? '') !== (next.promotionEndAt ?? '')) return false;
   return areVariantsEqual(prev.variants, next.variants);
 }
 

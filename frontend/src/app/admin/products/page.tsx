@@ -52,10 +52,17 @@ const EMPTY_VARIANT: VariantFormRow = {
 const defaultForm = (businessId: string, categoryId: string): ProductFormState => ({
   id: '',
   name: '',
+  price: '1000',
   unit: DEFAULT_PRODUCT_UNIT,
   sellingMode: DEFAULT_SELLING_MODE,
   businessId,
   categoryId,
+  discountEnabled: false,
+  discountedPrice: '',
+  promotionBadge: '',
+  promotionEnabled: false,
+  promotionStartAt: '',
+  promotionEndAt: '',
   cashbackType: 'NONE',
   cashbackValue: '0',
   variants: [{ ...EMPTY_VARIANT }],
@@ -202,10 +209,17 @@ export default function AdminProductsPage() {
     setForm({
       id: item.id,
       name: item.name,
+      price: String(item.price ?? 0),
       unit: editUnit,
       sellingMode: editSellingMode,
       businessId: item.businessId,
       categoryId: item.category?.id ?? '',
+      discountEnabled: Boolean(item.discountEnabled),
+      discountedPrice: item.discountedPrice ? String(item.discountedPrice) : '',
+      promotionBadge: (item.promotionBadge as ProductFormState['promotionBadge']) ?? '',
+      promotionEnabled: Boolean(item.promotionEnabled),
+      promotionStartAt: item.promotionStartAt ? new Date(item.promotionStartAt).toISOString().slice(0, 16) : '',
+      promotionEndAt: item.promotionEndAt ? new Date(item.promotionEndAt).toISOString().slice(0, 16) : '',
       cashbackType: (item.cashbackType as ProductFormState['cashbackType']) ?? 'NONE',
       cashbackValue: String(item.cashbackValue ?? 0),
       variants:
@@ -252,6 +266,19 @@ export default function AdminProductsPage() {
       setSaving(false);
       return;
     }
+    if (Number(form.price) <= 0) {
+      setError("Asosiy narx musbat bo'lishi kerak.");
+      setSaving(false);
+      return;
+    }
+    if (form.discountEnabled) {
+      const sale = Number(form.discountedPrice);
+      if (!sale || sale <= 0 || sale >= Number(form.price)) {
+        setError("Chegirma narxi asosiy narxdan kichik bo'lishi kerak.");
+        setSaving(false);
+        return;
+      }
+    }
 
     const normalizedVariants = rows.map((variant, idx) => ({
       ...(variant.id ? { id: variant.id } : {}),
@@ -263,12 +290,23 @@ export default function AdminProductsPage() {
       stock: Number(variant.stock),
       imageUrl: variant.imageUrl.trim() || undefined,
       sortOrder: idx,
+      ...(idx === 0 && form.discountEnabled && Number(form.discountedPrice) > 0
+        ? { discountPrice: Number(form.discountedPrice) }
+        : {}),
     }));
 
     const first = normalizedVariants[0];
     const payload = {
       name: form.name.trim(),
-      price: first.price,
+      price: Number(form.price) > 0 ? Number(form.price) : first.price,
+      discountEnabled: form.discountEnabled,
+      ...(form.discountEnabled && Number(form.discountedPrice) > 0
+        ? { discountedPrice: Number(form.discountedPrice) }
+        : {}),
+      promotionBadge: form.promotionBadge || undefined,
+      promotionEnabled: form.promotionEnabled,
+      promotionStartAt: form.promotionEnabled && form.promotionStartAt ? new Date(form.promotionStartAt).toISOString() : undefined,
+      promotionEndAt: form.promotionEnabled && form.promotionEndAt ? new Date(form.promotionEndAt).toISOString() : undefined,
       stockQuantity: normalizedVariants.reduce((s, v) => s + v.stock, 0),
       unit: form.unit,
       sellingMode: form.sellingMode,

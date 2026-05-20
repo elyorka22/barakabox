@@ -90,7 +90,7 @@ export class ProductsService {
               ? { price: 'desc' }
               : { updatedAt: 'desc' };
 
-    const select = {
+    const select: any = {
       id: true,
       name: true,
       price: true,
@@ -99,6 +99,12 @@ export class ProductsService {
       sellingMode: true,
       stepAmount: true,
       minimumAmount: true,
+      discountEnabled: true,
+      discountedPrice: true,
+      promotionBadge: true,
+      promotionEnabled: true,
+      promotionStartAt: true,
+      promotionEndAt: true,
       businessId: true,
       isActive: true,
       createdAt: true,
@@ -180,6 +186,12 @@ export class ProductsService {
       name: string;
       description?: string;
       price: number;
+      discountEnabled?: boolean;
+      discountedPrice?: number;
+      promotionBadge?: 'HOT' | 'TOP' | 'YANGI' | 'AKSIYA' | 'PREMIUM';
+      promotionEnabled?: boolean;
+      promotionStartAt?: string;
+      promotionEndAt?: string;
       stockQuantity: number;
       unit: ProductUnit;
       sellingMode?: SellingMode;
@@ -228,6 +240,12 @@ export class ProductsService {
           stepAmount: data.stepAmount ?? null,
           minimumAmount: data.minimumAmount ?? null,
           price: data.price,
+          discountEnabled: data.discountEnabled ?? false,
+          discountedPrice: data.discountEnabled ? (data.discountedPrice ?? null) : null,
+          promotionBadge: data.promotionBadge,
+          promotionEnabled: data.promotionEnabled ?? false,
+          promotionStartAt: data.promotionStartAt ? new Date(data.promotionStartAt) : null,
+          promotionEndAt: data.promotionEndAt ? new Date(data.promotionEndAt) : null,
           stockQuantity: data.stockQuantity,
           categoryId: data.categoryId,
           imageUrl: data.imageUrl,
@@ -265,7 +283,7 @@ export class ProductsService {
               sortOrder: variant.sortOrder ?? idx,
             })),
           },
-        },
+        } as any,
       });
       if (data.stockQuantity > 0) {
         await tx.inventoryLog.create({
@@ -306,6 +324,12 @@ export class ProductsService {
       name?: string;
       description?: string;
       price?: number;
+      discountEnabled?: boolean;
+      discountedPrice?: number;
+      promotionBadge?: 'HOT' | 'TOP' | 'YANGI' | 'AKSIYA' | 'PREMIUM';
+      promotionEnabled?: boolean;
+      promotionStartAt?: string;
+      promotionEndAt?: string;
       stockQuantity?: number;
       unit?: ProductUnit;
       sellingMode?: SellingMode;
@@ -410,6 +434,21 @@ export class ProductsService {
           name: data.name,
           description: data.description,
           price: data.price,
+          ...(data.discountEnabled !== undefined ? { discountEnabled: data.discountEnabled } : {}),
+          ...(data.discountEnabled === false ? { discountedPrice: null } : {}),
+          ...(data.discountEnabled === true
+            ? { discountedPrice: data.discountedPrice ?? null }
+            : data.discountedPrice !== undefined
+              ? { discountedPrice: data.discountedPrice }
+              : {}),
+          ...(data.promotionBadge !== undefined ? { promotionBadge: data.promotionBadge } : {}),
+          ...(data.promotionEnabled !== undefined ? { promotionEnabled: data.promotionEnabled } : {}),
+          ...(data.promotionStartAt !== undefined
+            ? { promotionStartAt: data.promotionStartAt ? new Date(data.promotionStartAt) : null }
+            : {}),
+          ...(data.promotionEndAt !== undefined
+            ? { promotionEndAt: data.promotionEndAt ? new Date(data.promotionEndAt) : null }
+            : {}),
           stockQuantity: data.stockQuantity,
           ...(data.unit !== undefined ? { unit: data.unit } : {}),
           ...(data.sellingMode !== undefined ? { sellingMode: data.sellingMode } : {}),
@@ -424,7 +463,7 @@ export class ProductsService {
           imageCardKey: data.imageCardKey,
           imageThumbUrl: data.imageThumbUrl,
           imageThumbKey: data.imageThumbKey,
-        },
+        } as any,
       });
       if (typeof data.stockQuantity === 'number' && data.stockQuantity !== product.stockQuantity) {
         await tx.inventoryLog.create({

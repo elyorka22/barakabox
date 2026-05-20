@@ -48,7 +48,21 @@ export function ProductSheetContent({ product }: Props) {
     Number(activeVariant.discountPrice) < basePrice
       ? Number(activeVariant.discountPrice)
       : null;
-  const unitPrice = salePrice ?? basePrice;
+  const now = Date.now();
+  const inPromoWindow =
+    !product.promotionEnabled ||
+    ((product.promotionStartAt ? new Date(product.promotionStartAt).getTime() <= now : true) &&
+      (product.promotionEndAt ? new Date(product.promotionEndAt).getTime() >= now : true));
+  const productSalePrice =
+    product.discountEnabled &&
+    inPromoWindow &&
+    product.discountedPrice &&
+    Number(product.discountedPrice) > 0 &&
+    Number(product.discountedPrice) < basePrice
+      ? Number(product.discountedPrice)
+      : null;
+  const effectiveSalePrice = salePrice ?? productSalePrice;
+  const unitPrice = effectiveSalePrice ?? basePrice;
 
   const subtitle =
     activeVariant?.flavor?.trim() || activeVariant?.description?.trim() || '';
@@ -105,7 +119,7 @@ export function ProductSheetContent({ product }: Props) {
       ) : null}
 
       <div className="mt-2">
-        {salePrice ? (
+        {effectiveSalePrice ? (
           <p className="text-[12px] font-medium text-[#9ca3af] line-through">
             {formatMoneyUz(basePrice)}
           </p>

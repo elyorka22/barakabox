@@ -11,6 +11,14 @@ export type StorefrontProduct = {
   imageUrl?: string | null;
   imageCardUrl?: string | null;
   imageThumbUrl?: string | null;
+  discountEnabled?: boolean;
+  discountedPrice?: number | null;
+  promotionBadge?: 'HOT' | 'TOP' | 'YANGI' | 'AKSIYA' | 'PREMIUM' | null;
+  promotionEnabled?: boolean;
+  promotionStartAt?: string | null;
+  promotionEndAt?: string | null;
+  cashbackType?: 'NONE' | 'PERCENT' | 'FIXED_AMOUNT' | string | null;
+  cashbackValue?: number | null;
   variants?: Array<{
     id: string;
     flavor?: string | null;

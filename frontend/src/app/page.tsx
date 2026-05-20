@@ -30,6 +30,12 @@ type Product = {
   imageThumbUrl?: string | null;
   cashbackType?: string | null;
   cashbackValue?: number | null;
+  discountEnabled?: boolean;
+  discountedPrice?: number | null;
+  promotionBadge?: 'HOT' | 'TOP' | 'YANGI' | 'AKSIYA' | 'PREMIUM' | null;
+  promotionEnabled?: boolean;
+  promotionStartAt?: string | null;
+  promotionEndAt?: string | null;
   variants?: Array<{
     id: string;
     flavor?: string | null;
@@ -143,6 +149,14 @@ export default function Home() {
     imageUrl: product.imageUrl,
     imageCardUrl: product.imageCardUrl,
     imageThumbUrl: product.imageThumbUrl,
+    discountEnabled: product.discountEnabled,
+    discountedPrice: product.discountedPrice,
+    promotionBadge: product.promotionBadge,
+    promotionEnabled: product.promotionEnabled,
+    promotionStartAt: product.promotionStartAt,
+    promotionEndAt: product.promotionEndAt,
+    cashbackType: product.cashbackType,
+    cashbackValue: product.cashbackValue,
     variants: product.variants,
   });
 
@@ -326,6 +340,12 @@ export default function Home() {
                 imageThumbUrl={product.imageThumbUrl}
                 cashbackType={product.cashbackType ?? undefined}
                 cashbackValue={product.cashbackValue ?? undefined}
+                discountEnabled={product.discountEnabled}
+                discountedPrice={product.discountedPrice}
+                promotionBadge={product.promotionBadge}
+                promotionEnabled={product.promotionEnabled}
+                promotionStartAt={product.promotionStartAt}
+                promotionEndAt={product.promotionEndAt}
               />
             ))}
           </div>
@@ -370,6 +390,12 @@ export default function Home() {
                 imageThumbUrl={product.imageThumbUrl}
                 cashbackType={product.cashbackType ?? undefined}
                 cashbackValue={product.cashbackValue ?? undefined}
+                discountEnabled={product.discountEnabled}
+                discountedPrice={product.discountedPrice}
+                promotionBadge={product.promotionBadge}
+                promotionEnabled={product.promotionEnabled}
+                promotionStartAt={product.promotionStartAt}
+                promotionEndAt={product.promotionEndAt}
               />
             ))}
           </div>

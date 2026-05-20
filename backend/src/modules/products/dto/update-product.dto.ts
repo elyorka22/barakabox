@@ -1,6 +1,6 @@
 import { ProductUnit, CashbackType, SellingMode } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
-import { IsArray, IsEnum, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 
 const SELLING_MODE_INPUT_MAP: Record<string, SellingMode> = {
   piece: 'PIECE',
@@ -80,6 +80,34 @@ export class UpdateProductDto {
   @IsInt()
   @Min(1)
   price?: number; // price in tiyin
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  discountEnabled?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  discountedPrice?: number;
+
+  @IsOptional()
+  @IsEnum(['HOT', 'TOP', 'YANGI', 'AKSIYA', 'PREMIUM'])
+  promotionBadge?: 'HOT' | 'TOP' | 'YANGI' | 'AKSIYA' | 'PREMIUM';
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  promotionEnabled?: boolean;
+
+  @IsOptional()
+  @IsDateString()
+  promotionStartAt?: string;
+
+  @IsOptional()
+  @IsDateString()
+  promotionEndAt?: string;
 
   @IsOptional()
   @IsInt()

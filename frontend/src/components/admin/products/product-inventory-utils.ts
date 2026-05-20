@@ -34,6 +34,12 @@ export type AdminInventoryProduct = {
   variants?: AdminProductVariant[] | null;
   cashbackType?: string | null;
   cashbackValue?: number | null;
+  discountEnabled?: boolean;
+  discountedPrice?: number | null;
+  promotionBadge?: 'HOT' | 'TOP' | 'YANGI' | 'AKSIYA' | 'PREMIUM' | null;
+  promotionEnabled?: boolean;
+  promotionStartAt?: string | null;
+  promotionEndAt?: string | null;
 };
 
 export type StockFilter = 'all' | 'in_stock' | 'low' | 'out';

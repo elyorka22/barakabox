@@ -93,6 +93,14 @@ enum CashbackType {
   FIXED_AMOUNT
 }
 
+enum PromotionBadge {
+  HOT
+  TOP
+  YANGI
+  AKSIYA
+  PREMIUM
+}
+
 enum CashbackTransactionType {
   EARNED
   SPENT
@@ -274,6 +282,12 @@ model Product {
   stepAmount   Int?
   minimumAmount Int?
   price        Int
+  discountEnabled Boolean @default(false)
+  discountedPrice Int?
+  promotionBadge  PromotionBadge?
+  promotionEnabled Boolean @default(false)
+  promotionStartAt DateTime?
+  promotionEndAt   DateTime?
   stockQuantity Int     @default(0)
   isActive     Boolean  @default(true)
   cashbackType    CashbackType @default(NONE)

@@ -26,10 +26,17 @@ export type VariantFormRow = {
 export type ProductFormState = {
   id: string;
   name: string;
+  price: string;
   unit: ProductUnitCode;
   sellingMode: SellingMode;
   businessId: string;
   categoryId: string;
+  discountEnabled: boolean;
+  discountedPrice: string;
+  promotionBadge: '' | 'HOT' | 'TOP' | 'YANGI' | 'AKSIYA' | 'PREMIUM';
+  promotionEnabled: boolean;
+  promotionStartAt: string;
+  promotionEndAt: string;
   cashbackType: 'NONE' | 'PERCENT' | 'FIXED_AMOUNT';
   cashbackValue: string;
   variants: VariantFormRow[];
@@ -190,6 +197,130 @@ export function AdminProductFormDrawer({
                 ))}
               </select>
             </div>
+            <details className="rounded-lg border border-slate-200 bg-slate-50 p-3" open>
+              <summary className="cursor-pointer text-sm font-semibold text-slate-800">
+                Aksiya va cashback
+              </summary>
+              <div className="mt-3 grid gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-700">Asosiy narx</label>
+                  <input
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                    type="number"
+                    min={1}
+                    value={form.price}
+                    onChange={(e) => setForm((p) => ({ ...p, price: e.target.value }))}
+                  />
+                </div>
+
+                <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={form.discountEnabled}
+                    onChange={(e) => setForm((p) => ({ ...p, discountEnabled: e.target.checked }))}
+                  />
+                  Chegirma yoqilsin
+                </label>
+                {form.discountEnabled ? (
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-700">Chegirmadagi narx</label>
+                    <input
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                      type="number"
+                      min={1}
+                      value={form.discountedPrice}
+                      onChange={(e) => setForm((p) => ({ ...p, discountedPrice: e.target.value }))}
+                    />
+                    {Number(form.price) > 0 && Number(form.discountedPrice) > 0 && Number(form.discountedPrice) < Number(form.price) ? (
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        Chegirma: -
+                        {Math.round(((Number(form.price) - Number(form.discountedPrice)) / Number(form.price)) * 100)}%
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-700">Promo badge</label>
+                  <select
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                    value={form.promotionBadge}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, promotionBadge: e.target.value as ProductFormState['promotionBadge'] }))
+                    }
+                  >
+                    <option value="">—</option>
+                    <option value="HOT">HOT</option>
+                    <option value="TOP">TOP</option>
+                    <option value="YANGI">YANGI</option>
+                    <option value="AKSIYA">AKSIYA</option>
+                    <option value="PREMIUM">PREMIUM</option>
+                  </select>
+                </div>
+
+                <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={form.promotionEnabled}
+                    onChange={(e) => setForm((p) => ({ ...p, promotionEnabled: e.target.checked }))}
+                  />
+                  Promo davri yoqilsin
+                </label>
+                {form.promotionEnabled ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-700">Boshlanish</label>
+                      <input
+                        type="datetime-local"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                        value={form.promotionStartAt}
+                        onChange={(e) => setForm((p) => ({ ...p, promotionStartAt: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-700">Tugash</label>
+                      <input
+                        type="datetime-local"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                        value={form.promotionEndAt}
+                        onChange={(e) => setForm((p) => ({ ...p, promotionEndAt: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-700">Cashback turi</label>
+                    <select
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                      value={form.cashbackType}
+                      onChange={(e) =>
+                        setForm((p) => ({
+                          ...p,
+                          cashbackType: e.target.value as ProductFormState['cashbackType'],
+                        }))
+                      }
+                    >
+                      <option value="NONE">O‘chiq</option>
+                      <option value="PERCENT">Foiz (%)</option>
+                      <option value="FIXED_AMOUNT">Summasi (so‘m)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-slate-700">Cashback qiymati</label>
+                    <input
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                      type="number"
+                      min={0}
+                      value={form.cashbackValue}
+                      disabled={form.cashbackType === 'NONE'}
+                      onChange={(e) => setForm((p) => ({ ...p, cashbackValue: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </div>
+            </details>
             <div>
               <p className="mb-2 text-xs font-semibold text-slate-700">Variantlar</p>
               <div className="space-y-2">

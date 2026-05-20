@@ -21,6 +21,12 @@ type Product = {
   imageCardUrl?: string | null;
   cashbackType?: string | null;
   cashbackValue?: number | null;
+  discountEnabled?: boolean;
+  discountedPrice?: number | null;
+  promotionBadge?: 'HOT' | 'TOP' | 'YANGI' | 'AKSIYA' | 'PREMIUM' | null;
+  promotionEnabled?: boolean;
+  promotionStartAt?: string | null;
+  promotionEndAt?: string | null;
   variants?: Array<{
     id: string;
     flavor?: string | null;
@@ -126,6 +132,12 @@ export default function DiscountsPage() {
                 imageCardUrl={product.imageCardUrl}
                 cashbackType={product.cashbackType ?? undefined}
                 cashbackValue={product.cashbackValue ?? undefined}
+                discountEnabled={product.discountEnabled}
+                discountedPrice={product.discountedPrice}
+                promotionBadge={product.promotionBadge}
+                promotionEnabled={product.promotionEnabled}
+                promotionStartAt={product.promotionStartAt}
+                promotionEndAt={product.promotionEndAt}
               />
             </motion.div>
           ))}
