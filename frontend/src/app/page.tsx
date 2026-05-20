@@ -108,16 +108,7 @@ export default function Home() {
     }
   };
 
-  const renderableProducts = useMemo(
-    () =>
-      products.filter(
-        (product) =>
-          Array.isArray(product.variants) &&
-          product.variants.length > 0 &&
-          product.variants.some((variant) => Boolean(variant.id)),
-      ),
-    [products],
-  );
+  const renderableProducts = useMemo(() => products, [products]);
   const discountedProducts = useMemo(
     () =>
       renderableProducts.filter((product) =>
@@ -130,8 +121,12 @@ export default function Home() {
       ),
     [renderableProducts],
   );
-  const popularProducts = useMemo(() => renderableProducts.slice(0, 6), [renderableProducts]);
-  const recommendedProducts = useMemo(() => renderableProducts.slice(6, 12), [renderableProducts]);
+  const nonDiscountedProducts = useMemo(() => {
+    const discountedIds = new Set(discountedProducts.map((product) => product.id));
+    return renderableProducts.filter((product) => !discountedIds.has(product.id));
+  }, [renderableProducts, discountedProducts]);
+  const popularProducts = useMemo(() => nonDiscountedProducts.slice(0, 12), [nonDiscountedProducts]);
+  const recommendedProducts = useMemo(() => nonDiscountedProducts.slice(12), [nonDiscountedProducts]);
 
   useEffect(() => {
     registerCatalog(renderableProducts as StorefrontProduct[]);
@@ -247,7 +242,7 @@ export default function Home() {
                     <div className="bb-skeleton mt-2 h-3 w-2/3" />
                   </div>
                 ))
-              : discountedProducts.slice(0, 8).map((product) => {
+              : discountedProducts.map((product) => {
               const variant = product.variants?.[0];
               const basePrice = Number(variant?.price ?? product.price);
               const salePrice = Number(variant?.discountPrice ?? basePrice);
@@ -301,6 +296,9 @@ export default function Home() {
               Barchasini ko'rish
             </Link>
           </div>
+          {!loadingProducts && popularProducts.length === 0 ? (
+            <div className="rounded-2xl bg-white p-4 text-sm text-slate-500">Hozircha mahsulotlar yo‘q.</div>
+          ) : null}
           <div className="grid grid-cols-2 gap-2">
             {loadingProducts
               ? Array.from({ length: 4 }).map((_, idx) => (
@@ -340,6 +338,11 @@ export default function Home() {
               Yana
             </Link>
           </div>
+          {!loadingProducts && recommendedProducts.length === 0 ? (
+            <div className="rounded-2xl bg-white p-4 text-sm text-slate-500">
+              Barcha faol mahsulotlar yuqorida ko‘rsatildi.
+            </div>
+          ) : null}
           <div className="grid grid-cols-2 gap-2">
             {loadingProducts
               ? Array.from({ length: 4 }).map((_, idx) => (
