@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { CacheService } from '../../infrastructure/cache/cache.service';
+import { CACHE_TTL, cacheKeys } from '../../common/cache/cache-keys';
 import {
   AdminCategoryQueryDto,
   CreateCategoryDto,
@@ -10,7 +12,10 @@ import {
 
 @Injectable()
 export class CategoriesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   private slugify(name: string) {
     const base = name
@@ -40,6 +45,8 @@ export class CategoriesService {
   }
 
   async listPublicCategories(query: PublicCategoriesQueryDto) {
+    const cacheKey = cacheKeys.categoriesPublic(Boolean(query.featured));
+    return this.cache.getOrSet(cacheKey, CACHE_TTL.categories, async () => {
     const where = {
       isActive: query.active ?? true,
       ...(query.featured ? { isFeatured: true } : {}),
@@ -77,6 +84,7 @@ export class CategoriesService {
       sortOrder: category.sortOrder,
       productCount: category._count.products,
     }));
+    });
   }
 
   async listAdmin(query: AdminCategoryQueryDto) {
@@ -132,7 +140,7 @@ export class CategoriesService {
 
   async createAdminCategory(dto: CreateCategoryDto) {
     const slug = await this.generateUniqueSlug(dto.name);
-    return this.prisma.category.create({
+    const created = await this.prisma.category.create({
       data: {
         name: dto.name.trim(),
         slug,
@@ -142,6 +150,16 @@ export class CategoriesService {
         isActive: dto.isActive ?? true,
       },
     });
+    void this.bustCategoryCache();
+    return created;
+  }
+
+  private async bustCategoryCache() {
+    await Promise.all([
+      this.cache.del(cacheKeys.categoriesPublic(true)),
+      this.cache.del(cacheKeys.categoriesPublic(false)),
+      this.cache.invalidateStorefrontCatalog(),
+    ]);
   }
 
   async updateAdminCategory(id: string, dto: UpdateCategoryDto) {
@@ -150,7 +168,7 @@ export class CategoriesService {
       throw new NotFoundException('Kategoriya topilmadi');
     }
     const slug = dto.name ? await this.generateUniqueSlug(dto.name, id) : undefined;
-    return this.prisma.category.update({
+    const updated = await this.prisma.category.update({
       where: { id },
       data: {
         name: dto.name?.trim(),
@@ -161,6 +179,8 @@ export class CategoriesService {
         isActive: dto.isActive,
       },
     });
+    void this.bustCategoryCache();
+    return updated;
   }
 
   async updateAdminCategoryStatus(id: string, isActive: boolean) {
@@ -168,10 +188,12 @@ export class CategoriesService {
     if (!existing) {
       throw new NotFoundException('Kategoriya topilmadi');
     }
-    return this.prisma.category.update({
+    const updated = await this.prisma.category.update({
       where: { id },
       data: { isActive },
     });
+    void this.bustCategoryCache();
+    return updated;
   }
 
   async deleteAdminCategory(id: string) {
@@ -179,7 +201,9 @@ export class CategoriesService {
     if (!existing) {
       throw new NotFoundException('Kategoriya topilmadi');
     }
-    return this.prisma.category.delete({ where: { id } });
+    const deleted = await this.prisma.category.delete({ where: { id } });
+    void this.bustCategoryCache();
+    return deleted;
   }
 
   async listCategoryProducts(slug: string, query: PublicCategoryProductsQueryDto) {

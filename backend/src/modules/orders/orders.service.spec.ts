@@ -26,6 +26,14 @@ describe('OrdersService transitions', () => {
           totalAmount: 15000,
         }),
       } as never,
+      {
+        get: jest.fn(),
+        set: jest.fn(),
+        del: jest.fn(),
+        getOrSet: jest.fn((_k: string, _ttl: number, fn: () => Promise<unknown>) => fn()),
+        bumpCatalogVersion: jest.fn(),
+        invalidateStorefrontCatalog: jest.fn(),
+      } as never,
     );
     return { service, prisma };
   };

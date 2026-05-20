@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, authStorage } from '@/lib/api';
 import { OrderFinancialBreakdown } from '@/components/order/order-financial-breakdown';
 import { formatMoneyUz } from '@/lib/format';
@@ -36,21 +36,38 @@ function mapsLinks(lat: number, lng: number) {
   return { g, y };
 }
 
+type OrdersPage = {
+  items: Order[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
 export default function AdminOrdersPage() {
   const token = authStorage.getAccessToken();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatus>('ALL');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const load = async () => {
+  const load = async (targetPage = page) => {
     setLoading(true);
     setError('');
     try {
-      const data = await api.get<Order[]>('/orders', token);
-      setOrders(data);
+      const params = new URLSearchParams();
+      params.set('page', String(targetPage));
+      params.set('limit', '30');
+      if (statusFilter !== 'ALL') params.set('status', statusFilter);
+      if (search.trim()) params.set('q', search.trim());
+      const data = await api.get<OrdersPage>(`/orders?${params.toString()}`, token);
+      setOrders(data.items);
+      setPage(data.page);
+      setTotalPages(data.totalPages);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Buyurtmalarni yuklab bo'lmadi");
     } finally {
@@ -60,23 +77,11 @@ export default function AdminOrdersPage() {
 
   useEffect(() => {
     if (!token) return;
-    void load();
-  }, [token]);
+    void load(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when filters change
+  }, [token, statusFilter]);
 
-  const visible = useMemo(
-    () =>
-      orders.filter((order) => {
-        const statusMatch = statusFilter === 'ALL' || order.status === statusFilter;
-        const q = search.trim().toLowerCase();
-        const searchMatch =
-          q.length === 0 ||
-          order.customerName.toLowerCase().includes(q) ||
-          order.customerPhone.includes(q) ||
-          (order.formattedAddress?.toLowerCase().includes(q) ?? false);
-        return statusMatch && searchMatch;
-      }),
-    [orders, statusFilter, search],
-  );
+  const visible = orders;
 
   const updateStatus = async (orderId: string, status: OrderStatus) => {
     await api.patch(`/orders/${orderId}/status`, { status }, token);
@@ -110,10 +115,33 @@ export default function AdminOrdersPage() {
           <button
             type="button"
             className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm font-medium md:rounded-xl"
-            onClick={() => void load()}
+            onClick={() => void load(1)}
           >
-            Yangilash
+            Qidirish
           </button>
+        </div>
+        <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+          <span>
+            Sahifa {page} / {totalPages}
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={page <= 1 || loading}
+              className="rounded-lg border border-slate-200 px-2 py-1 disabled:opacity-40"
+              onClick={() => void load(page - 1)}
+            >
+              Oldingi
+            </button>
+            <button
+              type="button"
+              disabled={page >= totalPages || loading}
+              className="rounded-lg border border-slate-200 px-2 py-1 disabled:opacity-40"
+              onClick={() => void load(page + 1)}
+            >
+              Keyingi
+            </button>
+          </div>
         </div>
       </div>
 

@@ -28,6 +28,8 @@ import {
 import { calculateOrderTotals } from './order-totals.util';
 import { CouponsService } from '../coupons/coupons.service';
 import { SettingsService } from '../settings/settings.service';
+import { CacheService } from '../../infrastructure/cache/cache.service';
+import { CACHE_TTL, cacheKeys } from '../../common/cache/cache-keys';
 
 const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   NEW: ['PICKING', 'CANCELLED'],
@@ -64,7 +66,31 @@ export class OrdersService {
     private readonly configService: ConfigService,
     private readonly couponsService: CouponsService,
     private readonly settingsService: SettingsService,
+    private readonly cache: CacheService,
   ) {}
+
+  private readonly orderListSelect = {
+    id: true,
+    status: true,
+    totalAmount: true,
+    subtotalAmount: true,
+    deliveryFee: true,
+    customerName: true,
+    customerPhone: true,
+    deliveryAddress: true,
+    latitude: true,
+    longitude: true,
+    formattedAddress: true,
+    manualAddress: true,
+    deliveryNote: true,
+    addressLabel: true,
+    createdAt: true,
+    cashbackRedeemTiyin: true,
+    couponDiscountTiyin: true,
+    couponCode: true,
+    assignedPicker: { select: { fullName: true } },
+    assignedCourier: { select: { fullName: true } },
+  } satisfies Prisma.OrderSelect;
 
   async createFromCart(
     userId: string,
@@ -219,6 +245,8 @@ export class OrdersService {
     const canLink = canLinkCustomerFromPhone(deliveryInfo?.phone);
 
     const cashbackEarnedSnapshotTiyin = preparedLines.reduce((s, l) => s + l.cashbackPendingTiyin, 0);
+
+    const stockPlan = await this.buildStockPlan(preparedLines);
 
     const order = await this.prisma.$transaction(async (tx) => {
       let customerId: string | undefined;
@@ -441,25 +469,96 @@ export class OrdersService {
       throw new NotFoundException('Buyurtma topilmadi');
     }
 
-    const order = await this.prisma.order.findUnique({
-      where: { trackingToken: token },
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-        deliveryAddress: true,
-        cashbackEarnedSnapshotTiyin: true,
-        cashbackCreditedAt: true,
-        trackingToken: true,
-        assignedCourier: { select: { fullName: true } },
+    const payload = await this.cache.getOrSet(
+      cacheKeys.orderTrack(token),
+      CACHE_TTL.orderTrack,
+      async () => {
+        const order = await this.prisma.order.findUnique({
+          where: { trackingToken: token },
+          select: {
+            status: true,
+            createdAt: true,
+            deliveryAddress: true,
+            cashbackEarnedSnapshotTiyin: true,
+            cashbackCreditedAt: true,
+            trackingToken: true,
+            updatedAt: true,
+            assignedCourier: { select: { fullName: true } },
+          },
+        });
+        if (!order?.trackingToken) {
+          return null;
+        }
+        const courierName = order.assignedCourier?.fullName?.trim() || null;
+        const track = this.toPublicTrackPayload(order, courierName);
+        return { ...track, version: order.updatedAt.toISOString() };
       },
-    });
-    if (!order?.trackingToken) {
+    );
+
+    if (!payload) {
       throw new NotFoundException('Buyurtma topilmadi');
     }
+    return payload;
+  }
 
-    const courierName = order.assignedCourier?.fullName?.trim() || null;
-    return this.toPublicTrackPayload(order, courierName);
+  private async buildStockPlan(lines: PreparedLine[]) {
+    const variantLines = lines.filter((l) => l.type === 'variant');
+    const productLines = lines.filter((l) => l.type === 'product');
+    const variantIds = variantLines.map((l) => l.entityId);
+    const productIds = productLines.map((l) => l.entityId);
+
+    type VariantStockRow = { id: string; stock: number; productId: string };
+    type ProductStockRow = { id: string; stockQuantity: number };
+
+    const [variants, products]: [VariantStockRow[], ProductStockRow[]] = await Promise.all([
+      variantIds.length
+        ? this.prisma.productVariant.findMany({
+            where: { id: { in: variantIds }, isActive: true },
+            select: { id: true, stock: true, productId: true },
+          })
+        : Promise.resolve([] as VariantStockRow[]),
+      productIds.length
+        ? this.prisma.product.findMany({
+            where: { id: { in: productIds } },
+            select: { id: true, stockQuantity: true },
+          })
+        : Promise.resolve([] as ProductStockRow[]),
+    ]);
+
+    const variantById = new Map(variants.map((v) => [v.id, v]));
+    const productById = new Map(products.map((p) => [p.id, p]));
+
+    const variantUpdates: Array<{ id: string; nextStock: number }> = [];
+    const productUpdates: Array<{ id: string; nextStock: number }> = [];
+    const inventoryLogs: Array<{ productId: string; change: number; reason: 'SALE' }> = [];
+
+    for (const line of variantLines) {
+      const variant = variantById.get(line.entityId);
+      if (!variant) throw new BadRequestException(`Variant not found: ${line.title}`);
+      if (!hasEnoughStockForMode(variant.stock, line.quantity, line.sellingMode)) {
+        throw new BadRequestException(`Insufficient stock for ${line.title}`);
+      }
+      variantUpdates.push({
+        id: variant.id,
+        nextStock: deductStockForMode(variant.stock, line.quantity, line.sellingMode),
+      });
+      inventoryLogs.push({ productId: variant.productId, change: -line.quantity, reason: 'SALE' });
+    }
+
+    for (const line of productLines) {
+      const product = productById.get(line.entityId);
+      if (!product) throw new BadRequestException(`Product not found: ${line.title}`);
+      if (!hasEnoughStockForMode(product.stockQuantity, line.quantity, line.sellingMode)) {
+        throw new BadRequestException(`Insufficient stock for ${line.title}`);
+      }
+      productUpdates.push({
+        id: product.id,
+        nextStock: deductStockForMode(product.stockQuantity, line.quantity, line.sellingMode),
+      });
+      inventoryLogs.push({ productId: product.id, change: -line.quantity, reason: 'SALE' });
+    }
+
+    return { variantUpdates, productUpdates, inventoryLogs };
   }
 
   private toPublicTrackPayload(
@@ -661,35 +760,35 @@ export class OrdersService {
     return this.applyStatus(orderId, status, { role: 'ADMIN', userId });
   }
 
-  listPickerQueue(pickerUserId: string) {
-    return this.prisma.order.findMany({
-      where: {
-        OR: [{ status: 'NEW' }, { status: 'PICKING', assignedPickerId: pickerUserId }],
-      },
-      include: {
-        items: { include: { product: true, variant: true } },
-        user: true,
-        assignedPicker: true,
-        assignedCourier: true,
-        customer: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
   listCourierQueue(courierUserId: string) {
     return this.prisma.order.findMany({
       where: {
         OR: [{ status: 'READY' }, { status: 'DELIVERING', assignedCourierId: courierUserId }],
       },
-      include: {
-        items: { include: { product: true, variant: true } },
-        user: true,
-        assignedPicker: true,
-        assignedCourier: true,
-        customer: true,
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        customerName: true,
+        customerPhone: true,
+        deliveryAddress: true,
+        formattedAddress: true,
+        manualAddress: true,
+        deliveryFee: true,
+        totalAmount: true,
+        items: {
+          select: {
+            id: true,
+            title: true,
+            quantity: true,
+            price: true,
+            product: { select: { imageUrl: true, name: true } },
+            variant: { select: { imageUrl: true, title: true } },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
+      take: 60,
     });
   }
 
@@ -716,29 +815,132 @@ export class OrdersService {
     });
   }
 
-  async listForActor(userId: string, role: string) {
+  async listForActor(
+    userId: string,
+    role: string,
+    opts?: { page?: number; limit?: number; status?: OrderStatus; q?: string },
+  ) {
     const r = role.toUpperCase();
     if (r === 'ADMIN' || r === 'SUPER_ADMIN') {
-      return this.listAll();
+      return this.listPaginated(opts);
     }
     if (r === 'BUSINESS') {
       const bp = await this.prisma.businessProfile.findUnique({ where: { userId } });
-      if (!bp) return [];
-      return this.listForBusiness(bp.id);
+      if (!bp) {
+        return { items: [], page: 1, limit: 30, total: 0, totalPages: 1 };
+      }
+      return this.listForBusinessPaginated(bp.id, opts);
     }
     throw new ForbiddenException('Buyurtmalar ro‘yxatiga ruxsat yo‘q');
   }
 
-  listAll() {
+  async listPaginated(opts?: {
+    page?: number;
+    limit?: number;
+    status?: OrderStatus;
+    q?: string;
+  }) {
+    const page = Math.max(1, opts?.page ?? 1);
+    const limit = Math.min(100, Math.max(1, opts?.limit ?? 30));
+    const skip = (page - 1) * limit;
+    const q = opts?.q?.trim();
+
+    const where: Prisma.OrderWhereInput = {};
+    if (opts?.status) where.status = opts.status;
+    if (q) {
+      where.OR = [
+        { customerName: { contains: q, mode: 'insensitive' } },
+        { customerPhone: { contains: q, mode: 'insensitive' } },
+        { deliveryAddress: { contains: q, mode: 'insensitive' } },
+        { id: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        skip,
+        take: limit,
+        select: this.orderListSelect,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+
+    return {
+      items,
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    };
+  }
+
+  async listForBusinessPaginated(
+    businessProfileId: string,
+    opts?: { page?: number; limit?: number; status?: OrderStatus; q?: string },
+  ) {
+    const page = Math.max(1, opts?.page ?? 1);
+    const limit = Math.min(100, Math.max(1, opts?.limit ?? 30));
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.OrderWhereInput = {
+      items: {
+        some: {
+          OR: [
+            { product: { businessId: businessProfileId } },
+            { variant: { product: { businessId: businessProfileId } } },
+          ],
+        },
+      },
+    };
+    if (opts?.status) where.status = opts.status;
+
+    const [items, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        skip,
+        take: limit,
+        select: this.orderListSelect,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+
+    return { items, page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) };
+  }
+
+  listPickerQueue(pickerUserId: string) {
     return this.prisma.order.findMany({
-      include: {
-        items: { include: { product: true, variant: true } },
-        user: true,
-        assignedPicker: true,
-        assignedCourier: true,
-        customer: true,
+      where: {
+        OR: [{ status: 'NEW' }, { status: 'PICKING', assignedPickerId: pickerUserId }],
+      },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        deliveryFee: true,
+        totalAmount: true,
+        items: {
+          select: {
+            id: true,
+            title: true,
+            quantity: true,
+            unitType: true,
+            sellingMode: true,
+            price: true,
+            product: { select: { imageUrl: true, name: true } },
+            variant: { select: { imageUrl: true, title: true, flavor: true } },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
+      take: 80,
     });
+  }
+
+  /** @deprecated Use listPaginated */
+  listAll() {
+    return this.listPaginated({ page: 1, limit: 100 }).then((r) => r.items);
   }
 }

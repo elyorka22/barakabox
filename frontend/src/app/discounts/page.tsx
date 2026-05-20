@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Filter, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { api } from '@/lib/api';
+import { fetchHomepageSections } from '@/lib/storefront-api';
 import { MobileNav } from '@/components/app-nav';
 import { ProductCard } from '@/components/product-card';
 
@@ -45,8 +45,8 @@ export default function DiscountsPage() {
   const [activeTab, setActiveTab] = useState<typeof tabs[number]>('Barcha');
 
   const loadProducts = async () => {
-    const data = await api.get<Product[]>('/products');
-    setProducts(data);
+    const data = await fetchHomepageSections();
+    setProducts(data.discounted as Product[]);
   };
 
   useEffect(() => {

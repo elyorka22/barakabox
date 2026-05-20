@@ -1,8 +1,15 @@
 import { ProductUnit, CashbackType, Prisma, SellingMode } from '@prisma/client';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { CacheService } from '../../infrastructure/cache/cache.service';
+import { CACHE_TTL, cacheKeys } from '../../common/cache/cache-keys';
 import { UploadService } from '../upload/upload.service';
 import type { UpdateProductDto } from './dto/update-product.dto';
+import {
+  mapStorefrontProduct,
+  storefrontProductSelect,
+  type StorefrontProductRow,
+} from './storefront-product.mapper';
 
 function defaultSellingModeForUnit(unit: ProductUnit): SellingMode {
   if (unit === 'kg') return 'KILOGRAM_STEP';
@@ -10,12 +17,115 @@ function defaultSellingModeForUnit(unit: ProductUnit): SellingMode {
   return 'PIECE';
 }
 
+const STOREFRONT_WHERE: Prisma.ProductWhereInput = {
+  isActive: true,
+  business: { status: 'APPROVED' },
+};
+
 @Injectable()
 export class ProductsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly uploadService: UploadService,
+    private readonly cache: CacheService,
   ) {}
+
+  private async touchCatalogCache(): Promise<void> {
+    await this.cache.invalidateStorefrontCatalog();
+  }
+
+  private mapRows(rows: StorefrontProductRow[]) {
+    return rows.map(mapStorefrontProduct);
+  }
+
+  /** Paginated storefront catalog (replaces unbounded list). */
+  async listPaginated(opts: {
+    page?: number;
+    limit?: number;
+    categoryId?: string;
+    sort?: 'newest' | 'price_asc' | 'price_desc';
+  }) {
+    const page = Math.max(1, opts.page ?? 1);
+    const limit = Math.min(48, Math.max(1, opts.limit ?? 24));
+    const skip = (page - 1) * limit;
+    const sort = opts.sort ?? 'newest';
+    const categoryId = opts.categoryId?.trim();
+
+    const cacheKey = cacheKeys.productsList(page, limit, categoryId, sort);
+    return this.cache.getOrSet(cacheKey, CACHE_TTL.productsList, async () => {
+      const where: Prisma.ProductWhereInput = { ...STOREFRONT_WHERE };
+      if (categoryId) where.categoryId = categoryId;
+
+      const orderBy: Prisma.ProductOrderByWithRelationInput =
+        sort === 'price_asc'
+          ? { price: 'asc' }
+          : sort === 'price_desc'
+            ? { price: 'desc' }
+            : { createdAt: 'desc' };
+
+      const [rows, total] = await Promise.all([
+        this.prisma.product.findMany({
+          where,
+          skip,
+          take: limit,
+          select: storefrontProductSelect,
+          orderBy,
+        }),
+        this.prisma.product.count({ where }),
+      ]);
+
+      return {
+        items: this.mapRows(rows),
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      };
+    });
+  }
+
+  /** Homepage sections — capped product counts, cached. */
+  async getHomepageSections() {
+    return this.cache.getOrSet(cacheKeys.productsHome(), CACHE_TTL.productsHome, async () => {
+      const sectionLimit = 12;
+
+      const allRows = await this.prisma.product.findMany({
+        where: STOREFRONT_WHERE,
+        select: storefrontProductSelect,
+        orderBy: { createdAt: 'desc' },
+        take: 80,
+      });
+
+      const mapped = this.mapRows(allRows);
+      const discounted = mapped.filter((p) => {
+        if (p.discountEnabled && p.discountedPrice != null && p.discountedPrice < Number(p.price)) {
+          return true;
+        }
+        return p.variants?.some(
+          (v) =>
+            typeof v.discountPrice === 'number' &&
+            v.discountPrice > 0 &&
+            v.discountPrice < Number(v.price),
+        );
+      });
+
+      const discountedIds = new Set(discounted.map((p) => p.id));
+      const rest = mapped.filter((p) => !discountedIds.has(p.id));
+
+      const catalogVersion = (await this.cache.get<number>(cacheKeys.catalogVersion())) ?? 1;
+      return {
+        discounted: discounted.slice(0, sectionLimit),
+        popular: rest.slice(0, sectionLimit),
+        recommended: rest.slice(sectionLimit, sectionLimit * 2),
+        catalogVersion,
+      };
+    });
+  }
+
+  /** @deprecated Use listPaginated — kept for internal compatibility. */
+  list() {
+    return this.listPaginated({ page: 1, limit: 24 }).then((r) => r.items);
+  }
 
   private async requireApprovedBusiness(userId: string) {
     const business = await this.prisma.businessProfile.findUnique({
@@ -25,21 +135,6 @@ export class ProductsService {
       throw new ForbiddenException('Business is not approved');
     }
     return business;
-  }
-
-  list() {
-    return this.prisma.product.findMany({
-      where: { isActive: true, business: { status: 'APPROVED' } },
-      include: {
-        business: true,
-        category: true,
-        variants: {
-          where: { isActive: true },
-          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
   }
 
   listForAdmin(opts?: {
@@ -147,37 +242,75 @@ export class ProductsService {
   }
 
   async search(term: string, page = 1, limit = 20) {
-    const skip = (page - 1) * limit;
-    const where = {
-      isActive: true,
-      OR: [
-        { name: { contains: term, mode: 'insensitive' as const } },
-        {
-          variants: {
-            some: {
-              OR: [
-                { title: { contains: term, mode: 'insensitive' as const } },
-                { flavor: { contains: term, mode: 'insensitive' as const } },
-                { sku: { contains: term, mode: 'insensitive' as const } },
-                { barcode: { contains: term, mode: 'insensitive' as const } },
-              ],
-            },
-          },
-        },
-      ],
-    };
-    return this.prisma.product.findMany({
-      where,
-      skip,
-      take: limit,
-      include: {
-        category: true,
-        variants: {
-          where: { isActive: true },
-          orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-        },
+    const q = term.trim();
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.min(48, Math.max(1, limit));
+    const skip = (safePage - 1) * safeLimit;
+
+    return this.cache.getOrSet(
+      cacheKeys.productsSearch(q, safePage, safeLimit),
+      CACHE_TTL.productsSearch,
+      async () => {
+        const ids = await this.prisma.$queryRaw<Array<{ id: string }>>`
+          SELECT DISTINCT p.id
+          FROM "Product" p
+          LEFT JOIN "ProductVariant" v ON v."productId" = p.id AND v."isActive" = true
+          WHERE p."isActive" = true
+            AND EXISTS (
+              SELECT 1 FROM "BusinessProfile" b
+              WHERE b.id = p."businessId" AND b.status = 'APPROVED'
+            )
+            AND (
+              p.name ILIKE ${'%' + q + '%'}
+              OR v.title ILIKE ${'%' + q + '%'}
+              OR v.flavor ILIKE ${'%' + q + '%'}
+              OR v.sku ILIKE ${'%' + q + '%'}
+              OR v.barcode ILIKE ${'%' + q + '%'}
+            )
+          ORDER BY p."createdAt" DESC
+          LIMIT ${safeLimit} OFFSET ${skip}
+        `;
+
+        const productIds = ids.map((r) => r.id);
+        if (productIds.length === 0) {
+          return { items: [], page: safePage, limit: safeLimit, total: 0, totalPages: 1 };
+        }
+
+        const rows = await this.prisma.product.findMany({
+          where: { id: { in: productIds } },
+          select: storefrontProductSelect,
+        });
+        const order = new Map(productIds.map((id, i) => [id, i]));
+        rows.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+
+        const countRows = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
+          SELECT COUNT(DISTINCT p.id)::bigint AS count
+          FROM "Product" p
+          LEFT JOIN "ProductVariant" v ON v."productId" = p.id AND v."isActive" = true
+          WHERE p."isActive" = true
+            AND EXISTS (
+              SELECT 1 FROM "BusinessProfile" b
+              WHERE b.id = p."businessId" AND b.status = 'APPROVED'
+            )
+            AND (
+              p.name ILIKE ${'%' + q + '%'}
+              OR v.title ILIKE ${'%' + q + '%'}
+              OR v.flavor ILIKE ${'%' + q + '%'}
+              OR v.sku ILIKE ${'%' + q + '%'}
+              OR v.barcode ILIKE ${'%' + q + '%'}
+            )
+        `;
+        const total = Number(countRows[0]?.count ?? 0);
+
+        return {
+          items: this.mapRows(rows),
+          page: safePage,
+          limit: safeLimit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+        };
       },
-    });
+    );
   }
 
   async createByAdmin(
@@ -294,6 +427,7 @@ export class ProductsService {
           },
         });
       }
+      void this.touchCatalogCache();
       return product;
     });
   }
@@ -474,6 +608,7 @@ export class ProductsService {
           },
         });
       }
+      void this.touchCatalogCache();
       return updated;
     });
   }
@@ -508,9 +643,11 @@ export class ProductsService {
         await this.uploadService.deleteImage(key);
       }
     }
-    return this.prisma.product.update({
+    const result = await this.prisma.product.update({
       where: { id: productId },
       data: { isActive: false },
     });
+    void this.touchCatalogCache();
+    return result;
   }
 }

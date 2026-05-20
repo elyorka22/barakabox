@@ -393,27 +393,27 @@ export class AdminDashboardService {
   }
 
   private async buildDistricts(start: Date, end: Date) {
-    const orders = await this.prisma.order.findMany({
-      where: {
-        createdAt: { gte: start, lte: end },
-        status: { not: OrderStatus.CANCELLED },
-      },
-      select: { addressLabel: true, deliveryAddress: true, totalAmount: true },
-    });
+    const rows = await this.prisma.$queryRaw<
+      Array<{ label: string; orders: bigint; revenue: bigint }>
+    >`
+      SELECT
+        COALESCE(NULLIF(TRIM(o."addressLabel"), ''), SPLIT_PART(o."deliveryAddress", ',', 1), 'Noma''lum hudud') AS label,
+        COUNT(*)::bigint AS orders,
+        SUM(o."totalAmount")::bigint AS revenue
+      FROM "Order" o
+      WHERE o."createdAt" >= ${start}
+        AND o."createdAt" <= ${end}
+        AND o.status <> 'CANCELLED'
+      GROUP BY 1
+      ORDER BY orders DESC
+      LIMIT 10
+    `;
 
-    const map = new Map<string, { orders: number; revenue: number }>();
-    for (const o of orders) {
-      const label = this.districtLabel(o.addressLabel, o.deliveryAddress);
-      const cur = map.get(label) ?? { orders: 0, revenue: 0 };
-      cur.orders += 1;
-      cur.revenue += o.totalAmount;
-      map.set(label, cur);
-    }
-
-    return [...map.entries()]
-      .map(([label, stats]) => ({ label, orders: stats.orders, revenue: stats.revenue }))
-      .sort((a, b) => b.orders - a.orders)
-      .slice(0, 10);
+    return rows.map((r) => ({
+      label: String(r.label).slice(0, 48),
+      orders: Number(r.orders),
+      revenue: Number(r.revenue),
+    }));
   }
 
   private districtLabel(addressLabel: string | null, deliveryAddress: string) {

@@ -1,5 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { CacheService } from '../../infrastructure/cache/cache.service';
+import { CACHE_TTL, cacheKeys } from '../../common/cache/cache-keys';
 import { Role, User } from '@prisma/client';
 
 const STAFF_EMAIL_DOMAIN = 'staff.barakabox.local';
@@ -11,7 +13,10 @@ export function staffEmailFromLogin(login: string): string {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
@@ -91,10 +96,17 @@ export class UsersService {
     });
   }
 
-  ensureGuestUser(guestId: string): Promise<User> {
+  async ensureGuestUser(guestId: string): Promise<User> {
     const normalizedGuestId = guestId.trim().toLowerCase();
+    const cacheKey = cacheKeys.guestUserId(normalizedGuestId);
+    const cachedId = await this.cache.get<string>(cacheKey);
+    if (cachedId) {
+      const existing = await this.prisma.user.findUnique({ where: { id: cachedId } });
+      if (existing) return existing;
+    }
+
     const email = `guest-${normalizedGuestId}@barakabox.local`;
-    return this.prisma.user.upsert({
+    const user = await this.prisma.user.upsert({
       where: { email },
       create: {
         email,
@@ -105,6 +117,8 @@ export class UsersService {
       },
       update: {},
     });
+    await this.cache.set(cacheKey, user.id, CACHE_TTL.guestUser);
+    return user;
   }
 
   async listEmployeesForAdmin(opts?: {

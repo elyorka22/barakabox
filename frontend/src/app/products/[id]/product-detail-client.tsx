@@ -51,7 +51,8 @@ export default function ProductDetailClientPage() {
 
   useEffect(() => {
     const load = async () => {
-      const list = await api.get<Product[]>('/products');
+      const res = await api.get<{ items: Product[] }>('/products?limit=48');
+      const list = res.items ?? [];
       setProduct(list.find((p) => p.id === params.id) ?? null);
     };
     void load();

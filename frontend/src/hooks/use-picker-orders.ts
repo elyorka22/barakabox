@@ -22,6 +22,7 @@ import { playNewOrderAlert, sortPickerOrders } from '@/lib/picker-order-utils';
 import { showToast } from '@/lib/toast';
 
 const POLL_MS = 12_000;
+const POLL_HIDDEN_MS = 30_000;
 const MAX_RETRIES = 2;
 
 async function apiWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T> {
@@ -133,10 +134,20 @@ export function usePickerOrders(onNewOrder?: (order: PickerOrder) => void) {
     const onChange = () => void loadOrders(true);
     window.addEventListener(PICKER_ONLINE_CHANGED, onChange);
     window.addEventListener('online', onChange);
-    const id = window.setInterval(() => void loadOrders(true), POLL_MS);
+    const schedule = () => {
+      const ms = typeof document !== 'undefined' && document.hidden ? POLL_HIDDEN_MS : POLL_MS;
+      return window.setInterval(() => void loadOrders(true), ms);
+    };
+    let id = schedule();
+    const onVisibility = () => {
+      window.clearInterval(id);
+      id = schedule();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
       window.removeEventListener(PICKER_ONLINE_CHANGED, onChange);
       window.removeEventListener('online', onChange);
+      document.removeEventListener('visibilitychange', onVisibility);
       window.clearInterval(id);
     };
   }, [loadOrders]);

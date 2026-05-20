@@ -8,6 +8,7 @@ import {
   getVariantPending,
   getVariantQuantity,
   subscribeCart,
+  subscribeCartVariant,
   type CartItem,
 } from './cart-store';
 
@@ -17,7 +18,7 @@ function emptySnapshot(): CartItem[] {
 
 export function useCartQuantity(variantId: string | null | undefined): number {
   return useSyncExternalStore(
-    subscribeCart,
+    (listener) => subscribeCartVariant(variantId, listener),
     () => getVariantQuantity(variantId),
     () => 0,
   );
@@ -25,7 +26,7 @@ export function useCartQuantity(variantId: string | null | undefined): number {
 
 export function useCartPending(variantId: string | null | undefined): boolean {
   return useSyncExternalStore(
-    subscribeCart,
+    (listener) => subscribeCartVariant(variantId, listener),
     () => getVariantPending(variantId),
     () => false,
   );
@@ -36,17 +37,9 @@ export function useCartItems(): CartItem[] {
 }
 
 export function useCartTotalCount(): number {
-  return useSyncExternalStore(
-    subscribeCart,
-    getCartTotalCount,
-    () => 0,
-  );
+  return useSyncExternalStore(subscribeCart, getCartTotalCount, () => 0);
 }
 
 export function useCartHydrated(): boolean {
-  return useSyncExternalStore(
-    subscribeCart,
-    getCartHydrated,
-    () => false,
-  );
+  return useSyncExternalStore(subscribeCart, getCartHydrated, () => false);
 }

@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { CacheService } from '../../infrastructure/cache/cache.service';
+import { CACHE_TTL, cacheKeys } from '../../common/cache/cache-keys';
 import {
   AdminBannerQueryDto,
   BannerResponse,
@@ -11,15 +13,25 @@ import {
 
 @Injectable()
 export class BannersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   async listPublic(query: PublicBannerQueryDto): Promise<BannerResponse[]> {
-    const where = { isActive: query.active ?? true };
-    const banners = await this.prisma.banner.findMany({
-      where,
-      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+    if (query.active === false) {
+      const banners = await this.prisma.banner.findMany({
+        where: { isActive: false },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+      });
+      return banners;
+    }
+    return this.cache.getOrSet(cacheKeys.bannersActive(), CACHE_TTL.banners, async () => {
+      return this.prisma.banner.findMany({
+        where: { isActive: true },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+      });
     });
-    return banners;
   }
 
   async listAdmin(query: AdminBannerQueryDto) {

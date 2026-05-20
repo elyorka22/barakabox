@@ -10,6 +10,7 @@ import {
 
 export const MANUAL_ADDRESS_MIN_LEN = 8;
 export const GUEST_TRACK_POLL_MS = 20_000;
+export const GUEST_TRACK_POLL_HIDDEN_MS = 45_000;
 
 export type PublicOrderTrackSnapshot = {
   trackingToken: string;

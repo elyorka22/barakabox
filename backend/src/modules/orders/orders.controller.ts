@@ -95,8 +95,20 @@ export class OrdersController {
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('BUSINESS', 'ADMIN')
-  listAll(@CurrentUser() user: AuthUser) {
-    return this.ordersService.listForActor(user.sub, user.role);
+  listAll(
+    @CurrentUser() user: AuthUser,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+    @Query('q') q?: string,
+  ) {
+    const allowed = new Set(['NEW', 'PICKING', 'READY', 'DELIVERING', 'DELIVERED', 'CANCELLED']);
+    return this.ordersService.listForActor(user.sub, user.role, {
+      page: Number(page || 1),
+      limit: Number(limit || 30),
+      status: status && allowed.has(status) ? (status as 'NEW' | 'PICKING' | 'READY' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED') : undefined,
+      q,
+    });
   }
 
   @Get('picker')

@@ -73,14 +73,43 @@ let state: CartStoreState = {
   hydrated: false,
 };
 
-const listeners = new Set<Listener>();
+const globalListeners = new Set<Listener>();
+const variantListeners = new Map<string, Set<Listener>>();
 const flushTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let bootstrapPromise: Promise<void> | null = null;
 let lastRollbackToastAt = 0;
 
-function emit() {
-  for (const listener of Array.from(listeners)) {
+function collectTouchedVariants(patch?: Partial<CartStoreState>): Set<string> {
+  const touched = new Set<string>();
+  const addFromMap = (map?: Record<string, number>) => {
+    if (!map) return;
+    for (const id of Object.keys(map)) touched.add(id);
+  };
+  addFromMap(patch?.serverByVariant);
+  addFromMap(patch?.pendingByVariant);
+  addFromMap(patch?.inFlightByVariant);
+  if (patch?.items) {
+    for (const item of patch.items) {
+      if (item.variant?.id) touched.add(item.variant.id);
+    }
+  }
+  if (touched.size === 0) {
+    for (const id of Object.keys(state.serverByVariant)) touched.add(id);
+    for (const id of Object.keys(state.pendingByVariant)) touched.add(id);
+    for (const id of Object.keys(state.inFlightByVariant)) touched.add(id);
+  }
+  return touched;
+}
+
+function emit(patch?: Partial<CartStoreState>) {
+  const touched = collectTouchedVariants(patch);
+  for (const variantId of touched) {
+    const subs = variantListeners.get(variantId);
+    if (!subs) continue;
+    for (const listener of Array.from(subs)) listener();
+  }
+  for (const listener of Array.from(globalListeners)) {
     listener();
   }
   schedulePersist();
@@ -98,7 +127,7 @@ function deriveServer(items: CartItem[]): Record<string, number> {
 
 function setState(patch: Partial<CartStoreState>) {
   state = { ...state, ...patch };
-  emit();
+  emit(patch);
 }
 
 function loadFromStorage(): { items: CartItem[]; productIdByVariant: Record<string, string> } | null {
@@ -175,10 +204,26 @@ export function getCartSnapshot(): CartStoreState {
   return state;
 }
 
+/** Subscribe to cart-wide changes (nav badge, cart page). */
 export function subscribeCart(listener: Listener): () => void {
-  listeners.add(listener);
+  globalListeners.add(listener);
   return () => {
-    listeners.delete(listener);
+    globalListeners.delete(listener);
+  };
+}
+
+/** Subscribe to a single variant quantity — avoids grid-wide rerenders. */
+export function subscribeCartVariant(variantId: string | null | undefined, listener: Listener): () => void {
+  if (!variantId) return () => undefined;
+  let subs = variantListeners.get(variantId);
+  if (!subs) {
+    subs = new Set();
+    variantListeners.set(variantId, subs);
+  }
+  subs.add(listener);
+  return () => {
+    subs?.delete(listener);
+    if (subs && subs.size === 0) variantListeners.delete(variantId);
   };
 }
 

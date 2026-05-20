@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import {
   GUEST_TRACK_POLL_MS,
+  GUEST_TRACK_POLL_HIDDEN_MS,
   type PublicOrderTrackSnapshot,
   isActiveGuestOrderStatus,
   isCompletedGuestOrderStatus,
@@ -144,8 +145,22 @@ export function useGuestOrderTracking(options?: { pollEnabled?: boolean }) {
       void refreshFromApi(current.trackingToken).finally(() => setSyncing(false));
     };
 
-    const id = window.setInterval(tick, GUEST_TRACK_POLL_MS);
-    return () => window.clearInterval(id);
+    const schedule = () => {
+      const ms = typeof document !== 'undefined' && document.hidden
+        ? GUEST_TRACK_POLL_HIDDEN_MS
+        : GUEST_TRACK_POLL_MS;
+      return window.setInterval(tick, ms);
+    };
+    let id = schedule();
+    const onVisibility = () => {
+      window.clearInterval(id);
+      id = schedule();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [pollEnabled, hydrated, selected?.trackingToken, selected?.status, refreshFromApi]);
 
   useEffect(() => {

@@ -14,7 +14,7 @@ export function ProductRedirectClient() {
   useEffect(() => {
     const run = async () => {
       try {
-        const list = await api.get<StorefrontProduct[]>('/products');
+        const list = await api.get<{ items: StorefrontProduct[] }>('/products?limit=48').then((r) => r.items ?? []);
         const product = list.find((p) => p.id === params.id);
         if (product) {
           openProduct(product);

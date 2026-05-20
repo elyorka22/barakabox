@@ -12,12 +12,29 @@ import { UpdateProductDto } from './dto/update-product.dto';
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
+  @Get('home')
+  homeSections() {
+    return this.productsService.getHomepageSections();
+  }
+
   @Get()
-  list(@Query('q') q?: string, @Query('page') page?: string, @Query('limit') limit?: string) {
+  list(
+    @Query('q') q?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('categoryId') categoryId?: string,
+    @Query('sort') sort?: string,
+  ) {
     if (q?.trim()) {
       return this.productsService.search(q.trim(), Number(page || 1), Number(limit || 20));
     }
-    return this.productsService.list();
+    const allowedSort = new Set(['newest', 'price_asc', 'price_desc']);
+    return this.productsService.listPaginated({
+      page: Number(page || 1),
+      limit: Number(limit || 24),
+      categoryId: categoryId?.trim() || undefined,
+      sort: allowedSort.has(sort ?? '') ? (sort as 'newest' | 'price_asc' | 'price_desc') : 'newest',
+    });
   }
 
   @Post()

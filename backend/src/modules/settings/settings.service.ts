@@ -1,5 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { CacheService } from '../../infrastructure/cache/cache.service';
+import { CACHE_TTL, cacheKeys } from '../../common/cache/cache-keys';
 import {
   calculateDeliveryQuote,
   defaultDeliverySettings,
@@ -45,7 +47,10 @@ function isValidTelegramSupportUrl(raw: string): boolean {
 
 @Injectable()
 export class SettingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: CacheService,
+  ) {}
 
   private async ensureRow() {
     return this.prisma.siteSettings.upsert({
@@ -77,8 +82,10 @@ export class SettingsService {
   }
 
   async getDeliverySettings(): Promise<DeliverySettingsDto> {
-    const row = await this.prisma.siteSettings.findUnique({ where: { id: SETTINGS_ID } });
-    return this.mapDeliverySettings(row);
+    return this.cache.getOrSet(cacheKeys.deliverySettings(), CACHE_TTL.deliverySettings, async () => {
+      const row = await this.prisma.siteSettings.findUnique({ where: { id: SETTINGS_ID } });
+      return this.mapDeliverySettings(row);
+    });
   }
 
   async getDeliveryQuote(subtotalAmount: number): Promise<DeliveryQuoteDto> {
@@ -87,19 +94,21 @@ export class SettingsService {
   }
 
   async getPublicSettings(): Promise<PublicSettingsDto> {
-    const row = await this.prisma.siteSettings.findUnique({ where: { id: SETTINGS_ID } });
-    if (!row) {
+    return this.cache.getOrSet(cacheKeys.publicSettings(), CACHE_TTL.publicSettings, async () => {
+      const row = await this.prisma.siteSettings.findUnique({ where: { id: SETTINGS_ID } });
+      if (!row) {
+        return {
+          supportTelegramUrl: null,
+          supportTitle: null,
+          delivery: defaultDeliverySettings(),
+        };
+      }
       return {
-        supportTelegramUrl: null,
-        supportTitle: null,
-        delivery: defaultDeliverySettings(),
+        supportTelegramUrl: row.supportTelegramUrl?.trim() || null,
+        supportTitle: row.supportTitle?.trim() || null,
+        delivery: this.mapDeliverySettings(row),
       };
-    }
-    return {
-      supportTelegramUrl: row.supportTelegramUrl?.trim() || null,
-      supportTitle: row.supportTitle?.trim() || null,
-      delivery: this.mapDeliverySettings(row),
-    };
+    });
   }
 
   async updateDeliverySettings(input: Partial<DeliverySettingsDto>): Promise<DeliverySettingsDto> {
@@ -130,6 +139,8 @@ export class SettingsService {
       where: { id: SETTINGS_ID },
       data,
     });
+    await this.cache.del(cacheKeys.deliverySettings());
+    await this.cache.del(cacheKeys.publicSettings());
     return this.mapDeliverySettings(row);
   }
 
@@ -161,6 +172,7 @@ export class SettingsService {
       data,
     });
 
+    await this.cache.del(cacheKeys.publicSettings());
     return {
       supportTelegramUrl: row.supportTelegramUrl?.trim() || null,
       supportTitle: row.supportTitle?.trim() || null,
