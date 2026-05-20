@@ -46,7 +46,8 @@ const withPWA = withPWAInit({
 });
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Standalone for local/CI; Docker uses `next start` and sets DOCKER_BUILD=1 (see frontend/Dockerfile).
+  ...(process.env.DOCKER_BUILD === "1" ? {} : { output: "standalone" as const }),
   compress: true,
   poweredByHeader: false,
   outputFileTracingRoot: tracingRoot,
