@@ -24,7 +24,6 @@ import { RedisModule } from './infrastructure/redis/redis.module';
 import { AppCacheModule } from './infrastructure/cache/cache.module';
 import { QueueService } from './infrastructure/queue/queue.service';
 import { EventEmitterService } from './infrastructure/events/event-emitter.service';
-import { CacheService } from './infrastructure/cache/cache.service';
 import { validateEnv } from './infrastructure/config/env.validation';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
@@ -70,7 +69,6 @@ import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
   providers: [
     QueueService,
     EventEmitterService,
-    CacheService,
     {
       provide: APP_GUARD,
       useClass: CustomThrottlerGuard,

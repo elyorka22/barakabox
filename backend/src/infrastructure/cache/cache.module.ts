@@ -1,11 +1,13 @@
 import { CacheModule } from '@nestjs/cache-manager';
-import { Logger, Module } from '@nestjs/common';
+import { Global, Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import KeyvRedis from '@keyv/redis';
 import { Keyv } from 'keyv';
+import { CacheService } from './cache.service';
 
 const logger = new Logger('AppCacheModule');
 
+@Global()
 @Module({
   imports: [
     CacheModule.registerAsync({
@@ -35,6 +37,7 @@ const logger = new Logger('AppCacheModule');
       },
     }),
   ],
-  exports: [CacheModule],
+  providers: [CacheService],
+  exports: [CacheModule, CacheService],
 })
 export class AppCacheModule {}
