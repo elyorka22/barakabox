@@ -7,3 +7,4 @@ test
 .env.*
 .git
 README.md
+.vps-docker-stage

@@ -1,0 +1,11 @@
+# Runtime-only image. Build on the host first (see scripts/deploy-vps.sh):
+#   cd backend && npm ci && npx prisma generate && npm run build && npm prune --omit=dev
+FROM node:20-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+COPY package*.json ./
+COPY node_modules ./node_modules
+COPY dist ./dist
+COPY prisma ./prisma
+EXPOSE 4000
+CMD ["npm", "run", "start:prod"]
