@@ -1,17 +1,21 @@
-# Compose: build.context "." and dockerfile "frontend/Dockerfile"
+# Compose: build.context "." (repo root) and dockerfile "frontend/Dockerfile"
+#
+# Layout must match monorepo: repo/frontend + repo/shared so outputFileTracingRoot works
+# and Next.js emits repo/frontend/.next/standalone
 
 FROM node:22-alpine AS deps
-WORKDIR /app
+WORKDIR /repo/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
 FROM node:22-alpine AS build
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY frontend/ .
-COPY shared /shared/
+WORKDIR /repo
+COPY --from=deps /repo/frontend/node_modules ./frontend/node_modules
+COPY frontend ./frontend
+COPY shared ./shared
+WORKDIR /repo/frontend
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+RUN npm run build && test -f .next/standalone/server.js
 
 FROM node:22-alpine AS runtime
 WORKDIR /app
@@ -20,9 +24,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-COPY --from=build /app/public ./public
-COPY --from=build /app/.next/standalone ./
-COPY --from=build /app/.next/static ./.next/static
+COPY --from=build /repo/frontend/public ./public
+COPY --from=build /repo/frontend/.next/standalone ./
+COPY --from=build /repo/frontend/.next/static ./.next/static
 
 EXPOSE 3000
 
