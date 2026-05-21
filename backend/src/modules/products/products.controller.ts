@@ -19,20 +19,22 @@ export class ProductsController {
 
   @Get()
   list(
-    @Query('q') q?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('categoryId') categoryId?: string,
+    @Query('businessId') businessId?: string,
+    @Query('q') q?: string,
+    @Query('search') search?: string,
     @Query('sort') sort?: string,
   ) {
-    if (q?.trim()) {
-      return this.productsService.search(q.trim(), Number(page || 1), Number(limit || 20));
-    }
     const allowedSort = new Set(['newest', 'price_asc', 'price_desc']);
+    const term = (search ?? q)?.trim();
     return this.productsService.listPaginated({
       page: Number(page || 1),
       limit: Number(limit || 24),
       categoryId: categoryId?.trim() || undefined,
+      businessId: businessId?.trim() || undefined,
+      search: term || undefined,
       sort: allowedSort.has(sort ?? '') ? (sort as 'newest' | 'price_asc' | 'price_desc') : 'newest',
     });
   }

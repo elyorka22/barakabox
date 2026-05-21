@@ -3,10 +3,10 @@ import type { StorefrontProduct } from '@/types/storefront-product';
 
 export type PaginatedProducts = {
   items: StorefrontProduct[];
-  page: number;
-  limit: number;
   total: number;
+  page: number;
   totalPages: number;
+  hasMore: boolean;
 };
 
 export type HomepageSections = {
@@ -16,22 +16,30 @@ export type HomepageSections = {
   catalogVersion: number;
 };
 
-export async function fetchHomepageSections(): Promise<HomepageSections> {
-  return api.get<HomepageSections>('/products/home');
-}
-
-export async function fetchProductsPage(opts: {
+export type FetchProductsOpts = {
   page?: number;
   limit?: number;
   categoryId?: string;
+  businessId?: string;
+  search?: string;
   sort?: string;
-  q?: string;
-}): Promise<PaginatedProducts> {
+};
+
+function buildProductsQuery(opts: FetchProductsOpts): string {
   const params = new URLSearchParams();
   params.set('page', String(opts.page ?? 1));
   params.set('limit', String(opts.limit ?? 24));
   if (opts.categoryId) params.set('categoryId', opts.categoryId);
+  if (opts.businessId) params.set('businessId', opts.businessId);
+  if (opts.search?.trim()) params.set('search', opts.search.trim());
   if (opts.sort) params.set('sort', opts.sort);
-  if (opts.q?.trim()) params.set('q', opts.q.trim());
-  return api.get<PaginatedProducts>(`/products?${params.toString()}`);
+  return params.toString();
+}
+
+export async function fetchHomepageSections(): Promise<HomepageSections> {
+  return api.get<HomepageSections>('/products/home');
+}
+
+export async function fetchProductsPage(opts: FetchProductsOpts = {}): Promise<PaginatedProducts> {
+  return api.get<PaginatedProducts>(`/products?${buildProductsQuery(opts)}`);
 }

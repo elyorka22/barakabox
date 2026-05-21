@@ -13,8 +13,15 @@ export const CACHE_TTL = {
 
 export const cacheKeys = {
   productsHome: () => 'storefront:products:home:v1',
-  productsList: (page: number, limit: number, categoryId?: string, sort?: string) =>
-    `storefront:products:list:v1:${page}:${limit}:${categoryId ?? 'all'}:${sort ?? 'newest'}`,
+  productsList: (
+    page: number,
+    limit: number,
+    categoryId?: string,
+    businessId?: string,
+    search?: string,
+    sort?: string,
+  ) =>
+    `storefront:products:list:v2:${page}:${limit}:${categoryId ?? 'all'}:${businessId ?? 'all'}:${search ? encodeURIComponent(search) : '_'}:${sort ?? 'newest'}`,
   productsSearch: (q: string, page: number, limit: number) =>
     `storefront:products:search:v1:${encodeURIComponent(q)}:${page}:${limit}`,
   categoriesPublic: (featured?: boolean) => `storefront:categories:v1:${featured ? 'featured' : 'all'}`,

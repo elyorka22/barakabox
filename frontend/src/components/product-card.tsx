@@ -55,6 +55,8 @@ export type ProductCardProps = {
   promotionEnabled?: boolean;
   promotionStartAt?: string | null;
   promotionEndAt?: string | null;
+  /** First visible row — eager image load for LCP */
+  imagePriority?: boolean;
 };
 
 function ProductCardBase({
@@ -79,6 +81,7 @@ function ProductCardBase({
   promotionEnabled,
   promotionStartAt,
   promotionEndAt,
+  imagePriority = false,
 }: ProductCardProps) {
   const { openProduct } = useProductSheet();
   const productImages = { imageUrl: productImageUrl, imageCardUrl, imageThumbUrl };
@@ -224,7 +227,8 @@ function ProductCardBase({
                     <SafeImage
                       src={src || undefined}
                       alt={variant.flavor || name}
-                      loading="lazy"
+                      loading={imagePriority ? 'eager' : 'lazy'}
+                      sizes="(max-width: 768px) 50vw, 220px"
                       decoding="async"
                       className={`max-h-full max-w-full object-contain transition-opacity duration-300 ${
                         imageLoaded ? 'opacity-100' : 'opacity-0'
@@ -331,6 +335,7 @@ function arePropsEqual(prev: ProductCardProps, next: ProductCardProps): boolean 
   if ((prev.promotionEnabled ?? false) !== (next.promotionEnabled ?? false)) return false;
   if ((prev.promotionStartAt ?? '') !== (next.promotionStartAt ?? '')) return false;
   if ((prev.promotionEndAt ?? '') !== (next.promotionEndAt ?? '')) return false;
+  if ((prev.imagePriority ?? false) !== (next.imagePriority ?? false)) return false;
   return areVariantsEqual(prev.variants, next.variants);
 }
 

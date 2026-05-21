@@ -38,11 +38,29 @@ export class ProductsService {
     return rows.map(mapStorefrontProduct);
   }
 
-  /** Paginated storefront catalog (replaces unbounded list). */
+  private buildStorefrontListResult(
+    rows: StorefrontProductRow[],
+    total: number,
+    page: number,
+    limit: number,
+  ) {
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    return {
+      items: this.mapRows(rows),
+      total,
+      page,
+      totalPages,
+      hasMore: page < totalPages,
+    };
+  }
+
+  /** Paginated storefront catalog with optional search and filters. */
   async listPaginated(opts: {
     page?: number;
     limit?: number;
     categoryId?: string;
+    businessId?: string;
+    search?: string;
     sort?: 'newest' | 'price_asc' | 'price_desc';
   }) {
     const page = Math.max(1, opts.page ?? 1);
@@ -50,11 +68,26 @@ export class ProductsService {
     const skip = (page - 1) * limit;
     const sort = opts.sort ?? 'newest';
     const categoryId = opts.categoryId?.trim();
+    const businessId = opts.businessId?.trim();
+    const search = opts.search?.trim();
 
-    const cacheKey = cacheKeys.productsList(page, limit, categoryId, sort);
+    const cacheKey = cacheKeys.productsList(page, limit, categoryId, businessId, search, sort);
     return this.cache.getOrSet(cacheKey, CACHE_TTL.productsList, async () => {
+      if (search) {
+        return this.listPaginatedSearch({
+          page,
+          limit,
+          skip,
+          search,
+          categoryId,
+          businessId,
+          sort,
+        });
+      }
+
       const where: Prisma.ProductWhereInput = { ...STOREFRONT_WHERE };
       if (categoryId) where.categoryId = categoryId;
+      if (businessId) where.businessId = businessId;
 
       const orderBy: Prisma.ProductOrderByWithRelationInput =
         sort === 'price_asc'
@@ -74,14 +107,89 @@ export class ProductsService {
         this.prisma.product.count({ where }),
       ]);
 
-      return {
-        items: this.mapRows(rows),
-        page,
-        limit,
-        total,
-        totalPages: Math.max(1, Math.ceil(total / limit)),
-      };
+      return this.buildStorefrontListResult(rows, total, page, limit);
     });
+  }
+
+  private async listPaginatedSearch(opts: {
+    page: number;
+    limit: number;
+    skip: number;
+    search: string;
+    categoryId?: string;
+    businessId?: string;
+    sort: 'newest' | 'price_asc' | 'price_desc';
+  }) {
+    const pattern = `%${opts.search}%`;
+    const categoryFilter = opts.categoryId
+      ? Prisma.sql`AND p."categoryId" = ${opts.categoryId}`
+      : Prisma.empty;
+    const businessFilter = opts.businessId
+      ? Prisma.sql`AND p."businessId" = ${opts.businessId}`
+      : Prisma.empty;
+    const orderSql =
+      opts.sort === 'price_asc'
+        ? Prisma.sql`ORDER BY p.price ASC`
+        : opts.sort === 'price_desc'
+          ? Prisma.sql`ORDER BY p.price DESC`
+          : Prisma.sql`ORDER BY p."createdAt" DESC`;
+
+    const ids = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT DISTINCT p.id
+      FROM "Product" p
+      LEFT JOIN "ProductVariant" v ON v."productId" = p.id AND v."isActive" = true
+      WHERE p."isActive" = true
+        AND EXISTS (
+          SELECT 1 FROM "BusinessProfile" b
+          WHERE b.id = p."businessId" AND b.status = 'APPROVED'
+        )
+        ${categoryFilter}
+        ${businessFilter}
+        AND (
+          p.name ILIKE ${pattern}
+          OR v.title ILIKE ${pattern}
+          OR v.flavor ILIKE ${pattern}
+          OR v.sku ILIKE ${pattern}
+          OR v.barcode ILIKE ${pattern}
+        )
+      ${orderSql}
+      LIMIT ${opts.limit} OFFSET ${opts.skip}
+    `;
+
+    const productIds = ids.map((r) => r.id);
+    if (productIds.length === 0) {
+      return this.buildStorefrontListResult([], 0, opts.page, opts.limit);
+    }
+
+    const rows = await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: storefrontProductSelect,
+    });
+    const order = new Map(productIds.map((id, i) => [id, i]));
+    rows.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+
+    const countRows = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(DISTINCT p.id)::bigint AS count
+      FROM "Product" p
+      LEFT JOIN "ProductVariant" v ON v."productId" = p.id AND v."isActive" = true
+      WHERE p."isActive" = true
+        AND EXISTS (
+          SELECT 1 FROM "BusinessProfile" b
+          WHERE b.id = p."businessId" AND b.status = 'APPROVED'
+        )
+        ${categoryFilter}
+        ${businessFilter}
+        AND (
+          p.name ILIKE ${pattern}
+          OR v.title ILIKE ${pattern}
+          OR v.flavor ILIKE ${pattern}
+          OR v.sku ILIKE ${pattern}
+          OR v.barcode ILIKE ${pattern}
+        )
+    `;
+    const total = Number(countRows[0]?.count ?? 0);
+
+    return this.buildStorefrontListResult(rows, total, opts.page, opts.limit);
   }
 
   /** Homepage sections — capped product counts, cached. */
@@ -241,76 +349,9 @@ export class ProductsService {
     ]).then(([items, total]) => ({ items, total, page, limit }));
   }
 
-  async search(term: string, page = 1, limit = 20) {
-    const q = term.trim();
-    const safePage = Math.max(1, page);
-    const safeLimit = Math.min(48, Math.max(1, limit));
-    const skip = (safePage - 1) * safeLimit;
-
-    return this.cache.getOrSet(
-      cacheKeys.productsSearch(q, safePage, safeLimit),
-      CACHE_TTL.productsSearch,
-      async () => {
-        const ids = await this.prisma.$queryRaw<Array<{ id: string }>>`
-          SELECT DISTINCT p.id
-          FROM "Product" p
-          LEFT JOIN "ProductVariant" v ON v."productId" = p.id AND v."isActive" = true
-          WHERE p."isActive" = true
-            AND EXISTS (
-              SELECT 1 FROM "BusinessProfile" b
-              WHERE b.id = p."businessId" AND b.status = 'APPROVED'
-            )
-            AND (
-              p.name ILIKE ${'%' + q + '%'}
-              OR v.title ILIKE ${'%' + q + '%'}
-              OR v.flavor ILIKE ${'%' + q + '%'}
-              OR v.sku ILIKE ${'%' + q + '%'}
-              OR v.barcode ILIKE ${'%' + q + '%'}
-            )
-          ORDER BY p."createdAt" DESC
-          LIMIT ${safeLimit} OFFSET ${skip}
-        `;
-
-        const productIds = ids.map((r) => r.id);
-        if (productIds.length === 0) {
-          return { items: [], page: safePage, limit: safeLimit, total: 0, totalPages: 1 };
-        }
-
-        const rows = await this.prisma.product.findMany({
-          where: { id: { in: productIds } },
-          select: storefrontProductSelect,
-        });
-        const order = new Map(productIds.map((id, i) => [id, i]));
-        rows.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
-
-        const countRows = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
-          SELECT COUNT(DISTINCT p.id)::bigint AS count
-          FROM "Product" p
-          LEFT JOIN "ProductVariant" v ON v."productId" = p.id AND v."isActive" = true
-          WHERE p."isActive" = true
-            AND EXISTS (
-              SELECT 1 FROM "BusinessProfile" b
-              WHERE b.id = p."businessId" AND b.status = 'APPROVED'
-            )
-            AND (
-              p.name ILIKE ${'%' + q + '%'}
-              OR v.title ILIKE ${'%' + q + '%'}
-              OR v.flavor ILIKE ${'%' + q + '%'}
-              OR v.sku ILIKE ${'%' + q + '%'}
-              OR v.barcode ILIKE ${'%' + q + '%'}
-            )
-        `;
-        const total = Number(countRows[0]?.count ?? 0);
-
-        return {
-          items: this.mapRows(rows),
-          page: safePage,
-          limit: safeLimit,
-          total,
-          totalPages: Math.max(1, Math.ceil(total / safeLimit)),
-        };
-      },
-    );
+  /** @deprecated Use listPaginated({ search }) */
+  search(term: string, page = 1, limit = 20) {
+    return this.listPaginated({ search: term, page, limit });
   }
 
   async createByAdmin(
