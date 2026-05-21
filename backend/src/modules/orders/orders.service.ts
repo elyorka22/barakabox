@@ -30,6 +30,7 @@ import { CouponsService } from '../coupons/coupons.service';
 import { SettingsService } from '../settings/settings.service';
 import { CacheService } from '../../infrastructure/cache/cache.service';
 import { CACHE_TTL, cacheKeys } from '../../common/cache/cache-keys';
+import { mapPickerOrderItems, pickerOrderItemSelect } from './picker-order.mapper';
 
 const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   NEW: ['PICKING', 'CANCELLED'],
@@ -921,22 +922,16 @@ export class OrdersService {
         createdAt: true,
         deliveryFee: true,
         totalAmount: true,
-        items: {
-          select: {
-            id: true,
-            title: true,
-            quantity: true,
-            unitType: true,
-            sellingMode: true,
-            price: true,
-            product: { select: { imageUrl: true, name: true } },
-            variant: { select: { imageUrl: true, title: true, flavor: true } },
-          },
-        },
+        items: { select: pickerOrderItemSelect },
       },
       orderBy: { createdAt: 'desc' },
       take: 80,
-    });
+    }).then((orders) =>
+      orders.map((order) => ({
+        ...order,
+        items: mapPickerOrderItems(order.items),
+      })),
+    );
   }
 
   /** @deprecated Use listPaginated */

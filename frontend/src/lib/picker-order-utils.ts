@@ -67,6 +67,32 @@ export function playNewOrderAlert(): void {
   }
 }
 
+export function pickerItemProductName(item: PickerOrder['items'][0]): string {
+  return item.productName?.trim() || item.product?.name?.trim() || item.title?.trim() || 'Mahsulot';
+}
+
+/** Muted subtitle under product name; falls back for cached legacy API payloads. */
+export function pickerItemSubtitle(item: PickerOrder['items'][0]): string {
+  if (item.subtitle?.trim()) return item.subtitle.trim();
+  const name = pickerItemProductName(item);
+  const parts: string[] = [];
+  const variant = item.variantName?.trim() || item.variant?.title?.trim();
+  const flavor = item.variant?.flavor?.trim();
+  const size = item.variant?.size?.trim();
+  if (variant && variant.toLowerCase() !== name.toLowerCase()) parts.push(variant);
+  if (flavor) parts.push(flavor);
+  if (size) parts.push(size);
+  return parts.join(' — ');
+}
+
+export function pickerItemVerificationCode(item: PickerOrder['items'][0]): string | null {
+  const sku = item.sku?.trim();
+  if (sku) return `SKU: ${sku}`;
+  const barcode = item.barcode?.trim();
+  if (barcode) return `Shtrix: ${barcode}`;
+  return null;
+}
+
 export function itemImageUrl(item: PickerOrder['items'][0]): string | null {
-  return item.variant?.imageUrl || item.product?.imageUrl || null;
+  return item.imageUrl || item.variant?.imageUrl || item.product?.imageUrl || null;
 }

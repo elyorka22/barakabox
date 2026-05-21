@@ -2,13 +2,21 @@ export type PickerOrderStatus = 'NEW' | 'PICKING' | 'READY' | 'DELIVERING' | 'DE
 
 export type PickerOrderItem = {
   id: string;
+  /** Product display name (same as productName when API is current). */
   title: string;
+  productName?: string;
+  variantName?: string | null;
+  /** Variant / flavor / size line for quick identification. */
+  subtitle?: string;
   quantity: number;
   unitType?: string;
   sellingMode?: string | null;
   price: number;
+  imageUrl?: string | null;
+  sku?: string | null;
+  barcode?: string | null;
   product?: { imageUrl?: string | null; name?: string } | null;
-  variant?: { imageUrl?: string | null; title?: string } | null;
+  variant?: { imageUrl?: string | null; title?: string; flavor?: string | null; size?: string | null } | null;
 };
 
 /** API shape — picker UI must not display customer/delivery/payment fields. */
