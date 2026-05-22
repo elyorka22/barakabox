@@ -130,9 +130,9 @@ export default function CategoryProductsClientPage() {
         {loading ? (
           <div className="mt-4 grid grid-cols-2 gap-x-1.5 gap-y-2">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="min-h-[168px] rounded-[20px] bg-white shadow-[0_1px_3px_rgba(15,23,42,0.07)]">
-                <div className="bb-skeleton h-[84px] rounded-t-[20px]" />
-                <div className="bb-skeleton mx-2 mt-2 h-3.5 w-2/3" />
+              <div key={i} className="overflow-hidden rounded-[18px] bg-white shadow-[0_2px_10px_rgba(15,23,42,0.06)]">
+                <div className="bb-skeleton aspect-square w-full" />
+                <div className="bb-skeleton mx-2 mt-1.5 h-3.5 w-2/3" />
               </div>
             ))}
           </div>

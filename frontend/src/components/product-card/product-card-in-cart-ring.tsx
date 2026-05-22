@@ -6,10 +6,10 @@ type Props = {
   children: ReactNode;
 };
 
-/** Stable card chrome — same shadow in/out of cart so the grid does not jump. */
+/** One continuous grocery card surface — no split blocks or layout jump. */
 function ProductCardInCartRingBase({ children }: Props) {
   return (
-    <div className="group flex h-full flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_1px_3px_rgba(15,23,42,0.07)] transition-shadow duration-150 hover:shadow-[0_2px_8px_rgba(15,23,42,0.09)]">
+    <div className="flex h-full flex-col overflow-hidden rounded-[18px] bg-white shadow-[0_2px_10px_rgba(15,23,42,0.06)] transition-shadow duration-150 hover:shadow-[0_3px_14px_rgba(15,23,42,0.08)]">
       {children}
     </div>
   );

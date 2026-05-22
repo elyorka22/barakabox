@@ -14,11 +14,11 @@ function ProductCardPriceRowBase({ basePrice, salePrice }: Props) {
 
   if (hasDiscount) {
     return (
-      <div>
-        <p className="text-[9px] font-medium leading-none text-[#9ca3af] line-through tabular-nums">
+      <div className="leading-none">
+        <p className="text-[10px] font-medium text-[#9ca3af] line-through tabular-nums">
           {formatMoneyUz(basePrice)}
         </p>
-        <p className="truncate text-[14px] font-bold leading-tight tabular-nums text-[#0f172a]">
+        <p className="mt-0.5 truncate text-[13px] font-bold tabular-nums text-[#111827]">
           {formatMoneyUz(displayPrice)}
         </p>
       </div>
@@ -26,7 +26,7 @@ function ProductCardPriceRowBase({ basePrice, salePrice }: Props) {
   }
 
   return (
-    <p className="truncate text-[14px] font-bold leading-tight tabular-nums text-[#0f172a]">
+    <p className="truncate text-[13px] font-bold leading-tight tabular-nums text-[#111827]">
       {formatMoneyUz(displayPrice)}
     </p>
   );

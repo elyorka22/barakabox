@@ -44,7 +44,7 @@ const CatalogGridItem = memo(function CatalogGridItem({
 
   return (
     <div
-      className="catalog-grid-item min-h-[168px] cursor-pointer [content-visibility:auto] [contain-intrinsic-size:168px_156px]"
+      className="catalog-grid-item cursor-pointer [content-visibility:auto] [contain-intrinsic-size:200px_220px]"
       onClick={() => openProduct(product)}
       role="presentation"
     >
@@ -59,12 +59,12 @@ function CatalogSkeletonRow() {
       {Array.from({ length: 2 }).map((_, idx) => (
         <div
           key={`catalog-skeleton-${idx}`}
-          className="min-h-[168px] rounded-[20px] bg-white shadow-[0_1px_3px_rgba(15,23,42,0.07)]"
+          className="overflow-hidden rounded-[18px] bg-white shadow-[0_2px_10px_rgba(15,23,42,0.06)]"
           aria-hidden
         >
-          <div className="bb-skeleton h-[84px] w-full rounded-t-[20px]" />
-          <div className="bb-skeleton mx-2 mt-2 h-3.5 w-2/3 rounded" />
-          <div className="bb-skeleton mx-2 mt-1 h-3 w-1/2 rounded" />
+          <div className="bb-skeleton aspect-square w-full" />
+          <div className="bb-skeleton mx-2 mt-1.5 h-3.5 w-2/3 rounded" />
+          <div className="bb-skeleton mx-2 mb-2 mt-1 h-3 w-1/2 rounded" />
         </div>
       ))}
     </>

@@ -88,7 +88,7 @@ export default function DiscountsPage() {
         {loading ? (
           <div className="mt-6 grid grid-cols-2 gap-x-1.5 gap-y-2">
             {Array.from({ length: 6 }).map((_, idx) => (
-              <div key={idx} className="bb-skeleton min-h-[168px] rounded-[20px]" />
+              <div key={idx} className="bb-skeleton aspect-[3/4] rounded-[18px]" />
             ))}
           </div>
         ) : products.length === 0 ? (
