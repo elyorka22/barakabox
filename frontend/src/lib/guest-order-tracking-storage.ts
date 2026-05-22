@@ -13,6 +13,8 @@ const HISTORY_MAX = 10;
 
 export type StoredGuestOrder = {
   trackingToken: string;
+  orderNumber: string;
+  /** @deprecated Same as orderNumber for legacy storage */
   trackingCode: string;
   status: OrderStatusLite;
   deliverySpeed: DeliverySpeed;
@@ -33,6 +35,8 @@ export type GuestCompletedFlash = {
 };
 
 export type GuestOrderHistoryEntry = {
+  orderNumber: string;
+  /** @deprecated Use orderNumber */
   trackingCode: string;
   status: OrderStatusLite;
   completedAt: string;
@@ -134,10 +138,15 @@ function pruneActiveStore(store: ActiveOrdersStore): ActiveOrdersStore {
   return { version: 3, selectedToken, orders };
 }
 
+function normalizeStoredGuestOrder(order: StoredGuestOrder): StoredGuestOrder {
+  const orderNumber = order.orderNumber || order.trackingCode || '';
+  return { ...order, orderNumber, trackingCode: orderNumber };
+}
+
 export function listActiveGuestOrders(): StoredGuestOrder[] {
   const store = pruneActiveStore(readActiveStoreRaw());
   writeActiveStore(store);
-  return Object.values(store.orders).sort(
+  return Object.values(store.orders).map(normalizeStoredGuestOrder).sort(
     (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
   );
 }
@@ -145,7 +154,8 @@ export function listActiveGuestOrders(): StoredGuestOrder[] {
 export function getSelectedActiveGuestOrder(): StoredGuestOrder | null {
   const store = pruneActiveStore(readActiveStoreRaw());
   if (!store.selectedToken) return null;
-  return store.orders[store.selectedToken] ?? null;
+  const order = store.orders[store.selectedToken];
+  return order ? normalizeStoredGuestOrder(order) : null;
 }
 
 export function selectGuestOrder(trackingToken: string): void {
@@ -165,7 +175,8 @@ export function removeActiveGuestOrder(trackingToken: string): void {
 
 export function upsertActiveGuestOrderFromApi(input: {
   trackingToken: string;
-  trackingCode: string;
+  orderNumber: string;
+  trackingCode?: string;
   status: OrderStatusLite;
   deliverySpeed: DeliverySpeed;
   createdAt: string;
@@ -174,9 +185,11 @@ export function upsertActiveGuestOrderFromApi(input: {
   courierName?: string | null;
 }): StoredGuestOrder | null {
   if (isCompletedGuestOrderStatus(input.status)) {
+    const orderNumber = input.orderNumber || input.trackingCode || '';
     finalizeGuestOrderCompletion({
       trackingToken: input.trackingToken,
-      trackingCode: input.trackingCode,
+      orderNumber,
+      trackingCode: orderNumber,
       status: input.status,
       deliverySpeed: input.deliverySpeed,
       createdAt: input.createdAt,
@@ -196,9 +209,11 @@ export function upsertActiveGuestOrderFromApi(input: {
   const store = pruneActiveStore(readActiveStoreRaw());
   const now = new Date().toISOString();
   const prev = store.orders[input.trackingToken];
+  const orderNumber = input.orderNumber || input.trackingCode || '';
   const next: StoredGuestOrder = {
     trackingToken: input.trackingToken,
-    trackingCode: input.trackingCode,
+    orderNumber,
+    trackingCode: orderNumber,
     status: input.status,
     deliverySpeed: input.deliverySpeed,
     createdAt: prev?.createdAt ?? input.createdAt,
@@ -258,7 +273,8 @@ export function finalizeGuestOrderCompletion(order: StoredGuestOrder): void {
   };
   setCompletedFlash(flash);
   appendOrderHistory({
-    trackingCode: order.trackingCode,
+    orderNumber: order.orderNumber,
+    trackingCode: order.orderNumber,
     status: order.status,
     completedAt: flash.completedAt,
   });

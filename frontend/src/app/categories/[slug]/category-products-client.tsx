@@ -128,16 +128,16 @@ export default function CategoryProductsClientPage() {
         <h1 className="mt-3 text-2xl font-bold text-[#121212]">{data?.category.name ?? 'Kategoriya'}</h1>
         {error ? <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
         {loading ? (
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="mt-4 grid grid-cols-2 gap-x-2 gap-y-2.5">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="rounded-3xl bg-white p-3">
-                <div className="bb-skeleton h-28" />
-                <div className="bb-skeleton mt-3 h-4 w-2/3" />
+              <div key={i} className="min-h-[220px] rounded-[20px] bg-white p-2.5 shadow-[0_1px_4px_rgba(15,23,42,0.06)]">
+                <div className="bb-skeleton h-[108px] rounded-[16px]" />
+                <div className="bb-skeleton mt-2 h-3.5 w-2/3" />
               </div>
             ))}
           </div>
         ) : (
-          <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="mt-4 grid grid-cols-2 gap-x-2 gap-y-2.5">
             {renderableItems.length ? (
               renderableItems.map((item) => (
                 <ProductCard

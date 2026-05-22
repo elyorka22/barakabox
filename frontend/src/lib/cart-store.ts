@@ -6,7 +6,8 @@ import {
   getSellingModeStep,
   type SellingMode,
 } from '@onlinebozor/product-units';
-import { api, authStorage, authEvents } from './api';
+import { api, authStorage, authEvents, isApiError } from './api';
+import { t } from './i18n';
 import { showToast } from './toast';
 
 export type CartItem = {
@@ -61,7 +62,9 @@ type CartStoreState = {
 type Listener = () => void;
 
 const STORAGE_KEY = 'barakabox_cart_snapshot_v1';
-const FLUSH_DEBOUNCE_MS = 120;
+const FLUSH_DEBOUNCE_MS = 100;
+const MAX_FLUSH_ATTEMPTS = 6;
+const RETRY_BASE_MS = 80;
 const PERSIST_DEBOUNCE_MS = 500;
 
 type EmitOptions = {
@@ -334,12 +337,22 @@ function scheduleFlush(variantId: string) {
   clearFlushTimer(variantId);
   const timer = setTimeout(() => {
     flushTimers.delete(variantId);
-    void flushVariant(variantId);
+    void flushVariant(variantId, 0);
   }, FLUSH_DEBOUNCE_MS);
   flushTimers.set(variantId, timer);
 }
 
-async function flushVariant(variantId: string) {
+function scheduleFlushRetry(variantId: string, attempt: number) {
+  clearFlushTimer(variantId);
+  const delay = Math.min(500, RETRY_BASE_MS + attempt * 120);
+  const timer = setTimeout(() => {
+    flushTimers.delete(variantId);
+    void flushVariant(variantId, attempt);
+  }, delay);
+  flushTimers.set(variantId, timer);
+}
+
+async function flushVariant(variantId: string, attempt = 0) {
   if (state.inFlightByVariant[variantId]) {
     scheduleFlush(variantId);
     return;
@@ -377,21 +390,39 @@ async function flushVariant(variantId: string) {
   } catch (err) {
     const cleanedInFlight = { ...state.inFlightByVariant };
     delete cleanedInFlight[variantId];
+    const rateLimited = isApiError(err) && err.status === 429;
+
+    if (rateLimited && attempt < MAX_FLUSH_ATTEMPTS) {
+      const restoredPending = (state.pendingByVariant[variantId] ?? 0) + pending;
+      setState(
+        {
+          inFlightByVariant: cleanedInFlight,
+          pendingByVariant: { ...state.pendingByVariant, [variantId]: restoredPending },
+        },
+        { variantIds: [variantId] },
+      );
+      scheduleFlushRetry(variantId, attempt + 1);
+      return;
+    }
+
     const rollbackPending = (state.pendingByVariant[variantId] ?? 0) + pending;
     const nextPendingRollback = { ...state.pendingByVariant, [variantId]: rollbackPending };
     setState(
       { inFlightByVariant: cleanedInFlight, pendingByVariant: nextPendingRollback },
       { variantIds: [variantId] },
     );
+
     const now = Date.now();
     if (now - lastRollbackToastAt > 1500) {
       lastRollbackToastAt = now;
+      const message = rateLimited
+        ? t('common.rateLimited')
+        : err instanceof Error && err.message
+          ? err.message
+          : "Savatni yangilab bo'lmadi. Internetni tekshirib qayta urinib ko'ring.";
       showToast({
-        type: 'error',
-        message:
-          err instanceof Error && err.message
-            ? err.message
-            : "Savatni yangilab bo'lmadi. Internetni tekshirib qayta urinib ko'ring.",
+        type: rateLimited ? 'info' : 'error',
+        message,
       });
     }
   }
@@ -469,10 +500,12 @@ export async function deleteCartLine(
     );
     applyServerSnapshot(updated ?? { items: [] });
   } catch (err) {
+    const rateLimited = isApiError(err) && err.status === 429;
     showToast({
-      type: 'error',
-      message:
-        err instanceof Error && err.message
+      type: rateLimited ? 'info' : 'error',
+      message: rateLimited
+        ? t('common.rateLimited')
+        : err instanceof Error && err.message
           ? err.message
           : "Mahsulotni savatdan olib bo'lmadi",
     });

@@ -124,6 +124,13 @@ export class OrdersController {
     });
   }
 
+  @Get('picker/dashboard')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PICKER')
+  getPickerDashboard(@CurrentUser() user: AuthUser) {
+    return this.ordersService.getPickerDashboard(user.sub);
+  }
+
   @Get('picker')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('PICKER')

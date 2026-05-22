@@ -10,7 +10,7 @@ import {
   clearChecklist,
   updateQueuedCount,
 } from '@/lib/picker-storage';
-import type { PickerOrder } from '@/lib/picker-types';
+import type { PickerDashboardPayload, PickerOrder } from '@/lib/picker-types';
 import {
   cachePickerOrders,
   enqueuePendingAction,
@@ -38,6 +38,15 @@ async function apiWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Pro
   throw lastErr;
 }
 
+function mergeDashboardOrders(payload: PickerDashboardPayload): PickerOrder[] {
+  const byId = new Map<string, PickerOrder>();
+  for (const order of payload.activeOrders ?? []) byId.set(order.id, order);
+  for (const order of payload.scheduledOrders ?? []) {
+    if (!byId.has(order.id)) byId.set(order.id, order);
+  }
+  return sortPickerOrders([...byId.values()], payload.stats?.prepLeadMinutes ?? 60);
+}
+
 function filterQueue(data: PickerOrder[]): PickerOrder[] {
   const skipped = readSkippedOrderIds();
   const online = readPickerOnline();
@@ -46,23 +55,40 @@ function filterQueue(data: PickerOrder[]): PickerOrder[] {
   if (!online) {
     list = list.filter((o) => o.status === 'PICKING' && o.assignedPickerId === userId);
   }
-  return sortPickerOrders(list);
+  return list;
+}
+
+function ordersEqual(a: PickerOrder[], b: PickerOrder[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    const x = a[i];
+    const y = b[i];
+    if (x.id !== y.id || x.status !== y.status) return false;
+    if ((x.scheduledAt ?? '') !== (y.scheduledAt ?? '')) return false;
+    if (x.items.length !== y.items.length) return false;
+  }
+  return true;
 }
 
 export function usePickerOrders(onNewOrder?: (order: PickerOrder) => void) {
   const [orders, setOrders] = useState<PickerOrder[]>([]);
+  const [dashboardStats, setDashboardStats] = useState<PickerDashboardPayload['stats'] | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [offline, setOffline] = useState(false);
   const knownNewRef = useRef<Set<string>>(new Set());
+  const prepLeadRef = useRef(60);
   const onNewRef = useRef(onNewOrder);
   onNewRef.current = onNewOrder;
 
   const applyOrders = useCallback((list: PickerOrder[]) => {
-    setOrders(list);
+    setOrders((prev) => (ordersEqual(prev, list) ? prev : list));
     cachePickerOrders(list);
-    updateQueuedCount(list.filter((o) => o.status === 'NEW' || o.status === 'PICKING').length);
+    updateQueuedCount(
+      list.filter((o) => o.status === 'NEW' || o.status === 'PICKING' || o.status === 'PENDING_SCHEDULE')
+        .length,
+    );
   }, []);
 
   const flushPending = useCallback(async () => {
@@ -100,10 +126,14 @@ export function usePickerOrders(onNewOrder?: (order: PickerOrder) => void) {
 
       try {
         const token = authStorage.getAccessToken();
-        const data = await apiWithRetry(() => api.get<PickerOrder[]>('/orders/picker', token));
-        const filtered = filterQueue(data);
+        const payload = await apiWithRetry(() =>
+          api.get<PickerDashboardPayload>('/orders/picker/dashboard', token),
+        );
+        prepLeadRef.current = payload.stats?.prepLeadMinutes ?? 60;
+        setDashboardStats(payload.stats ?? null);
+        const merged = filterQueue(mergeDashboardOrders(payload));
 
-        for (const o of filtered) {
+        for (const o of merged) {
           if (o.status === 'NEW' && readPickerOnline() && !knownNewRef.current.has(o.id)) {
             knownNewRef.current.add(o.id);
             playNewOrderAlert();
@@ -111,7 +141,7 @@ export function usePickerOrders(onNewOrder?: (order: PickerOrder) => void) {
           }
         }
 
-        applyOrders(filtered);
+        applyOrders(merged);
         setError('');
         await flushPending();
       } catch (err) {
@@ -180,7 +210,11 @@ export function usePickerOrders(onNewOrder?: (order: PickerOrder) => void) {
   const startPicking = useCallback(
     (orderId: string) => {
       setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status: 'PICKING' as const, pickingAt: new Date().toISOString() } : o)),
+        prev.map((o) =>
+          o.id === orderId
+            ? { ...o, status: 'PICKING' as const, pickingAt: new Date().toISOString() }
+            : o,
+        ),
       );
       return patchOrder(orderId, 'start-picking');
     },
@@ -197,6 +231,7 @@ export function usePickerOrders(onNewOrder?: (order: PickerOrder) => void) {
 
   return {
     orders,
+    dashboardStats,
     loading,
     refreshing,
     error,

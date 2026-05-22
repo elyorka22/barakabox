@@ -86,15 +86,15 @@ export default function DiscountsPage() {
         ) : null}
 
         {loading ? (
-          <div className="mt-6 grid grid-cols-2 gap-2">
+          <div className="mt-6 grid grid-cols-2 gap-x-2 gap-y-2.5">
             {Array.from({ length: 6 }).map((_, idx) => (
-              <div key={idx} className="bb-skeleton aspect-[3/4] rounded-2xl" />
+              <div key={idx} className="bb-skeleton min-h-[220px] rounded-[20px]" />
             ))}
           </div>
         ) : products.length === 0 ? (
           <p className="mt-8 text-center text-sm text-slate-500">Hozircha aksiya mahsulotlari yo‘q</p>
         ) : (
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="mt-4 grid grid-cols-2 gap-x-2 gap-y-2.5 sm:grid-cols-3">
             {products.map((product, idx) => (
               <ProductCard
                 key={product.id}

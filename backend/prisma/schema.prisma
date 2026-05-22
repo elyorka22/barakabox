@@ -469,6 +469,7 @@ model CustomerAddress {
 
 model Order {
   id            String      @id @default(cuid())
+  orderNumber   String?     @unique
   trackingToken String?   @unique
   userId        String?
   customerId    String?

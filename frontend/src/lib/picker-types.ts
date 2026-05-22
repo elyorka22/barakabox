@@ -29,6 +29,7 @@ export type PickerOrderItem = {
 /** API shape — picker UI must not display customer/delivery/payment fields. */
 export type PickerOrder = {
   id: string;
+  orderNumber?: string | null;
   status: PickerOrderStatus;
   isScheduled?: boolean;
   scheduledAt?: string | null;
@@ -69,4 +70,18 @@ export type PickerDayStats = {
   avgPickMinutes: number;
   onlineSeconds: number;
   cancelledItems: number;
+};
+
+export type PickerDashboardStats = {
+  queueCount: number;
+  newCount: number;
+  pickingCount: number;
+  scheduledCount: number;
+  prepLeadMinutes: number;
+};
+
+export type PickerDashboardPayload = {
+  activeOrders: PickerOrder[];
+  scheduledOrders: PickerOrder[];
+  stats: PickerDashboardStats;
 };

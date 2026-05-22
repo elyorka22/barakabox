@@ -3,7 +3,9 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import {
   calculateSellingModeLineTotal,
@@ -41,9 +43,32 @@ import {
   tashkentLocalToUtc,
 } from '../../common/delivery/scheduled-delivery.util';
 import { mapPickerOrderItems, pickerOrderItemSelect } from './picker-order.mapper';
+import {
+  generateUniqueOrderNumber,
+  normalizeOrderNumber,
+  orderNumberSearchVariants,
+} from '../../common/utils/order-number.util';
+
+const pickerOrderListSelect = {
+  id: true,
+  orderNumber: true,
+  status: true,
+  createdAt: true,
+  pickingAt: true,
+  deliveryFee: true,
+  totalAmount: true,
+  isScheduled: true,
+  scheduledAt: true,
+  scheduledSlotEnd: true,
+  deliverySlot: true,
+  assignedPickerId: true,
+  items: { select: pickerOrderItemSelect },
+} satisfies Prisma.OrderSelect;
+
+type PickerOrderListRow = Prisma.OrderGetPayload<{ select: typeof pickerOrderListSelect }>;
 
 const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  PENDING_SCHEDULE: ['NEW', 'CANCELLED'],
+  PENDING_SCHEDULE: ['NEW', 'PICKING', 'CANCELLED'],
   NEW: ['PICKING', 'CANCELLED'],
   PICKING: ['READY', 'CANCELLED'],
   READY: ['DELIVERING', 'CANCELLED'],
@@ -68,7 +93,9 @@ type PreparedLine = {
 };
 
 @Injectable()
-export class OrdersService {
+export class OrdersService implements OnModuleInit {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cartService: CartService,
@@ -81,8 +108,42 @@ export class OrdersService {
     private readonly cache: CacheService,
   ) {}
 
+  async onModuleInit() {
+    void this.backfillMissingOrderNumbers();
+  }
+
+  private async backfillMissingOrderNumbers() {
+    try {
+      let total = 0;
+      for (;;) {
+        const rows = await this.prisma.order.findMany({
+          where: { orderNumber: null },
+          select: { id: true },
+          take: 50,
+        });
+        if (rows.length === 0) break;
+        for (const row of rows) {
+          const orderNumber = await generateUniqueOrderNumber(this.prisma);
+          await this.prisma.order.update({
+            where: { id: row.id },
+            data: { orderNumber },
+          });
+          total += 1;
+        }
+      }
+      if (total > 0) {
+        this.logger.log(`Backfilled orderNumber for ${total} order(s)`);
+      }
+    } catch (err) {
+      this.logger.warn(
+        `orderNumber backfill skipped: ${err instanceof Error ? err.message : 'unknown'}`,
+      );
+    }
+  }
+
   private readonly orderListSelect = {
     id: true,
+    orderNumber: true,
     status: true,
     totalAmount: true,
     subtotalAmount: true,
@@ -459,11 +520,15 @@ export class OrdersService {
       return createdOrder;
     });
 
-    await this.queueService.enqueue('order.created', { orderId: order.id });
-    this.events.emit('order.created', { orderId: order.id });
+    await this.queueService.enqueue('order.created', {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+    });
+    this.events.emit('order.created', { orderId: order.id, orderNumber: order.orderNumber });
     if (order.isScheduled) {
       this.events.emit('order.scheduled.created', {
         orderId: order.id,
+        orderNumber: order.orderNumber,
         scheduledAt: order.scheduledAt?.toISOString(),
         deliverySlot: order.deliverySlot,
       });
@@ -475,8 +540,9 @@ export class OrdersService {
 
     const track = this.toPublicTrackPayload(order, null);
     return {
-      id: order.id,
       ...track,
+      id: order.id,
+      orderNumber: order.orderNumber ?? track.orderNumber,
       deliveryType: order.deliveryType,
       isScheduled: order.isScheduled,
       scheduledAt: order.scheduledAt?.toISOString() ?? null,
@@ -497,6 +563,7 @@ export class OrdersService {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       select: {
+        orderNumber: true,
         status: true,
         createdAt: true,
         customerPhone: true,
@@ -549,6 +616,7 @@ export class OrdersService {
         const order = await this.prisma.order.findUnique({
           where: { trackingToken: token },
           select: {
+            orderNumber: true,
             status: true,
             createdAt: true,
             deliveryAddress: true,
@@ -663,6 +731,7 @@ export class OrdersService {
 
   private toPublicTrackPayload(
     order: {
+      orderNumber?: string | null;
       status: OrderStatus;
       createdAt: Date;
       deliveryAddress: string;
@@ -679,9 +748,12 @@ export class OrdersService {
     deliverySlotLabel?: string | null,
   ) {
     const trackingToken = order.trackingToken ?? '';
+    const orderNumber = order.orderNumber ?? '';
     return {
       trackingToken,
-      trackingCode: trackingToken ? trackingToken.slice(0, 8).toUpperCase() : '',
+      orderNumber,
+      /** @deprecated Use orderNumber — kept for older clients */
+      trackingCode: orderNumber,
       status: order.status,
       createdAt: order.createdAt.toISOString(),
       deliverySpeed: 'STANDARD' as const,
@@ -879,6 +951,7 @@ export class OrdersService {
       },
       select: {
         id: true,
+        orderNumber: true,
         status: true,
         createdAt: true,
         customerName: true,
@@ -994,12 +1067,15 @@ export class OrdersService {
       }
     }
     if (q) {
-      where.OR = [
+      const or: Prisma.OrderWhereInput[] = [
         { customerName: { contains: q, mode: 'insensitive' } },
         { customerPhone: { contains: q, mode: 'insensitive' } },
         { deliveryAddress: { contains: q, mode: 'insensitive' } },
-        { id: { contains: q, mode: 'insensitive' } },
       ];
+      for (const code of orderNumberSearchVariants(q)) {
+        or.push({ orderNumber: { equals: code, mode: 'insensitive' } });
+      }
+      where.OR = or;
     }
 
     const [items, total] = await Promise.all([
@@ -1068,57 +1144,119 @@ export class OrdersService {
     };
   }
 
+  private mapPickerOrderRow(order: PickerOrderListRow) {
+    return {
+      id: order.id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      createdAt: order.createdAt,
+      pickingAt: order.pickingAt,
+      deliveryFee: order.deliveryFee,
+      totalAmount: order.totalAmount,
+      isScheduled: order.isScheduled,
+      scheduledAt: order.scheduledAt,
+      scheduledSlotEnd: order.scheduledSlotEnd,
+      deliverySlot: order.deliverySlot,
+      assignedPickerId: order.assignedPickerId,
+      deliverySlotLabel: this.deliverySlotLabel(order.deliverySlot, order.scheduledAt),
+      items: mapPickerOrderItems(order.items),
+    };
+  }
+
+  private pickerQueueSortPriority(
+    order: { status: OrderStatus; createdAt: Date; scheduledAt: Date | null },
+    prepLeadMs: number,
+    nowMs: number,
+  ): number {
+    if (order.status === OrderStatus.PICKING) return 0;
+    if (order.status === OrderStatus.PENDING_SCHEDULE) {
+      const startMs = order.scheduledAt?.getTime() ?? nowMs + 86_400_000;
+      const untilMs = startMs - nowMs;
+      if (untilMs <= prepLeadMs) return 20 + untilMs / 60_000;
+      return 300 + untilMs / 60_000;
+    }
+    if (order.status === OrderStatus.NEW) {
+      return 120 + (nowMs - order.createdAt.getTime()) / 60_000;
+    }
+    return 900;
+  }
+
+  private sortPickerQueue<T extends { status: OrderStatus; createdAt: Date; scheduledAt: Date | null; id: string }>(
+    orders: T[],
+    prepLeadMinutes: number,
+  ): T[] {
+    const prepLeadMs = prepLeadMinutes * 60_000;
+    const nowMs = Date.now();
+    return [...orders].sort((a, b) => {
+      const pa = this.pickerQueueSortPriority(a, prepLeadMs, nowMs);
+      const pb = this.pickerQueueSortPriority(b, prepLeadMs, nowMs);
+      if (pa !== pb) return pa - pb;
+      if (a.status === OrderStatus.PENDING_SCHEDULE && b.status === OrderStatus.PENDING_SCHEDULE) {
+        const sa = a.scheduledAt?.getTime() ?? 0;
+        const sb = b.scheduledAt?.getTime() ?? 0;
+        if (sa !== sb) return sa - sb;
+      }
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+  }
+
+  async getPickerDashboard(pickerUserId: string) {
+    const scheduling = await this.settingsService.getSchedulingSettings();
+    const prepLeadMinutes = scheduling.prepLeadMinutes;
+
+    const [immediateRows, scheduledRows, pickingMineRows] = await Promise.all([
+      this.prisma.order.findMany({
+        where: { status: OrderStatus.NEW },
+        select: pickerOrderListSelect,
+        take: 80,
+      }),
+      this.prisma.order.findMany({
+        where: { status: OrderStatus.PENDING_SCHEDULE, isScheduled: true },
+        select: pickerOrderListSelect,
+        take: 80,
+      }),
+      this.prisma.order.findMany({
+        where: { status: OrderStatus.PICKING, assignedPickerId: pickerUserId },
+        select: pickerOrderListSelect,
+        take: 40,
+      }),
+    ]);
+
+    const byId = new Map<string, ReturnType<typeof this.mapPickerOrderRow>>();
+    for (const row of [...immediateRows, ...scheduledRows, ...pickingMineRows]) {
+      byId.set(row.id, this.mapPickerOrderRow(row));
+    }
+
+    const all = this.sortPickerQueue([...byId.values()], prepLeadMinutes);
+    const scheduledOrders = all.filter((o) => o.status === OrderStatus.PENDING_SCHEDULE);
+    const activeOrders = all;
+
+    return {
+      activeOrders,
+      scheduledOrders,
+      stats: {
+        queueCount: all.length,
+        newCount: all.filter((o) => o.status === OrderStatus.NEW).length,
+        pickingCount: all.filter((o) => o.status === OrderStatus.PICKING).length,
+        scheduledCount: scheduledOrders.length,
+        prepLeadMinutes,
+      },
+    };
+  }
+
   listPickerQueue(pickerUserId: string) {
-    return this.prisma.order.findMany({
-      where: {
-        OR: [{ status: 'NEW' }, { status: 'PICKING', assignedPickerId: pickerUserId }],
-      },
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-        deliveryFee: true,
-        totalAmount: true,
-        isScheduled: true,
-        scheduledAt: true,
-        scheduledSlotEnd: true,
-        deliverySlot: true,
-        items: { select: pickerOrderItemSelect },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 80,
-    }).then((orders) =>
-      orders.map((order) => ({
-        ...order,
-        deliverySlotLabel: this.deliverySlotLabel(order.deliverySlot, order.scheduledAt),
-        items: mapPickerOrderItems(order.items),
-      })),
-    );
+    return this.getPickerDashboard(pickerUserId).then((d) => d.activeOrders);
   }
 
   listPickerScheduledQueue() {
-    return this.prisma.order.findMany({
-      where: { status: OrderStatus.PENDING_SCHEDULE, isScheduled: true },
-      select: {
-        id: true,
-        status: true,
-        createdAt: true,
-        deliveryFee: true,
-        totalAmount: true,
-        scheduledAt: true,
-        scheduledSlotEnd: true,
-        deliverySlot: true,
-        items: { select: pickerOrderItemSelect },
-      },
-      orderBy: { scheduledAt: 'asc' },
-      take: 40,
-    }).then((orders) =>
-      orders.map((order) => ({
-        ...order,
-        deliverySlotLabel: this.deliverySlotLabel(order.deliverySlot, order.scheduledAt),
-        items: mapPickerOrderItems(order.items),
-      })),
-    );
+    return this.prisma.order
+      .findMany({
+        where: { status: OrderStatus.PENDING_SCHEDULE, isScheduled: true },
+        select: pickerOrderListSelect,
+        orderBy: { scheduledAt: 'asc' },
+        take: 80,
+      })
+      .then((rows) => rows.map((row) => this.mapPickerOrderRow(row)));
   }
 
   /** @deprecated Use listPaginated */

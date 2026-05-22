@@ -14,6 +14,8 @@ export const GUEST_TRACK_POLL_HIDDEN_MS = 45_000;
 
 export type PublicOrderTrackSnapshot = {
   trackingToken: string;
+  orderNumber: string;
+  /** @deprecated Use orderNumber */
   trackingCode: string;
   status: OrderStatusLite;
   createdAt: string;

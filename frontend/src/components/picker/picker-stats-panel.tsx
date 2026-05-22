@@ -4,15 +4,18 @@ import { motion } from 'framer-motion';
 import type { PickerHistoryEntry } from '@/lib/picker-types';
 import type { PickerDayStats } from '@/lib/picker-types';
 import { formatPickerDuration } from '@/lib/picker-storage';
+import { PickerStatsGrid } from './picker-stats-grid';
 
 type Props = {
   stats: PickerDayStats;
   history: PickerHistoryEntry[];
   weekPicked: number;
   peakHour: string;
+  queued: number;
+  scheduledCount?: number;
 };
 
-export function PickerStatsPanel({ stats, history, weekPicked, peakHour }: Props) {
+export function PickerStatsPanel({ stats, history, weekPicked, peakHour, queued, scheduledCount = 0 }: Props) {
   const last7 = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
@@ -24,6 +27,17 @@ export function PickerStatsPanel({ stats, history, weekPicked, peakHour }: Props
 
   return (
     <div className="space-y-3">
+      <PickerStatsGrid
+        queued={queued}
+        pickedToday={stats.pickedToday}
+        avgPickMinutes={stats.avgPickMinutes}
+        onlineSeconds={stats.onlineSeconds}
+      />
+      {scheduledCount > 0 ? (
+        <p className="rounded-xl bg-violet-50 px-3 py-2 text-center text-sm font-medium text-violet-900">
+          Rejalashtirilgan: {scheduledCount} ta
+        </p>
+      ) : null}
       <section className="rounded-2xl border border-[#ECECEC] bg-white p-4 shadow-sm">
         <p className="text-sm font-semibold text-[#111827]">Kunlik ko‘rsatkichlar</p>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">

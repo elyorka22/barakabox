@@ -2,7 +2,9 @@ import { BadRequestException } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 
 describe('OrdersService transitions', () => {
-  const makeService = (currentStatus: 'NEW' | 'PICKING' | 'READY' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED') => {
+  const makeService = (
+    currentStatus: 'NEW' | 'PICKING' | 'READY' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED' | 'PENDING_SCHEDULE',
+  ) => {
     const prisma = {
       order: {
         findUnique: jest.fn().mockResolvedValue({ id: 'o1', status: currentStatus }),
@@ -40,6 +42,12 @@ describe('OrdersService transitions', () => {
 
   it('allows NEW -> PICKING by picker', async () => {
     const { service, prisma } = makeService('NEW');
+    await service.startPicking('o1', 'picker-1');
+    expect(prisma.order.update).toHaveBeenCalled();
+  });
+
+  it('allows PENDING_SCHEDULE -> PICKING by picker (early prep)', async () => {
+    const { service, prisma } = makeService('PENDING_SCHEDULE');
     await service.startPicking('o1', 'picker-1');
     expect(prisma.order.update).toHaveBeenCalled();
   });

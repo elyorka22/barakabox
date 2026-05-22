@@ -51,10 +51,10 @@ export function OrderProgressTracker({ snapshot, loading, error, orderNumber }: 
     <div className="mt-6 rounded-[24px] bg-white p-5 shadow-[0_8px_32px_rgba(15,23,42,0.08)] ring-1 ring-slate-100">
       <div className="text-center">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-[#16A34A]">Buyurtma holati</p>
-        {orderNumber ? (
-          <p className="mt-1 text-xs text-slate-500">#{orderNumber}</p>
-        ) : snapshot?.trackingCode ? (
-          <p className="mt-1 text-xs text-slate-500">#{snapshot.trackingCode}</p>
+        {orderNumber || snapshot?.orderNumber || snapshot?.trackingCode ? (
+          <p className="mt-1 font-mono text-sm font-bold text-slate-800">
+            #{orderNumber || snapshot?.orderNumber || snapshot?.trackingCode}
+          </p>
         ) : null}
       </div>
 

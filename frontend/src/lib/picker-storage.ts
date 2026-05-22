@@ -1,4 +1,4 @@
-import { internalOrderLabel, orderDeliveryFeeLabel } from './picker-order-utils';
+import { pickerOrderLabel, orderDeliveryFeeLabel } from './picker-order-utils';
 import type { PickerDayStats, PickerHistoryEntry, PickerOrder } from './picker-types';
 
 const ONLINE_KEY = 'barakabox_picker_online_v1';
@@ -77,7 +77,7 @@ export function readPickerHistory(): PickerHistoryEntry[] {
     if (!Array.isArray(parsed)) return [];
     return parsed.map((row) => ({
       id: row.id,
-      orderLabel: row.orderLabel ?? internalOrderLabel(row.id),
+      orderLabel: row.orderLabel ?? pickerOrderLabel({ id: row.id }),
       deliveryLabel:
         row.deliveryLabel ??
         (row.deliveryType === 'tezkor' ? 'Tezkor' : row.deliveryType === 'oddiy' ? 'Oddiy' : 'Yetkazish'),
@@ -95,7 +95,7 @@ export function appendPickerHistory(order: PickerOrder, pickingMinutes: number):
   const list = readPickerHistory();
   const entry: PickerHistoryEntry = {
     id: order.id,
-    orderLabel: internalOrderLabel(order.id),
+    orderLabel: pickerOrderLabel(order),
     deliveryLabel: orderDeliveryFeeLabel(order),
     itemCount: order.items.length,
     completedAt: new Date().toISOString(),

@@ -2,7 +2,7 @@
 
 import { Minus, Plus } from 'lucide-react';
 
-export type QuantitySelectorVariant = 'card' | 'detail' | 'cart';
+export type QuantitySelectorVariant = 'card' | 'overlay' | 'detail' | 'cart';
 
 type QuantitySelectorProps = {
   displayLabel: string;
@@ -17,6 +17,7 @@ type QuantitySelectorProps = {
 };
 
 const SIZES = {
+  overlay: { btn: 'h-7 w-7', icon: 'h-3.5 w-3.5', label: 'text-[10px] min-w-[2rem] max-w-[3.5rem]' },
   card: { btn: 'h-7 w-7', icon: 'h-3.5 w-3.5', label: 'text-[11px] min-w-[2.5rem] max-w-[4.25rem]' },
   cart: { btn: 'h-9 w-9', icon: 'h-4 w-4', label: 'text-[12px] min-w-[3rem] max-w-[5.5rem]' },
   detail: { btn: 'h-12 w-12', icon: 'h-5 w-5', label: 'text-[15px] min-w-[5rem] max-w-[7rem]' },
@@ -42,9 +43,11 @@ export function QuantitySelector({
   const wrapClass =
     variant === 'detail'
       ? 'mx-auto flex w-full max-w-[300px] items-center gap-1.5 rounded-full bg-white px-1.5 py-1 shadow-[0_2px_14px_rgba(0,0,0,0.07)] ring-1 ring-black/[0.05]'
-      : variant === 'card'
-        ? 'inline-flex max-w-full items-center gap-0.5 rounded-full bg-white px-0.5 py-0.5 shadow-[0_2px_10px_rgba(0,0,0,0.1)] ring-1 ring-black/[0.04]'
-        : 'inline-flex shrink-0 items-center gap-0.5 rounded-full bg-white px-0.5 py-0.5 shadow-[0_2px_10px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.05]';
+      : variant === 'overlay'
+        ? 'inline-flex max-w-full items-center gap-0 rounded-full bg-white/95 px-0.5 py-0.5 shadow-[0_3px_14px_rgba(15,23,42,0.14)] backdrop-blur-[2px]'
+        : variant === 'card'
+          ? 'inline-flex max-w-full items-center gap-0.5 rounded-full bg-white px-0.5 py-0.5 shadow-[0_2px_10px_rgba(0,0,0,0.1)] ring-1 ring-black/[0.04]'
+          : 'inline-flex shrink-0 items-center gap-0.5 rounded-full bg-white px-0.5 py-0.5 shadow-[0_2px_10px_rgba(0,0,0,0.08)] ring-1 ring-black/[0.05]';
 
   return (
     <div className={`${wrapClass} ${className}`.trim()} role="group" aria-label="Miqdor">

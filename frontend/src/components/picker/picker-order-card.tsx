@@ -1,14 +1,18 @@
 'use client';
 
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, Package, Timer, Truck } from 'lucide-react';
+import { CalendarClock, Clock, Package, Timer, Truck } from 'lucide-react';
 import type { PickerOrder } from '@/lib/picker-types';
 import {
   estimatePickMinutes,
   formatOrderTime,
-  internalOrderLabel,
+  formatScheduledCountdown,
+  pickerOrderLabel,
+  pickerOrderLabelFormatted,
+  isScheduledOrder,
   minutesSinceCreated,
+  msUntilScheduled,
   orderDeliveryFeeLabel,
   statusLabelUz,
 } from '@/lib/picker-order-utils';
@@ -32,22 +36,66 @@ function PickerQueueCard({
   busy?: boolean;
   onStart: () => Promise<void>;
 }) {
+  const scheduled = isScheduledOrder(order);
   const deliveryLabel = orderDeliveryFeeLabel(order);
-  const label = internalOrderLabel(order.id);
+  const labelFormatted = pickerOrderLabelFormatted(order);
+  const [countdown, setCountdown] = useState(() =>
+    formatScheduledCountdown(msUntilScheduled(order)),
+  );
+
+  useEffect(() => {
+    if (!scheduled) return;
+    const tick = () => setCountdown(formatScheduledCountdown(msUntilScheduled(order)));
+    tick();
+    const id = window.setInterval(tick, 15_000);
+    return () => clearInterval(id);
+  }, [order.id, order.scheduledAt, scheduled]);
 
   return (
     <>
-      <div className="flex items-stretch justify-between gap-3 bg-[#111827] px-4 py-3.5 text-white">
+      <div
+        className={`flex items-stretch justify-between gap-3 px-4 py-3.5 text-white ${
+          scheduled ? 'bg-violet-900' : 'bg-[#111827]'
+        }`}
+      >
         <div className="min-w-0">
-          <p className="font-mono text-2xl font-bold leading-none tracking-widest">{label}</p>
-          <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-slate-400">Ichki raqam</p>
+          <p className="font-mono text-2xl font-bold leading-none tracking-widest">{labelFormatted}</p>
+          <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-white/60">
+            Ichki raqam
+          </p>
         </div>
-        <span className="flex shrink-0 items-center self-center rounded-xl bg-amber-400 px-3 py-2 text-xs font-bold uppercase tracking-wide text-amber-950">
-          {statusLabelUz(order.status)}
-        </span>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          {scheduled ? (
+            <span className="rounded-lg bg-violet-500/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+              Rejalashtirilgan
+            </span>
+          ) : null}
+          <span
+            className={`rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wide ${
+              scheduled ? 'bg-white/15 text-white' : 'bg-amber-400 text-amber-950'
+            }`}
+          >
+            {statusLabelUz(order.status)}
+          </span>
+        </div>
       </div>
 
       <div className="px-4 py-3.5">
+        {scheduled ? (
+          <div className="mb-3 space-y-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-violet-900">
+                <CalendarClock className="h-4 w-4" strokeWidth={2} />
+                {order.deliverySlotLabel ?? 'Yetkazish vaqti'}
+              </span>
+              <span className="rounded-full bg-violet-600 px-2.5 py-1 text-[11px] font-bold tabular-nums text-white">
+                {countdown}
+              </span>
+            </div>
+            <p className="text-[11px] font-medium text-violet-800">Qolgan vaqt</p>
+          </div>
+        ) : null}
+
         <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-700">
           <Truck className="h-4 w-4" strokeWidth={2} />
           {deliveryLabel}
@@ -66,12 +114,18 @@ function PickerQueueCard({
           </div>
           <div className="rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] px-2 py-2.5 text-center">
             <Clock className="mx-auto h-4 w-4 text-[#16A34A]" />
-            <p className="mt-1 text-lg font-bold tabular-nums text-[#111827]">{minutesSinceCreated(order.createdAt)}</p>
-            <p className="text-[9px] font-semibold uppercase tracking-wide text-[#9CA3AF]">Daq oldin</p>
+            <p className="mt-1 text-lg font-bold tabular-nums text-[#111827]">
+              {scheduled ? countdown.split(' ')[0] ?? '—' : minutesSinceCreated(order.createdAt)}
+            </p>
+            <p className="text-[9px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
+              {scheduled ? 'Qolgan' : 'Daq oldin'}
+            </p>
           </div>
         </div>
 
-        <p className="mt-3 text-center text-[11px] font-medium text-[#9CA3AF]">{formatOrderTime(order.createdAt)}</p>
+        <p className="mt-3 text-center text-[11px] font-medium text-[#9CA3AF]">
+          {formatOrderTime(order.scheduledAt ?? order.createdAt)}
+        </p>
       </div>
 
       <div className="border-t border-[#ECECEC] bg-[#FAFAFA] p-3">
@@ -79,9 +133,9 @@ function PickerQueueCard({
           type="button"
           disabled={busy}
           onClick={() => void onStart()}
-          className="min-h-[52px] w-full rounded-xl bg-[#16A34A] text-sm font-bold uppercase tracking-wide text-white shadow-md disabled:opacity-60"
+          className="min-h-[52px] w-full rounded-xl bg-[#16A34A] text-sm font-bold uppercase tracking-wide text-white shadow-md active:scale-[0.98] disabled:opacity-60"
         >
-          Qabul qilish
+          {scheduled ? 'Yig‘ishni boshlash' : 'Qabul qilish'}
         </button>
       </div>
     </>
@@ -89,7 +143,7 @@ function PickerQueueCard({
 }
 
 function PickerOrderCardInner({ order, busy, onStart, onReady }: Props) {
-  const isNew = order.status === 'NEW';
+  const isQueue = order.status === 'NEW' || order.status === 'PENDING_SCHEDULE';
   const isPicking = order.status === 'PICKING';
   const deliveryLabel = orderDeliveryFeeLabel(order);
   const [checklist, setChecklist] = useState(() => readChecklist(order.id));
@@ -124,20 +178,24 @@ function PickerOrderCardInner({ order, busy, onStart, onReady }: Props) {
 
   return (
     <motion.li
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`overflow-hidden rounded-2xl bg-white shadow-sm ${
-        isNew ? 'border-2 border-[#111827]/10' : 'border border-[#ECECEC]'
+      layout={false}
+      initial={false}
+      className={`overflow-hidden rounded-2xl bg-white shadow-sm [content-visibility:auto] [contain-intrinsic-size:300px] ${
+        isQueue ? (isScheduledOrder(order) ? 'border-2 border-violet-300/60' : 'border-2 border-[#111827]/10') : 'border border-[#ECECEC]'
       }`}
     >
-      {isNew ? <PickerQueueCard order={order} busy={busy} onStart={onStart} /> : null}
+      {isQueue ? <PickerQueueCard order={order} busy={busy} onStart={onStart} /> : null}
 
       {isPicking ? (
         <>
           <div className="flex items-center justify-between gap-2 border-b border-[#ECECEC] bg-[#F8FAFC] px-3 py-2.5">
-            <p className="font-mono text-sm font-bold text-[#111827]">#{internalOrderLabel(order.id)}</p>
+            <p className="font-mono text-sm font-bold text-[#111827]">{pickerOrderLabelFormatted(order)}</p>
             <div className="flex items-center gap-2">
+              {isScheduledOrder(order) ? (
+                <span className="rounded-md bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-800">
+                  Reja
+                </span>
+              ) : null}
               <span className="rounded-md bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700">
                 {deliveryLabel}
               </span>
@@ -162,7 +220,7 @@ function PickerOrderCardInner({ order, busy, onStart, onReady }: Props) {
               type="button"
               disabled={busy}
               onClick={() => void handleReady()}
-              className="min-h-12 w-full rounded-2xl bg-[#111827] text-sm font-bold text-white disabled:opacity-60"
+              className="min-h-12 w-full rounded-2xl bg-[#111827] text-sm font-bold text-white active:scale-[0.98] disabled:opacity-60"
             >
               Tayyor deb belgilash
             </button>
@@ -173,4 +231,14 @@ function PickerOrderCardInner({ order, busy, onStart, onReady }: Props) {
   );
 }
 
-export const PickerOrderCard = memo(PickerOrderCardInner);
+function orderCardPropsEqual(prev: Props, next: Props): boolean {
+  if (prev.busy !== next.busy) return false;
+  const a = prev.order;
+  const b = next.order;
+  if (a.id !== b.id || a.status !== b.status) return false;
+  if ((a.scheduledAt ?? '') !== (b.scheduledAt ?? '')) return false;
+  if (a.items.length !== b.items.length) return false;
+  return true;
+}
+
+export const PickerOrderCard = memo(PickerOrderCardInner, orderCardPropsEqual);

@@ -4,6 +4,20 @@ import { showToast } from './toast';
 import { normalizeAssetUrlsDeep } from './asset-url';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? '/api';
+
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+export function isApiError(err: unknown): err is ApiError {
+  return err instanceof ApiError;
+}
 const REFRESH_TOKEN_KEY = 'barakabox_refresh_token';
 const USER_KEY = 'barakabox_user';
 const GUEST_ID_KEY = 'barakabox_guest_id';
@@ -132,6 +146,9 @@ async function request<T>(
   }
 
   if (!response.ok) {
+    if (response.status === 429) {
+      throw new ApiError(429, t('common.rateLimited'));
+    }
     if (response.status === 401 && typeof window !== 'undefined') {
       const canTryRefresh =
         !isRetry &&

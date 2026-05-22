@@ -14,6 +14,7 @@ import {
   staticMapPreviewUrl,
   yandexMapsHref,
 } from '@/lib/courier-order-utils';
+import { formatOrderNumberLabel } from '@/lib/order-number';
 import type { CourierOrder } from '@/lib/courier-types';
 import { OrderFinancialBreakdown } from '@/components/order/order-financial-breakdown';
 import { CourierPriorityBadges } from './courier-priority-badges';
@@ -51,7 +52,9 @@ function CourierOrderCardInner({ order, busy, onAccept, onReject, onComplete }: 
       <div className="flex items-start justify-between gap-2 border-b border-[#F3F4F6] bg-[#FAFAFA] px-4 py-3 dark:bg-slate-800/50">
         <div className="min-w-0 flex-1">
           <p className="text-base font-bold text-[#111827] dark:text-white">{order.customerName || 'Mijoz'}</p>
-          <p className="mt-0.5 text-xs text-[#6B7280]">#{order.id.slice(-8).toUpperCase()}</p>
+          <p className="mt-0.5 font-mono text-base font-bold tracking-wide text-[#111827]">
+            {formatOrderNumberLabel(order.orderNumber ?? order.id.slice(-8))}
+          </p>
           {order.isScheduled && order.deliverySlotLabel ? (
             <p className="mt-1 rounded-md bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-900 dark:bg-violet-950 dark:text-violet-200">
               Oyna: {order.deliverySlotLabel}

@@ -4,7 +4,16 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 @Injectable()
 export class CustomThrottlerGuard extends ThrottlerGuard {
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const req = context.switchToHttp().getRequest<{ user?: { role?: string }; headers?: { authorization?: string } }>();
+    const req = context.switchToHttp().getRequest<{
+      user?: { role?: string };
+      headers?: { authorization?: string };
+      originalUrl?: string;
+      url?: string;
+    }>();
+    const path = `${req.originalUrl ?? req.url ?? ''}`;
+    if (path.includes('/cart')) {
+      return true;
+    }
     const roleFromGuard = (req.user?.role ?? '').toUpperCase();
     if (roleFromGuard === 'ADMIN' || roleFromGuard === 'SUPER_ADMIN') return true;
 

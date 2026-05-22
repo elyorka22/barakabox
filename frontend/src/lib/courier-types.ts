@@ -4,6 +4,7 @@ export type OrderPriority = 'HOT' | 'DELAYED' | 'VIP' | 'LONG_DISTANCE';
 
 export type CourierOrder = {
   id: string;
+  orderNumber?: string | null;
   status: CourierOrderStatus;
   totalAmount: number | string;
   subtotalAmount?: number;

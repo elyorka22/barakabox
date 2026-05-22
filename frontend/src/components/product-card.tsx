@@ -8,18 +8,17 @@ import {
   normalizeIncomingProductUnit,
   resolveSellingMode,
 } from '@onlinebozor/product-units';
-import { ProductCardFooter } from '@/components/product-card/product-card-footer';
 import { SafeImage } from '@/components/safe-image';
 import {
   PRODUCT_IMAGE_FALLBACK_CLASS,
   PRODUCT_IMAGE_SURFACE_CLASS,
   resolveVariantImageUrl,
 } from '@/lib/product-image';
+import { buildProductCardMetaLine } from '@/lib/product-card-meta';
 import { useProductSheet } from '@/lib/product-sheet-context';
 import { ProductCardCartControl } from '@/components/product-card/product-card-cart-control';
-import { ProductCardFooterLive } from '@/components/product-card/product-card-footer-live';
+import { ProductCardInfo } from '@/components/product-card/product-card-info';
 import { ProductCardInCartRing } from '@/components/product-card/product-card-in-cart-ring';
-import { CashbackBadge } from '@/components/cashback-badge';
 import type { StorefrontProduct } from '@/types/storefront-product';
 
 type Variant = {
@@ -119,7 +118,6 @@ function ProductCardBase({
       ? Number(discountedPrice)
       : null;
   const effectiveDiscountPrice = activeDiscountPrice ?? productDiscountPrice;
-  const unitPrice = effectiveDiscountPrice ?? activeBasePrice;
 
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageKey, setImageKey] = useState(activeVariantId ?? '');
@@ -146,8 +144,14 @@ function ProductCardBase({
 
   const outOfStock = activeVariant ? (activeVariant.stock ?? 0) <= 0 : true;
 
-  const subtitleLine =
-    activeVariant?.flavor?.trim() || subtitle?.trim() || categoryName?.trim() || '';
+  const metaLine = buildProductCardMetaLine({
+    flavor: activeVariant?.flavor,
+    subtitle,
+    categoryName,
+    unit: unitType,
+    minimumAmount,
+    stepAmount,
+  });
 
   const storefrontProduct: StorefrontProduct = {
     id,
@@ -184,106 +188,94 @@ function ProductCardBase({
   return (
     <article className="product-card flex h-full flex-col">
       <ProductCardInCartRing variantId={activeVariantId}>
-      <button
-        type="button"
-        onClick={openSheet}
-        className="flex min-h-0 flex-1 flex-col text-left"
-      >
-        {activeVariant ? (
-          <div
-            className={`relative aspect-square w-full shrink-0 overflow-hidden ${PRODUCT_IMAGE_SURFACE_CLASS}`}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-              setTouchStartX(e.changedTouches[0]?.clientX ?? null);
-            }}
-            onTouchEnd={(e) => {
-              e.stopPropagation();
-              handleTouchEnd(e.changedTouches[0]?.clientX ?? 0);
-            }}
-          >
-            {!imageLoaded ? (
-              <div className={`absolute inset-0 animate-pulse ${PRODUCT_IMAGE_SURFACE_CLASS}`} />
-            ) : null}
+        <button
+          type="button"
+          onClick={openSheet}
+          className="product-card-surface flex h-full min-h-[210px] flex-col text-left transition-transform duration-150 ease-out active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
+        >
+          {activeVariant ? (
             <div
-              className="flex h-full w-full transition-transform duration-300 ease-out"
-              style={{ transform: `translateX(-${activeVariantIndex * 100}%)` }}
+              className={`relative flex-[3] min-h-[108px] w-full shrink-0 overflow-visible ${PRODUCT_IMAGE_SURFACE_CLASS}`}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                setTouchStartX(e.changedTouches[0]?.clientX ?? null);
+              }}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+                handleTouchEnd(e.changedTouches[0]?.clientX ?? 0);
+              }}
             >
-              {effectiveVariants.map((variant) => {
-                const src = resolveVariantImageUrl(variant, productImages);
-                return (
-                  <div key={variant.id} className="flex h-full min-w-full items-center justify-center p-1">
-                    <SafeImage
-                      src={src || undefined}
-                      alt={variant.flavor || name}
-                      loading={imagePriority ? 'eager' : 'lazy'}
-                      sizes="(max-width: 768px) 50vw, 220px"
-                      decoding="async"
-                      className={`max-h-full max-w-full object-contain transition-opacity duration-300 ${
-                        imageLoaded ? 'opacity-100' : 'opacity-0'
-                      }`}
-                      fallbackClassName={PRODUCT_IMAGE_FALLBACK_CLASS}
-                      onReady={() => setImageLoaded(true)}
-                    />
-                  </div>
-                );
-              })}
+              <div className="relative h-full w-full overflow-hidden rounded-t-[20px] bg-[#f8f9fb]">
+                {!imageLoaded ? (
+                  <div className="absolute inset-0 animate-pulse bg-[#f3f4f6]" />
+                ) : null}
+                <div
+                  className="flex h-full w-full transition-transform duration-300 ease-out"
+                  style={{ transform: `translateX(-${activeVariantIndex * 100}%)` }}
+                >
+                  {effectiveVariants.map((variant) => {
+                    const src = resolveVariantImageUrl(variant, productImages);
+                    return (
+                      <div
+                        key={variant.id}
+                        className="flex h-full min-w-full items-center justify-center px-1.5 py-1"
+                      >
+                        <SafeImage
+                          src={src || undefined}
+                          alt={variant.flavor || name}
+                          loading={imagePriority ? 'eager' : 'lazy'}
+                          sizes="(max-width: 768px) 50vw, 200px"
+                          decoding="async"
+                          className={`max-h-[92%] max-w-[92%] object-contain transition-opacity duration-300 ${
+                            imageLoaded ? 'opacity-100' : 'opacity-0'
+                          }`}
+                          fallbackClassName={PRODUCT_IMAGE_FALLBACK_CLASS}
+                          onReady={() => setImageLoaded(true)}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {effectiveDiscountPrice ? (
+                  <span className="pointer-events-none absolute left-2 top-2 z-[1] rounded-lg bg-[#ef4444] px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">
+                    -{Math.max(1, Math.round(((activeBasePrice - effectiveDiscountPrice) / activeBasePrice) * 100))}%
+                  </span>
+                ) : null}
+                {promotionBadge && inPromoWindow ? (
+                  <span className="pointer-events-none absolute right-2 top-2 z-[1] rounded-lg bg-[#111827] px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">
+                    {promotionBadge}
+                  </span>
+                ) : null}
+              </div>
+
+              <div
+                className="absolute -bottom-2.5 -right-2 z-10"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
+                <ProductCardCartControl
+                  variantId={activeVariant.id}
+                  productId={id}
+                  sellingMode={sellingMode}
+                  unit={unitType}
+                  disabled={outOfStock}
+                />
+              </div>
             </div>
-
-            {effectiveDiscountPrice ? (
-              <span className="pointer-events-none absolute left-1.5 top-1.5 rounded-md bg-[#ef4444] px-1.5 py-0.5 text-[9px] font-bold text-white">
-                -{Math.max(1, Math.round(((activeBasePrice - effectiveDiscountPrice) / activeBasePrice) * 100))}%
-              </span>
-            ) : null}
-            {promotionBadge && inPromoWindow ? (
-              <span className="pointer-events-none absolute right-1.5 top-1.5 rounded-md bg-[#111827] px-1.5 py-0.5 text-[9px] font-bold text-white">
-                {promotionBadge}
-              </span>
-            ) : null}
-
-            <div className="absolute bottom-1.5 right-1.5 z-10" onClick={(e) => e.stopPropagation()}>
-              <ProductCardCartControl
-                variantId={activeVariant.id}
-                productId={id}
-                sellingMode={sellingMode}
-                unit={unitType}
-                disabled={outOfStock}
-              />
-            </div>
-          </div>
-        ) : (
-          <div className={`aspect-square shrink-0 ${PRODUCT_IMAGE_SURFACE_CLASS}`} />
-        )}
-
-        <div className="flex flex-1 flex-col px-2 pb-1.5 pt-1">
-          <h3 className="line-clamp-2 text-[12px] font-bold leading-tight text-[#111827]">{name}</h3>
-          {subtitleLine ? (
-            <p className="mt-px line-clamp-1 text-[10px] text-[#9ca3af]">{subtitleLine}</p>
-          ) : null}
-          <div className="mt-1 min-h-[14px]">
-            <CashbackBadge cashbackType={cashbackType} cashbackValue={cashbackValue} variant="promo" />
-          </div>
-
-          {activeVariantId ? (
-            <ProductCardFooterLive
-              variantId={activeVariantId}
-              unitPrice={unitPrice}
-              basePrice={activeBasePrice}
-              salePrice={effectiveDiscountPrice}
-              unit={unitType}
-              sellingMode={sellingMode}
-            />
           ) : (
-            <ProductCardFooter
-              inCart={false}
-              quantityLabel=""
-              lineTotal={0}
-              basePrice={activeBasePrice}
-              salePrice={effectiveDiscountPrice}
-              unit={unitType}
-            />
+            <div className={`flex-[3] min-h-[108px] shrink-0 rounded-t-[20px] ${PRODUCT_IMAGE_SURFACE_CLASS}`} />
           )}
-        </div>
-      </button>
+
+          <ProductCardInfo
+            name={name}
+            metaLine={metaLine}
+            basePrice={activeBasePrice}
+            salePrice={effectiveDiscountPrice}
+            cashbackType={cashbackType}
+            cashbackValue={cashbackValue}
+          />
+        </button>
       </ProductCardInCartRing>
     </article>
   );

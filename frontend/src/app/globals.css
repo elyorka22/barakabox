@@ -283,6 +283,10 @@ body {
   animation: product-card-qty-enter 220ms cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
+.product-card-surface {
+  -webkit-tap-highlight-color: transparent;
+}
+
 .product-card-add-btn:active {
   transform: scale(0.88);
 }

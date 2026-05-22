@@ -32,7 +32,7 @@ export function GuestOrderCompletionBanner({ flash, onDismiss }: Props) {
         <div className="min-w-0 flex-1">
           <p className="text-[15px] font-bold leading-snug text-[#121212]">{title}</p>
           <p className="mt-1 text-[12px] text-slate-500">
-            Kuzatish kodi: <span className="font-mono font-semibold">{flash.trackingCode}</span>
+            Buyurtma: <span className="font-mono font-semibold">#{flash.trackingCode}</span>
           </p>
           {showCashback ? (
             <p className="mt-2 text-[13px] font-semibold text-[#15803d]">

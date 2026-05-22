@@ -15,6 +15,7 @@ type OrderStatus =
   | 'CANCELLED';
 type Order = {
   id: string;
+  orderNumber?: string | null;
   status: OrderStatus;
   isScheduled?: boolean;
   scheduledAt?: string | null;
@@ -116,7 +117,7 @@ export default function AdminOrdersPage() {
         <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <input
             className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm md:rounded-xl"
-            placeholder="Mijoz qidirish"
+            placeholder="Ism, telefon yoki buyurtma raqami"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -184,7 +185,9 @@ export default function AdminOrdersPage() {
           <div key={order.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm md:p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <p className="font-semibold">#{order.id.slice(0, 8)}</p>
+                <p className="font-mono text-lg font-bold tracking-wide text-[#111827]">
+                  {order.orderNumber ? `#${order.orderNumber}` : `#${order.id.slice(0, 8)}`}
+                </p>
                 <p className="text-xs text-slate-500">
                   {order.customerName} · {order.customerPhone}
                 </p>

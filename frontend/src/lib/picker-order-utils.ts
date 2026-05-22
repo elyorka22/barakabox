@@ -1,8 +1,18 @@
+import { displayOrderNumber, formatOrderNumberLabel } from '@/lib/order-number';
 import { formatMoneyUz } from './format';
 import type { PickerOrder } from './picker-types';
 
+/** @deprecated Use formatOrderNumberLabel(order.orderNumber) */
 export function internalOrderLabel(orderId: string): string {
   return orderId.slice(-8).toUpperCase();
+}
+
+export function pickerOrderLabel(order: Pick<PickerOrder, 'orderNumber' | 'id'>): string {
+  return displayOrderNumber(order);
+}
+
+export function pickerOrderLabelFormatted(order: Pick<PickerOrder, 'orderNumber' | 'id'>): string {
+  return formatOrderNumberLabel(pickerOrderLabel(order));
 }
 
 export function orderDeliveryFeeLabel(order: PickerOrder): string {
@@ -10,10 +20,55 @@ export function orderDeliveryFeeLabel(order: PickerOrder): string {
   return fee === 0 ? 'Bepul yetkazish' : `Yetkazish: ${formatMoneyUz(fee)}`;
 }
 
-export function sortPickerOrders(orders: PickerOrder[]): PickerOrder[] {
-  return [...orders].sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-  );
+/** Priority sort: picking → imminent scheduled → new → future scheduled (FIFO within tier). */
+export function sortPickerOrders(orders: PickerOrder[], prepLeadMinutes = 60): PickerOrder[] {
+  const prepLeadMs = prepLeadMinutes * 60_000;
+  const now = Date.now();
+
+  const priority = (order: PickerOrder): number => {
+    if (order.status === 'PICKING') return 0;
+    if (order.status === 'PENDING_SCHEDULE') {
+      const start = order.scheduledAt ? new Date(order.scheduledAt).getTime() : now + 86_400_000;
+      const until = start - now;
+      if (until <= prepLeadMs) return 20 + until / 60_000;
+      return 300 + until / 60_000;
+    }
+    if (order.status === 'NEW') {
+      return 120 + (now - new Date(order.createdAt).getTime()) / 60_000;
+    }
+    return 900;
+  };
+
+  return [...orders].sort((a, b) => {
+    const pa = priority(a);
+    const pb = priority(b);
+    if (pa !== pb) return pa - pb;
+    if (a.status === 'PENDING_SCHEDULE' && b.status === 'PENDING_SCHEDULE') {
+      const sa = a.scheduledAt ? new Date(a.scheduledAt).getTime() : 0;
+      const sb = b.scheduledAt ? new Date(b.scheduledAt).getTime() : 0;
+      if (sa !== sb) return sa - sb;
+    }
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
+}
+
+export function msUntilScheduled(order: PickerOrder): number | null {
+  if (!order.scheduledAt) return null;
+  return new Date(order.scheduledAt).getTime() - Date.now();
+}
+
+export function formatScheduledCountdown(ms: number | null): string {
+  if (ms === null) return '—';
+  if (ms <= 0) return 'Tez orada';
+  const totalMin = Math.ceil(ms / 60_000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h > 0) return `${h} soat ${m} daq`;
+  return `${m} daq`;
+}
+
+export function isScheduledOrder(order: PickerOrder): boolean {
+  return order.status === 'PENDING_SCHEDULE' || Boolean(order.isScheduled && order.scheduledAt);
 }
 
 export function estimatePickMinutes(order: PickerOrder): number {
@@ -40,7 +95,7 @@ export function formatOrderTime(iso: string): string {
 export function statusLabelUz(status: string): string {
   if (status === 'PENDING_SCHEDULE') return 'Rejalashtirilgan';
   if (status === 'NEW') return 'Navbatda';
-  if (status === 'PICKING') return 'Qabul qilindi';
+  if (status === 'PICKING') return 'Yig‘ilmoqda';
   if (status === 'READY') return 'Kuryerga tayyor';
   return status;
 }

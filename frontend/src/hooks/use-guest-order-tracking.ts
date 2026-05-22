@@ -27,9 +27,11 @@ import {
 
 function toStoredFromApi(data: PublicOrderTrackSnapshot): StoredGuestOrder | null {
   const status = parsePublicTrackStatus(data.status);
+  const orderNumber = data.orderNumber || data.trackingCode || '';
   return upsertActiveGuestOrderFromApi({
     trackingToken: data.trackingToken,
-    trackingCode: data.trackingCode,
+    orderNumber,
+    trackingCode: orderNumber,
     status,
     deliverySpeed: data.deliverySpeed,
     createdAt: data.createdAt,
@@ -43,6 +45,7 @@ function syncProfileSnapshot(order: StoredGuestOrder) {
   saveLastOrderSnapshot(
     {
       id: order.trackingToken,
+      orderNumber: order.orderNumber,
       status: order.status,
       createdAt: order.createdAt,
       cashbackEarnedSnapshotTiyin: order.cashbackEarnedTiyin,
@@ -85,7 +88,8 @@ export function useGuestOrderTracking(options?: { pollEnabled?: boolean }) {
         if (isCompletedGuestOrderStatus(status)) {
           finalizeGuestOrderCompletion({
             trackingToken: data.trackingToken,
-            trackingCode: data.trackingCode,
+            orderNumber: data.orderNumber || data.trackingCode || '',
+            trackingCode: data.orderNumber || data.trackingCode || '',
             status,
             deliverySpeed: data.deliverySpeed,
             createdAt: data.createdAt,
@@ -205,7 +209,8 @@ export function useGuestOrderTracking(options?: { pollEnabled?: boolean }) {
   const snapshotForUi: PublicOrderTrackSnapshot | null = selected
     ? {
         trackingToken: selected.trackingToken,
-        trackingCode: selected.trackingCode,
+        orderNumber: selected.orderNumber || selected.trackingCode,
+        trackingCode: selected.orderNumber || selected.trackingCode,
         status: selected.status,
         createdAt: selected.createdAt,
         deliverySpeed: selected.deliverySpeed,

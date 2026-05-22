@@ -14,8 +14,10 @@ function ProductCardInCartRingBase({ variantId, children }: Props) {
 
   return (
     <div
-      className={`flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.05)] transition-[box-shadow,ring] duration-200 ${
-        inCart ? 'ring-2 ring-[#22c55e]/30' : ''
+      className={`group flex h-full flex-col overflow-visible rounded-[20px] bg-white transition-shadow duration-200 ${
+        inCart
+          ? 'shadow-[0_2px_12px_rgba(34,197,94,0.14)]'
+          : 'shadow-[0_1px_4px_rgba(15,23,42,0.06)] hover:shadow-[0_2px_10px_rgba(15,23,42,0.08)]'
       }`}
     >
       {children}

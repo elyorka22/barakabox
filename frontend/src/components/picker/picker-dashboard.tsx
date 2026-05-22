@@ -11,15 +11,13 @@ import { usePickerStats } from '@/hooks/use-picker-stats';
 import { PickerHeader } from './picker-header';
 import { PickerBottomNav } from './picker-bottom-nav';
 import { PickerPullRefresh } from './picker-pull-refresh';
-import { PickerStatsGrid } from './picker-stats-grid';
 import { PickerAvailabilityToggle } from './picker-availability-toggle';
-import { PickerOrderCard } from './picker-order-card';
 import { PickerEmptyState } from './picker-empty-state';
 import { PickerSkeleton } from './picker-skeleton';
 import { PickerHistoryPanel } from './picker-history-panel';
 import { PickerStatsPanel } from './picker-stats-panel';
 import { PickerRefreshFab } from './picker-refresh-fab';
-import { PickerScheduledPanel } from './picker-scheduled-panel';
+import { PickerOrderList } from './picker-order-list';
 import { showToast } from '@/lib/toast';
 
 const TAB_ORDER: PickerTab[] = ['active', 'history', 'stats', 'profile'];
@@ -31,7 +29,17 @@ export function PickerDashboard() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const { stats, history, weekPicked, peakHour, refresh: refreshStats } = usePickerStats();
-  const { orders, loading, refreshing, error, offline, loadOrders, startPicking, markReady } = usePickerOrders();
+  const {
+    orders,
+    dashboardStats,
+    loading,
+    refreshing,
+    error,
+    offline,
+    loadOrders,
+    startPicking,
+    markReady,
+  } = usePickerOrders();
 
   const refresh = useCallback(async () => {
     await loadOrders(true);
@@ -49,6 +57,35 @@ export function PickerDashboard() {
     void loadOrders(true);
   };
 
+  const handleStart = useCallback(
+    async (orderId: string) => {
+      setBusyId(orderId);
+      try {
+        await startPicking(orderId);
+      } catch (e) {
+        showToast({ type: 'error', message: e instanceof Error ? e.message : 'Xatolik' });
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [startPicking],
+  );
+
+  const handleReady = useCallback(
+    async (order: Parameters<typeof markReady>[0]) => {
+      setBusyId(order.id);
+      try {
+        await markReady(order);
+        refreshStats();
+      } catch (e) {
+        showToast({ type: 'error', message: e instanceof Error ? e.message : 'Xatolik' });
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [markReady, refreshStats],
+  );
+
   const logout = () => void authStorage.logout().finally(() => router.replace('/profile'));
   const user = authStorage.getUser();
 
@@ -58,11 +95,13 @@ export function PickerDashboard() {
     if (info.offset.x > 80 && idx > 0) setTab(TAB_ORDER[idx - 1]);
   };
 
+  const activeCount = dashboardStats?.queueCount ?? orders.length;
+
   return (
     <div className="min-h-screen bg-[#F7F7F7]">
       <PickerHeader online={online} refreshing={refreshing} onRefresh={() => void refresh()} onLogout={logout} />
       <PickerPullRefresh onRefresh={refresh}>
-        <main className="mx-auto max-w-lg space-y-3 px-3 pb-24 pt-3">
+        <main className="mx-auto max-w-lg px-3 pb-24 pt-3">
           <AnimatePresence mode="wait">
             <motion.div
               key={tab}
@@ -73,55 +112,28 @@ export function PickerDashboard() {
               initial={{ opacity: 0, x: 12 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -12 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0.15 }}
             >
               {tab === 'active' ? (
-                <>
-                  <PickerStatsGrid
-                    queued={orders.length}
-                    pickedToday={stats.pickedToday}
-                    avgPickMinutes={stats.avgPickMinutes}
-                    onlineSeconds={stats.onlineSeconds}
-                  />
+                <div className="space-y-3">
                   <PickerAvailabilityToggle online={online} onChange={handleOnline} />
-                  <PickerScheduledPanel />
-                  {offline ? <p className="text-xs text-amber-700">Oflayn — kesh</p> : null}
-                  {error ? <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p> : null}
+                  {offline ? (
+                    <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">Oflayn — kesh</p>
+                  ) : null}
+                  {error ? (
+                    <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p>
+                  ) : null}
                   {loading ? <PickerSkeleton /> : null}
                   {!loading && orders.length === 0 ? <PickerEmptyState offline={!online} /> : null}
                   {!loading && orders.length > 0 ? (
-                    <ul className="space-y-3">
-                      {orders.map((order) => (
-                        <PickerOrderCard
-                          key={order.id}
-                          order={order}
-                          busy={busyId === order.id}
-                          onStart={async () => {
-                            setBusyId(order.id);
-                            try {
-                              await startPicking(order.id);
-                            } catch (e) {
-                              showToast({ type: 'error', message: e instanceof Error ? e.message : 'Xatolik' });
-                            } finally {
-                              setBusyId(null);
-                            }
-                          }}
-                          onReady={async () => {
-                            setBusyId(order.id);
-                            try {
-                              await markReady(order);
-                              refreshStats();
-                            } catch (e) {
-                              showToast({ type: 'error', message: e instanceof Error ? e.message : 'Xatolik' });
-                            } finally {
-                              setBusyId(null);
-                            }
-                          }}
-                        />
-                      ))}
-                    </ul>
+                    <PickerOrderList
+                      orders={orders}
+                      busyId={busyId}
+                      onStart={handleStart}
+                      onReady={handleReady}
+                    />
                   ) : null}
-                </>
+                </div>
               ) : null}
 
               {tab === 'history' ? (
@@ -133,7 +145,14 @@ export function PickerDashboard() {
               ) : null}
 
               {tab === 'stats' ? (
-                <PickerStatsPanel stats={stats} history={history} weekPicked={weekPicked} peakHour={peakHour} />
+                <PickerStatsPanel
+                  stats={stats}
+                  history={history}
+                  weekPicked={weekPicked}
+                  peakHour={peakHour}
+                  queued={dashboardStats?.queueCount ?? orders.length}
+                  scheduledCount={dashboardStats?.scheduledCount ?? 0}
+                />
               ) : null}
 
               {tab === 'profile' ? (
@@ -157,10 +176,6 @@ export function PickerDashboard() {
                           : '—'}
                       </span>
                     </p>
-                    <p className="flex justify-between">
-                      <span className="text-[#6B7280]">Qurilma</span>
-                      <span className="text-xs">{typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 32) + '…' : '—'}</span>
-                    </p>
                   </div>
                   <button
                     type="button"
@@ -175,8 +190,8 @@ export function PickerDashboard() {
           </AnimatePresence>
         </main>
       </PickerPullRefresh>
-      <PickerRefreshFab refreshing={refreshing} onRefresh={() => void refresh()} />
-      <PickerBottomNav tab={tab} onTab={setTab} activeCount={orders.length} />
+      {tab === 'active' ? <PickerRefreshFab refreshing={refreshing} onRefresh={() => void refresh()} /> : null}
+      <PickerBottomNav tab={tab} onTab={setTab} activeCount={activeCount} />
     </div>
   );
 }

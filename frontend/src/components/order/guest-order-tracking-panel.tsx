@@ -42,7 +42,7 @@ export function GuestOrderTrackingPanel({
         <div>
           <h2 className="text-lg font-bold text-[#121212]">{title}</h2>
           <p className="text-xs text-slate-500">
-            Kuzatish kodi: <span className="font-mono font-semibold">{selected.trackingCode}</span>
+            Buyurtma: <span className="font-mono font-semibold">#{selected.orderNumber || selected.trackingCode}</span>
           </p>
         </div>
         <button
@@ -71,7 +71,7 @@ export function GuestOrderTrackingPanel({
                     : 'border-slate-200 bg-white'
                 }`}
               >
-                <p className="font-mono font-bold">{order.trackingCode}</p>
+                <p className="font-mono font-bold">#{order.orderNumber || order.trackingCode}</p>
                 <p className="mt-0.5 text-[10px] text-slate-500">
                   {isActiveGuestOrderStatus(order.status) ? 'Faol' : 'Yakunlangan'}
                 </p>
@@ -92,7 +92,7 @@ export function GuestOrderTrackingPanel({
         snapshot={snapshot}
         loading={loading}
         error={error}
-        orderNumber={selected.trackingCode}
+        orderNumber={selected.orderNumber || selected.trackingCode}
       />
 
       {showHomeLink ? (

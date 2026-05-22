@@ -1,6 +1,7 @@
 const uz = {
   common: {
     genericError: 'Xatolik yuz berdi',
+    rateLimited: "Juda tez bosildi. Biroz kutib qayta uriniladi…",
     networkError: 'Internet bilan muammo',
     retry: "Qayta urinib ko'ring",
   },

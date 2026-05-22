@@ -35,6 +35,7 @@ export type LastOrderItemLine = {
 
 export type LastOrderSnapshot = {
   id: string;
+  orderNumber?: string;
   status: OrderStatusLite;
   createdAt: string;
   totalAmount?: number;
@@ -126,6 +127,12 @@ export function readLastOrderSnapshot(): LastOrderSnapshot | null {
     if (!id) return null;
     return {
       id,
+      orderNumber:
+        typeof parsed.orderNumber === 'string'
+          ? parsed.orderNumber
+          : typeof parsed.trackingCode === 'string'
+            ? parsed.trackingCode
+            : undefined,
       status: parseStatus(parsed.status),
       createdAt: typeof parsed.createdAt === 'string' ? parsed.createdAt : new Date().toISOString(),
       totalAmount: typeof parsed.totalAmount === 'number' ? parsed.totalAmount : undefined,
@@ -142,8 +149,15 @@ export function saveLastOrderSnapshot(order: unknown, enrichItems: LastOrderItem
   if (!isRecord(order)) return;
   const id = typeof order.id === 'string' ? order.id : '';
   if (!id) return;
+  const orderNumber =
+    typeof order.orderNumber === 'string'
+      ? order.orderNumber
+      : typeof order.trackingCode === 'string'
+        ? order.trackingCode
+        : undefined;
   const snapshot: LastOrderSnapshot = {
     id,
+    orderNumber,
     status: parseStatus(order.status),
     createdAt: typeof order.createdAt === 'string' ? order.createdAt : new Date().toISOString(),
     totalAmount:

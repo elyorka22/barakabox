@@ -11,11 +11,13 @@ import {
   Post,
   UnauthorizedException,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { JwtService } from '@nestjs/jwt';
 import { CartService } from './cart.service';
 import { UsersService } from '../users/users.service';
 import { AddCartBoxDto, AddCartItemDto, RemoveCartBoxDto, RemoveCartItemDto } from './dto/cart.dto';
 
+@SkipThrottle()
 @Controller('cart')
 export class CartController {
   private readonly logger = new Logger(CartController.name);

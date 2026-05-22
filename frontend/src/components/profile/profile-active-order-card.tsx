@@ -62,7 +62,9 @@ export function ProfileActiveOrderCard({ order }: Props) {
             style={{ width: `${pct}%` }}
           />
         </div>
-        <p className="mt-2 text-[11px] text-[#9CA3AF]">Buyurtma #{order.id.slice(-6).toUpperCase()}</p>
+        <p className="mt-2 font-mono text-sm font-bold text-[#111827]">
+          {order.orderNumber ? `#${order.orderNumber}` : `Buyurtma #${order.id.slice(-6).toUpperCase()}`}
+        </p>
       </div>
     </motion.section>
   );
