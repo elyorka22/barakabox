@@ -25,8 +25,8 @@ function ProductCardFooterBase({
     return (
       <div className="mt-1 min-h-[1.5rem]">
         <p
-          key={quantityLabel}
           className="product-card-qty-label truncate text-[11px] font-semibold leading-tight text-[#22c55e]"
+          data-qty={quantityLabel}
         >
           {quantityLabel}
         </p>

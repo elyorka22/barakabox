@@ -21,6 +21,7 @@ export type HomeBanner = {
 };
 
 const AUTO_PLAY_MS = 5000;
+const TOUCH_PAUSE_MS = 6000;
 const SWIPE_THRESHOLD_PX = 48;
 const DRAG_COMMIT_RATIO = 0.18;
 
@@ -30,11 +31,21 @@ export function HomeBannerCarousel() {
   const [loaded, setLoaded] = useState(false);
   const [dragOffsetPx, setDragOffsetPx] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [showDesktopNav, setShowDesktopNav] = useState(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const pointerStartX = useRef<number | null>(null);
   const pointerStartY = useRef<number | null>(null);
   const isHoveringRef = useRef(false);
   const isDraggingRef = useRef(false);
+  const isTouchingRef = useRef(false);
+  const touchPauseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prefersReducedMotion = useRef(false);
+
+  useEffect(() => {
+    prefersReducedMotion.current =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -62,6 +73,14 @@ export function HomeBannerCarousel() {
   const count = banners.length;
   const activeIndex = count === 0 ? 0 : ((index % count) + count) % count;
 
+  const pauseAutoPlay = useCallback(() => {
+    isTouchingRef.current = true;
+    if (touchPauseTimer.current) clearTimeout(touchPauseTimer.current);
+    touchPauseTimer.current = setTimeout(() => {
+      isTouchingRef.current = false;
+    }, TOUCH_PAUSE_MS);
+  }, []);
+
   const goTo = useCallback(
     (next: number) => {
       if (count === 0) return;
@@ -75,13 +94,19 @@ export function HomeBannerCarousel() {
   const goPrev = useCallback(() => goTo(activeIndex - 1), [activeIndex, goTo]);
 
   useEffect(() => {
-    if (count <= 1) return;
+    if (count <= 1 || prefersReducedMotion.current) return;
     const timer = window.setInterval(() => {
-      if (isHoveringRef.current || isDraggingRef.current) return;
+      if (isHoveringRef.current || isDraggingRef.current || isTouchingRef.current) return;
       goNext();
     }, AUTO_PLAY_MS);
     return () => window.clearInterval(timer);
   }, [count, goNext]);
+
+  useEffect(() => {
+    return () => {
+      if (touchPauseTimer.current) clearTimeout(touchPauseTimer.current);
+    };
+  }, []);
 
   const finishDrag = useCallback(
     (deltaX: number, width: number) => {
@@ -94,12 +119,14 @@ export function HomeBannerCarousel() {
       isDraggingRef.current = false;
       pointerStartX.current = null;
       pointerStartY.current = null;
+      pauseAutoPlay();
     },
-    [activeIndex, goTo],
+    [activeIndex, goTo, pauseAutoPlay],
   );
 
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (count <= 1) return;
+    pauseAutoPlay();
     pointerStartX.current = event.clientX;
     pointerStartY.current = event.clientY;
     isDraggingRef.current = true;
@@ -127,6 +154,12 @@ export function HomeBannerCarousel() {
     finishDrag(deltaX, width);
   };
 
+  const onTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    pauseAutoPlay();
+    pointerStartX.current = event.touches[0]?.clientX ?? null;
+    pointerStartY.current = event.touches[0]?.clientY ?? null;
+  };
+
   const onTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
     if (count <= 1 || pointerStartX.current === null) return;
     const touch = event.changedTouches[0];
@@ -147,10 +180,7 @@ export function HomeBannerCarousel() {
   }
 
   const translatePercent = -activeIndex * 100;
-  const dragPercent =
-    viewportRef.current && viewportRef.current.clientWidth > 0
-      ? (dragOffsetPx / viewportRef.current.clientWidth) * 100
-      : 0;
+  const hasMultiple = count > 1;
 
   return (
     <section
@@ -159,69 +189,96 @@ export function HomeBannerCarousel() {
       className="relative mt-3"
       onMouseEnter={() => {
         isHoveringRef.current = true;
+        setShowDesktopNav(true);
       }}
       onMouseLeave={() => {
         isHoveringRef.current = false;
+        setShowDesktopNav(false);
       }}
     >
-      <div
-        ref={viewportRef}
-        className="touch-pan-y overflow-hidden rounded-3xl shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        onTouchStart={(e) => {
-          pointerStartX.current = e.touches[0]?.clientX ?? null;
-          pointerStartY.current = e.touches[0]?.clientY ?? null;
-        }}
-        onTouchEnd={onTouchEnd}
-      >
+      <div className="relative">
         <div
-          className={`flex ${isDragging ? '' : 'transition-transform duration-500 ease-out'} will-change-transform`}
-          style={{
-            transform: `translate3d(calc(${translatePercent}% + ${isDragging ? `${dragOffsetPx}px` : '0px'}), 0, 0)`,
-          }}
+          ref={viewportRef}
+          className="touch-pan-y overflow-hidden rounded-3xl shadow-[0_12px_32px_rgba(15,23,42,0.1)] ring-1 ring-black/[0.04]"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
         >
-          {banners.map((banner, idx) => (
-            <BannerSlide key={banner.id} banner={banner} priority={idx === 0} />
-          ))}
+          <div
+            className={`flex will-change-transform ${isDragging ? '' : 'transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]'}`}
+            style={{
+              transform: `translate3d(calc(${translatePercent}% + ${isDragging ? `${dragOffsetPx}px` : '0px'}), 0, 0)`,
+            }}
+          >
+            {banners.map((banner, idx) => (
+              <BannerSlide key={banner.id} banner={banner} priority={idx === 0} />
+            ))}
+          </div>
         </div>
+
+        {hasMultiple ? (
+          <>
+            <button
+              type="button"
+              aria-label="Oldingi banner"
+              onClick={() => {
+                pauseAutoPlay();
+                goPrev();
+              }}
+              className={`absolute left-2 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white shadow-[0_4px_16px_rgba(0,0,0,0.12)] backdrop-blur-md transition-all duration-300 md:flex ${
+                showDesktopNav ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+              }`}
+            >
+              <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
+            </button>
+            <button
+              type="button"
+              aria-label="Keyingi banner"
+              onClick={() => {
+                pauseAutoPlay();
+                goNext();
+              }}
+              className={`absolute right-2 top-1/2 z-10 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white shadow-[0_4px_16px_rgba(0,0,0,0.12)] backdrop-blur-md transition-all duration-300 md:flex ${
+                showDesktopNav ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+              }`}
+            >
+              <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+            </button>
+          </>
+        ) : null}
       </div>
 
-      {count > 1 ? (
-        <>
-          <button
-            type="button"
-            aria-label="Oldingi banner"
-            onClick={goPrev}
-            className="absolute left-2 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur-sm transition active:scale-95"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            aria-label="Keyingi banner"
-            onClick={goNext}
-            className="absolute right-2 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur-sm transition active:scale-95"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-          <div className="pointer-events-none absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
-            {banners.map((banner, idx) => (
+      {hasMultiple ? (
+        <div
+          className="mt-2.5 flex items-center justify-center gap-1.5 px-1"
+          role="tablist"
+          aria-label="Banner sahifalari"
+        >
+          {banners.map((banner, idx) => {
+            const isActive = idx === activeIndex;
+            return (
               <button
                 key={banner.id}
                 type="button"
-                onClick={() => goTo(idx)}
+                role="tab"
+                onClick={() => {
+                  pauseAutoPlay();
+                  goTo(idx);
+                }}
                 aria-label={`Banner ${idx + 1}`}
-                aria-current={idx === activeIndex ? 'true' : undefined}
-                className={`pointer-events-auto h-1.5 rounded-full transition-all duration-300 ${
-                  idx === activeIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/55'
+                aria-selected={isActive}
+                className={`h-1.5 rounded-full transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  isActive
+                    ? 'w-7 bg-[#22c55e] shadow-[0_0_0_1px_rgba(34,197,94,0.25)]'
+                    : 'w-1.5 bg-slate-300/90 hover:bg-slate-400/90'
                 }`}
               />
-            ))}
-          </div>
-        </>
+            );
+          })}
+        </div>
       ) : null}
     </section>
   );
@@ -269,7 +326,7 @@ function BannerSlide({ banner, priority }: { banner: HomeBanner; priority: boole
   );
 
   return (
-    <article className="min-w-full flex-[0_0_100%] select-none">
+    <article className="min-w-full flex-[0_0_100%] select-none" aria-roledescription="slide">
       {banner.buttonLink ? (
         <Link href={banner.buttonLink} className="block w-full" aria-label={altText} draggable={false}>
           {slideInner}

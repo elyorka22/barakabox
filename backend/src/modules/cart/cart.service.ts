@@ -67,21 +67,29 @@ export class CartService {
     }
   }
 
+  private cartItemsInclude(lite: boolean) {
+    return {
+      items: {
+        include: {
+          product: true,
+          variant: { include: { product: true } },
+          box: lite ? true : { include: { items: { include: { product: true } } } },
+        },
+      },
+    } as const;
+  }
+
+  private async findCartWithItems(userId: string, lite = false) {
+    const cart = await this.getOrCreateCart(userId);
+    return this.prisma.cart.findUnique({
+      where: { id: cart.id },
+      include: this.cartItemsInclude(lite),
+    });
+  }
+
   async getCart(userId: string) {
     try {
-      const cart = await this.getOrCreateCart(userId);
-      return this.prisma.cart.findUnique({
-        where: { id: cart.id },
-        include: {
-          items: {
-            include: {
-              product: true,
-              variant: { include: { product: true } },
-              box: { include: { items: { include: { product: true } } } },
-            },
-          },
-        },
-      });
+      return this.findCartWithItems(userId, false);
     } catch (error) {
       this.handlePrismaError(error, { action: 'getCart', userId });
     }
@@ -137,7 +145,7 @@ export class CartService {
           },
         });
       }
-      return this.getCart(userId);
+      return this.findCartWithItems(userId, true);
     } catch (error) {
       if (error instanceof BadRequestException || error instanceof NotFoundException) {
         throw error;
@@ -161,7 +169,7 @@ export class CartService {
         update: { quantity: { increment: quantity } },
         create: { cartId: cart.id, boxId, quantity },
       });
-      return this.getCart(userId);
+      return this.findCartWithItems(userId, true);
     } catch (error) {
       if (error instanceof BadRequestException || error instanceof NotFoundException) {
         throw error;
@@ -184,7 +192,7 @@ export class CartService {
         : null;
       if (!existing) throw new NotFoundException('Cart item not found');
       await this.prisma.cartItem.delete({ where: { id: existing.id } });
-      return this.getCart(userId);
+      return this.findCartWithItems(userId, true);
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       this.handlePrismaError(error, { action: 'removeItem', userId, productId, variantId });
@@ -199,7 +207,7 @@ export class CartService {
       });
       if (!existing) throw new NotFoundException('Cart item not found');
       await this.prisma.cartItem.delete({ where: { id: existing.id } });
-      return this.getCart(userId);
+      return this.findCartWithItems(userId, true);
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       this.handlePrismaError(error, { action: 'removeBoxItem', userId, boxId });

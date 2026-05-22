@@ -241,12 +241,21 @@ body {
 
 @keyframes product-card-qty-pop {
   0% {
-    transform: scale(0.9);
-    opacity: 0.5;
+    transform: scale(0.92);
+    opacity: 0.65;
   }
   100% {
     transform: scale(1);
     opacity: 1;
+  }
+}
+
+@keyframes qty-selector-bump {
+  0% {
+    transform: scale(0.94);
+  }
+  100% {
+    transform: scale(1);
   }
 }
 
@@ -262,7 +271,12 @@ body {
 }
 
 .product-card-qty-label {
-  animation: product-card-qty-pop 180ms ease-out;
+  animation: product-card-qty-pop 120ms ease-out;
+}
+
+.qty-selector-value {
+  will-change: transform;
+  animation: qty-selector-bump 120ms ease-out;
 }
 
 .product-card-qty-enter {

@@ -16,10 +16,14 @@ function emptySnapshot(): CartItem[] {
   return [];
 }
 
+function quantitySnapshot(variantId: string | null | undefined): number {
+  return getVariantQuantity(variantId);
+}
+
 export function useCartQuantity(variantId: string | null | undefined): number {
   return useSyncExternalStore(
     (listener) => subscribeCartVariant(variantId, listener),
-    () => getVariantQuantity(variantId),
+    () => quantitySnapshot(variantId),
     () => 0,
   );
 }

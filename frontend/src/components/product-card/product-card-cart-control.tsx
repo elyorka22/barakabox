@@ -1,10 +1,11 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import { Plus } from 'lucide-react';
 import { QuantitySelector } from '@/components/quantity-selector';
 import { adjustCart } from '@/lib/cart-store';
-import { useCartPending, useCartQuantity } from '@/lib/use-cart-store';
+import { hapticTap } from '@/lib/haptic';
+import { useCartQuantity } from '@/lib/use-cart-store';
 import {
   DEFAULT_PRODUCT_UNIT,
   formatSellingModeQuantity,
@@ -27,9 +28,17 @@ function stopLinkNavigation(event: React.SyntheticEvent) {
 
 function ProductCardCartControlBase({ variantId, productId, sellingMode, unit, disabled }: Props) {
   const quantity = useCartQuantity(variantId);
-  const pending = useCartPending(variantId);
   const displayLabel = formatSellingModeQuantity(quantity, sellingMode, unit ?? DEFAULT_PRODUCT_UNIT);
   const inCart = quantity > 0;
+
+  const runAdjust = useCallback(
+    (action: 'add' | 'increase' | 'decrease') => {
+      if (disabled) return;
+      hapticTap();
+      adjustCart(variantId, productId, sellingMode, action);
+    },
+    [disabled, variantId, productId, sellingMode],
+  );
 
   if (!inCart) {
     return (
@@ -37,13 +46,11 @@ function ProductCardCartControlBase({ variantId, productId, sellingMode, unit, d
         type="button"
         onClick={(event) => {
           stopLinkNavigation(event);
-          if (disabled) return;
-          adjustCart(variantId, productId, sellingMode, 'add');
+          runAdjust('add');
         }}
         disabled={disabled}
         aria-label={disabled ? 'Mahsulot tugagan' : "Savatga qo'shish"}
-        aria-busy={pending}
-        className="product-card-add-btn flex h-8 w-8 items-center justify-center rounded-full bg-[#22c55e] text-white shadow-[0_3px_10px_rgba(34,197,94,0.3)] transition-transform duration-200 active:scale-[0.88] disabled:opacity-45"
+        className="product-card-add-btn flex h-8 w-8 items-center justify-center rounded-full bg-[#22c55e] text-white shadow-[0_3px_10px_rgba(34,197,94,0.3)] transition-transform duration-100 active:scale-[0.86] disabled:opacity-45"
       >
         <Plus className="h-[18px] w-[18px]" strokeWidth={2.75} />
       </button>
@@ -51,17 +58,14 @@ function ProductCardCartControlBase({ variantId, productId, sellingMode, unit, d
   }
 
   return (
-    <div
-      onClick={stopLinkNavigation}
-      className="product-card-qty-enter transition-opacity duration-200"
-    >
+    <div onClick={stopLinkNavigation} className="product-card-qty-enter">
       <QuantitySelector
         displayLabel={displayLabel}
         variant="card"
-        pending={pending}
+        blockWhilePending={false}
         disabled={disabled}
-        onDecrease={() => adjustCart(variantId, productId, sellingMode, 'decrease')}
-        onIncrease={() => adjustCart(variantId, productId, sellingMode, 'increase')}
+        onDecrease={() => runAdjust('decrease')}
+        onIncrease={() => runAdjust('increase')}
       />
     </div>
   );

@@ -18,6 +18,18 @@ type Props = {
   onConfirm: (timeHm: string) => void;
 };
 
+function getCenteredIndex(scrollEl: HTMLDivElement, itemCount: number): number {
+  if (itemCount <= 0) return 0;
+  const centerY = scrollEl.scrollTop + scrollEl.clientHeight / 2;
+  const raw = Math.round((centerY - PAD_COUNT * ITEM_H - ITEM_H / 2) / ITEM_H);
+  return Math.min(itemCount - 1, Math.max(0, raw));
+}
+
+function scrollToIndex(scrollEl: HTMLDivElement, index: number, smooth: boolean) {
+  const top = index * ITEM_H;
+  scrollEl.scrollTo({ top, behavior: smooth ? 'smooth' : 'auto' });
+}
+
 function TimeWheelPickerSheetInner({
   open,
   title = 'Yetkazish vaqtini tanlang',
@@ -27,37 +39,48 @@ function TimeWheelPickerSheetInner({
   onConfirm,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [active, setActive] = useState(value);
+  const programmaticScroll = useRef(false);
   const scrollEndTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [centeredIndex, setCenteredIndex] = useState(0);
+
+  const activeTime = times[centeredIndex] ?? '';
+
+  const applyIndexFromScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el || times.length === 0) return;
+    const idx = getCenteredIndex(el, times.length);
+    setCenteredIndex(idx);
+  }, [times.length]);
 
   const scrollToTime = useCallback(
-    (timeHm: string, smooth = true) => {
+    (timeHm: string, smooth: boolean) => {
       const el = scrollRef.current;
       if (!el || times.length === 0) return;
-      const idx = Math.max(0, times.indexOf(timeHm));
-      const top = idx * ITEM_H;
-      el.scrollTo({ top, behavior: smooth ? 'smooth' : 'auto' });
+      const idx = times.indexOf(timeHm);
+      if (idx < 0) return;
+      programmaticScroll.current = true;
+      scrollToIndex(el, idx, smooth);
+      setCenteredIndex(idx);
+      window.setTimeout(() => {
+        programmaticScroll.current = false;
+      }, smooth ? 320 : 50);
     },
     [times],
   );
 
-  const syncActiveFromScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el || times.length === 0) return;
-    const center = el.scrollTop + (el.clientHeight - ITEM_H) / 2;
-    const idx = Math.min(times.length - 1, Math.max(0, Math.round(center / ITEM_H)));
-    const next = times[idx];
-    if (next) setActive(next);
-  }, [times]);
-
   useEffect(() => {
-    if (!open) return;
-    const initial = value && times.includes(value) ? value : times[0] ?? '';
-    setActive(initial);
+    if (!open || times.length === 0) return;
+    const initialIdx = value && times.includes(value) ? times.indexOf(value) : 0;
+    setCenteredIndex(initialIdx);
     requestAnimationFrame(() => {
-      if (initial) scrollToTime(initial, false);
+      const el = scrollRef.current;
+      if (!el) return;
+      programmaticScroll.current = true;
+      scrollToIndex(el, initialIdx, false);
+      programmaticScroll.current = false;
+      setCenteredIndex(getCenteredIndex(el, times.length));
     });
-  }, [open, value, times, scrollToTime]);
+  }, [open, value, times]);
 
   useEffect(() => {
     if (!open) return;
@@ -68,9 +91,48 @@ function TimeWheelPickerSheetInner({
     };
   }, [open]);
 
+  const snapToCenter = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el || times.length === 0) return;
+    const idx = getCenteredIndex(el, times.length);
+    scrollToIndex(el, idx, true);
+    setCenteredIndex(idx);
+  }, [times.length]);
+
   const handleScroll = () => {
+    if (programmaticScroll.current) return;
+    applyIndexFromScroll();
     if (scrollEndTimer.current) clearTimeout(scrollEndTimer.current);
-    scrollEndTimer.current = setTimeout(syncActiveFromScroll, 80);
+    scrollEndTimer.current = setTimeout(snapToCenter, 120);
+  };
+
+  const handleScrollEnd = () => {
+    if (programmaticScroll.current) return;
+    if (scrollEndTimer.current) {
+      clearTimeout(scrollEndTimer.current);
+      scrollEndTimer.current = null;
+    }
+    snapToCenter();
+  };
+
+  const handleConfirm = () => {
+    const el = scrollRef.current;
+    if (!el || times.length === 0) return;
+    const idx = getCenteredIndex(el, times.length);
+    const time = times[idx];
+    if (!time) return;
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate(10);
+      } catch {
+        // ignore
+      }
+    }
+    onConfirm(time);
+  };
+
+  const handleTapIndex = (idx: number) => {
+    scrollToTime(times[idx] ?? '', true);
   };
 
   if (!open || typeof document === 'undefined') return null;
@@ -107,11 +169,6 @@ function TimeWheelPickerSheetInner({
         ) : (
           <div className="relative mx-auto max-w-xs">
             <div
-              className="pointer-events-none absolute inset-x-2 top-1/2 z-10 -translate-y-1/2 rounded-2xl border-2 border-[#22c55e]/30 bg-[#f0fdf4]/90"
-              style={{ height: ITEM_H }}
-              aria-hidden
-            />
-            <div
               className="pointer-events-none absolute inset-x-0 top-0 z-20 h-16 bg-gradient-to-b from-white to-transparent"
               aria-hidden
             />
@@ -120,32 +177,40 @@ function TimeWheelPickerSheetInner({
               aria-hidden
             />
 
+            {/* Active time lives inside the highlight band */}
+            <div
+              className="pointer-events-none absolute inset-x-2 top-1/2 z-30 flex -translate-y-1/2 items-center justify-center rounded-2xl border-2 border-[#22c55e]/35 bg-[#f0fdf4]/95 shadow-[inset_0_0_0_1px_rgba(34,197,94,0.12)]"
+              style={{ height: ITEM_H }}
+              aria-hidden={false}
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              <span className="text-[28px] font-bold tabular-nums text-[#22c55e]">{activeTime}</span>
+            </div>
+
             <div
               ref={scrollRef}
-              className="bb-scrollbar-hide snap-y snap-mandatory overflow-y-auto overscroll-y-contain scroll-smooth"
+              className="bb-scrollbar-hide snap-y snap-mandatory overflow-y-auto overscroll-y-contain"
               style={{ height: ITEM_H * VISIBLE_COUNT }}
               onScroll={handleScroll}
+              onScrollEnd={handleScrollEnd}
             >
               <div style={{ height: ITEM_H * PAD_COUNT }} aria-hidden />
-              {times.map((time) => {
-                const selected = active === time;
+              {times.map((time, idx) => {
+                const distance = Math.abs(idx - centeredIndex);
+                const opacity = distance === 0 ? 0 : distance === 1 ? 0.35 : 0.18;
                 return (
                   <button
                     key={time}
                     type="button"
-                    onClick={() => {
-                      setActive(time);
-                      scrollToTime(time);
-                    }}
+                    aria-label={time}
+                    onClick={() => handleTapIndex(idx)}
                     className="flex w-full snap-center items-center justify-center"
                     style={{ height: ITEM_H }}
                   >
                     <span
-                      className={`tabular-nums transition-all duration-200 ${
-                        selected
-                          ? 'scale-110 text-[26px] font-bold text-[#22c55e]'
-                          : 'text-[18px] font-medium text-slate-400'
-                      }`}
+                      className="tabular-nums text-[18px] font-medium text-slate-500 transition-opacity duration-150"
+                      style={{ opacity }}
                     >
                       {time}
                     </span>
@@ -167,10 +232,8 @@ function TimeWheelPickerSheetInner({
           </button>
           <button
             type="button"
-            disabled={!active}
-            onClick={() => {
-              if (active) onConfirm(active);
-            }}
+            disabled={!activeTime}
+            onClick={handleConfirm}
             className="min-h-12 rounded-2xl bg-[#22c55e] text-[15px] font-bold text-white shadow-[0_8px_24px_rgba(34,197,94,0.35)] disabled:opacity-50"
           >
             Tayyor

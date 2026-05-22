@@ -1,15 +1,14 @@
 'use client';
 
-import { memo, useMemo, useState } from 'react';
+import { memo, useState } from 'react';
 import {
   DEFAULT_PRODUCT_UNIT,
   type ProductUnitCode,
   type SellingMode,
   normalizeIncomingProductUnit,
-  calculateSellingModeLineTotal,
-  formatSellingModeQuantity,
   resolveSellingMode,
 } from '@onlinebozor/product-units';
+import { ProductCardFooter } from '@/components/product-card/product-card-footer';
 import { SafeImage } from '@/components/safe-image';
 import {
   PRODUCT_IMAGE_FALLBACK_CLASS,
@@ -17,9 +16,9 @@ import {
   resolveVariantImageUrl,
 } from '@/lib/product-image';
 import { useProductSheet } from '@/lib/product-sheet-context';
-import { useCartQuantity } from '@/lib/use-cart-store';
 import { ProductCardCartControl } from '@/components/product-card/product-card-cart-control';
-import { ProductCardFooter } from '@/components/product-card/product-card-footer';
+import { ProductCardFooterLive } from '@/components/product-card/product-card-footer-live';
+import { ProductCardInCartRing } from '@/components/product-card/product-card-in-cart-ring';
 import { CashbackBadge } from '@/components/cashback-badge';
 import type { StorefrontProduct } from '@/types/storefront-product';
 
@@ -104,7 +103,6 @@ function ProductCardBase({
       : null;
 
   const activeVariantId = activeVariant?.id ?? '';
-  const activeQuantity = useCartQuantity(activeVariantId);
 
   const activeBasePrice = Number(activeVariant?.price ?? price);
   const activeDiscountPrice =
@@ -122,12 +120,6 @@ function ProductCardBase({
       : null;
   const effectiveDiscountPrice = activeDiscountPrice ?? productDiscountPrice;
   const unitPrice = effectiveDiscountPrice ?? activeBasePrice;
-
-  const quantityLabel = formatSellingModeQuantity(activeQuantity, sellingMode, unitType);
-  const lineTotal = useMemo(
-    () => calculateSellingModeLineTotal(unitPrice, activeQuantity, sellingMode),
-    [unitPrice, activeQuantity, sellingMode],
-  );
 
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageKey, setImageKey] = useState(activeVariantId ?? '');
@@ -153,7 +145,6 @@ function ProductCardBase({
   };
 
   const outOfStock = activeVariant ? (activeVariant.stock ?? 0) <= 0 : true;
-  const inCart = activeQuantity > 0;
 
   const subtitleLine =
     activeVariant?.flavor?.trim() || subtitle?.trim() || categoryName?.trim() || '';
@@ -191,11 +182,8 @@ function ProductCardBase({
   const openSheet = () => openProduct(storefrontProduct);
 
   return (
-    <article
-      className={`product-card flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.05)] transition-shadow duration-200 ${
-        inCart ? 'ring-2 ring-[#22c55e]/30' : ''
-      }`}
-    >
+    <article className="product-card flex h-full flex-col">
+      <ProductCardInCartRing variantId={activeVariantId}>
       <button
         type="button"
         onClick={openSheet}
@@ -275,16 +263,28 @@ function ProductCardBase({
             <CashbackBadge cashbackType={cashbackType} cashbackValue={cashbackValue} variant="promo" />
           </div>
 
-          <ProductCardFooter
-            inCart={inCart}
-            quantityLabel={quantityLabel}
-            lineTotal={lineTotal}
-            basePrice={activeBasePrice}
-            salePrice={effectiveDiscountPrice}
-            unit={unitType}
-          />
+          {activeVariantId ? (
+            <ProductCardFooterLive
+              variantId={activeVariantId}
+              unitPrice={unitPrice}
+              basePrice={activeBasePrice}
+              salePrice={effectiveDiscountPrice}
+              unit={unitType}
+              sellingMode={sellingMode}
+            />
+          ) : (
+            <ProductCardFooter
+              inCart={false}
+              quantityLabel=""
+              lineTotal={0}
+              basePrice={activeBasePrice}
+              salePrice={effectiveDiscountPrice}
+              unit={unitType}
+            />
+          )}
         </div>
       </button>
+      </ProductCardInCartRing>
     </article>
   );
 }

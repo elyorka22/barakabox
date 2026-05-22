@@ -9,6 +9,8 @@ type QuantitySelectorProps = {
   onDecrease: () => void;
   onIncrease: () => void;
   disabled?: boolean;
+  /** When true, buttons disable while a cart sync is in flight (cart page). */
+  blockWhilePending?: boolean;
   pending?: boolean;
   variant?: QuantitySelectorVariant;
   className?: string;
@@ -21,7 +23,7 @@ const SIZES = {
 } as const;
 
 const BTN_BASE =
-  'flex shrink-0 items-center justify-center rounded-full transition-transform duration-150 active:scale-90 disabled:opacity-40';
+  'flex shrink-0 items-center justify-center rounded-full transition-transform duration-100 active:scale-[0.86] disabled:opacity-40';
 const MINUS = `${BTN_BASE} bg-[#f3f4f6] text-[#374151]`;
 const PLUS = `${BTN_BASE} bg-[#22c55e] text-white shadow-[0_2px_8px_rgba(34,197,94,0.32)]`;
 
@@ -30,11 +32,13 @@ export function QuantitySelector({
   onDecrease,
   onIncrease,
   disabled,
-  pending,
+  blockWhilePending = true,
+  pending = false,
   variant = 'cart',
   className = '',
 }: QuantitySelectorProps) {
   const size = SIZES[variant];
+  const interactionBlocked = disabled || (blockWhilePending && pending);
   const wrapClass =
     variant === 'detail'
       ? 'mx-auto flex w-full max-w-[300px] items-center gap-1.5 rounded-full bg-white px-1.5 py-1 shadow-[0_2px_14px_rgba(0,0,0,0.07)] ring-1 ring-black/[0.05]'
@@ -48,15 +52,14 @@ export function QuantitySelector({
         type="button"
         className={`${MINUS} ${size.btn}`}
         onClick={onDecrease}
-        disabled={disabled || pending}
+        disabled={interactionBlocked}
         aria-label="Miqdorni kamaytirish"
-        aria-busy={pending}
       >
         <Minus className={size.icon} strokeWidth={2.5} aria-hidden />
       </button>
       <span
         key={displayLabel}
-        className={`flex-1 truncate px-0.5 text-center font-semibold tabular-nums leading-tight text-[#111827] ${size.label}`}
+        className={`qty-selector-value flex-1 truncate px-0.5 text-center font-semibold tabular-nums leading-tight text-[#111827] ${size.label}`}
       >
         {displayLabel}
       </span>
@@ -64,9 +67,8 @@ export function QuantitySelector({
         type="button"
         className={`${PLUS} ${size.btn}`}
         onClick={onIncrease}
-        disabled={disabled || pending}
+        disabled={interactionBlocked}
         aria-label="Miqdorni oshirish"
-        aria-busy={pending}
       >
         <Plus className={size.icon} strokeWidth={2.5} aria-hidden />
       </button>

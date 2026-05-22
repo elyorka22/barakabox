@@ -61,8 +61,15 @@ type CartStoreState = {
 type Listener = () => void;
 
 const STORAGE_KEY = 'barakabox_cart_snapshot_v1';
-const FLUSH_DEBOUNCE_MS = 280;
+const FLUSH_DEBOUNCE_MS = 120;
 const PERSIST_DEBOUNCE_MS = 500;
+
+type EmitOptions = {
+  /** Variant ids that changed quantity (pending/server/inFlight). */
+  variantIds?: Iterable<string>;
+  /** Notify cart page, badge, and other global subscribers. */
+  notifyGlobal?: boolean;
+};
 
 let state: CartStoreState = {
   items: [],
@@ -80,38 +87,34 @@ let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let bootstrapPromise: Promise<void> | null = null;
 let lastRollbackToastAt = 0;
 
-function collectTouchedVariants(patch?: Partial<CartStoreState>): Set<string> {
+function collectChangedVariantIds(
+  prev: Record<string, number>,
+  next: Record<string, number>,
+): Set<string> {
   const touched = new Set<string>();
-  const addFromMap = (map?: Record<string, number>) => {
-    if (!map) return;
-    for (const id of Object.keys(map)) touched.add(id);
-  };
-  addFromMap(patch?.serverByVariant);
-  addFromMap(patch?.pendingByVariant);
-  addFromMap(patch?.inFlightByVariant);
-  if (patch?.items) {
-    for (const item of patch.items) {
-      if (item.variant?.id) touched.add(item.variant.id);
-    }
-  }
-  if (touched.size === 0) {
-    for (const id of Object.keys(state.serverByVariant)) touched.add(id);
-    for (const id of Object.keys(state.pendingByVariant)) touched.add(id);
-    for (const id of Object.keys(state.inFlightByVariant)) touched.add(id);
+  for (const id of new Set([...Object.keys(prev), ...Object.keys(next)])) {
+    if ((prev[id] ?? 0) !== (next[id] ?? 0)) touched.add(id);
   }
   return touched;
 }
 
-function emit(patch?: Partial<CartStoreState>) {
-  const touched = collectTouchedVariants(patch);
-  for (const variantId of touched) {
-    const subs = variantListeners.get(variantId);
-    if (!subs) continue;
-    for (const listener of Array.from(subs)) listener();
-  }
-  for (const listener of Array.from(globalListeners)) {
-    listener();
-  }
+function emitVariant(variantId: string) {
+  const subs = variantListeners.get(variantId);
+  if (!subs) return;
+  for (const listener of Array.from(subs)) listener();
+}
+
+function emitVariants(variantIds: Iterable<string>) {
+  for (const variantId of variantIds) emitVariant(variantId);
+}
+
+function emitGlobal() {
+  for (const listener of Array.from(globalListeners)) listener();
+}
+
+function emit(options: EmitOptions = {}) {
+  if (options.variantIds) emitVariants(options.variantIds);
+  if (options.notifyGlobal) emitGlobal();
   schedulePersist();
 }
 
@@ -125,9 +128,26 @@ function deriveServer(items: CartItem[]): Record<string, number> {
   return map;
 }
 
-function setState(patch: Partial<CartStoreState>) {
+function setState(patch: Partial<CartStoreState>, emitOptions: EmitOptions = {}) {
   state = { ...state, ...patch };
-  emit(patch);
+  emit(emitOptions);
+}
+
+function applyCartItemsSnapshot(items: CartItem[], extraVariantIds: string[] = []) {
+  const prevServer = state.serverByVariant;
+  const nextServer = deriveServer(items);
+  const changed = collectChangedVariantIds(prevServer, nextServer);
+  for (const id of extraVariantIds) changed.add(id);
+
+  setState(
+    {
+      items,
+      serverByVariant: nextServer,
+      productIdByVariant: rememberVariantProduct(items, state.productIdByVariant),
+      hydrated: true,
+    },
+    { variantIds: changed, notifyGlobal: true },
+  );
 }
 
 function loadFromStorage(): { items: CartItem[]; productIdByVariant: Record<string, string> } | null {
@@ -181,13 +201,7 @@ function rememberVariantProduct(items: CartItem[], current: Record<string, strin
 }
 
 function applyServerSnapshot(payload: CartResponse | null) {
-  const items = payload?.items ?? [];
-  setState({
-    items,
-    serverByVariant: deriveServer(items),
-    productIdByVariant: rememberVariantProduct(items, state.productIdByVariant),
-    hydrated: true,
-  });
+  applyCartItemsSnapshot(payload?.items ?? []);
 }
 
 async function fetchAndApply() {
@@ -234,12 +248,15 @@ export function bootstrapCart(): Promise<void> {
   if (!state.hydrated) {
     const cached = loadFromStorage();
     if (cached) {
-      setState({
-        items: cached.items,
-        serverByVariant: deriveServer(cached.items),
-        productIdByVariant: cached.productIdByVariant,
-        hydrated: true,
-      });
+      setState(
+        {
+          items: cached.items,
+          serverByVariant: deriveServer(cached.items),
+          productIdByVariant: cached.productIdByVariant,
+          hydrated: true,
+        },
+        { notifyGlobal: true, variantIds: Object.keys(deriveServer(cached.items)) },
+      );
     }
   }
 
@@ -332,16 +349,19 @@ async function flushVariant(variantId: string) {
 
   const productId = state.productIdByVariant[variantId];
   if (!productId) {
-    setState({
-      pendingByVariant: { ...state.pendingByVariant, [variantId]: 0 },
-    });
+    const nextPending = { ...state.pendingByVariant };
+    delete nextPending[variantId];
+    setState({ pendingByVariant: nextPending }, { variantIds: [variantId] });
     return;
   }
 
   const nextPending = { ...state.pendingByVariant };
   delete nextPending[variantId];
   const nextInFlight = { ...state.inFlightByVariant, [variantId]: pending };
-  setState({ pendingByVariant: nextPending, inFlightByVariant: nextInFlight });
+  setState(
+    { pendingByVariant: nextPending, inFlightByVariant: nextInFlight },
+    { variantIds: [variantId] },
+  );
 
   try {
     const token = authStorage.getAccessToken();
@@ -350,20 +370,19 @@ async function flushVariant(variantId: string) {
       { productId, variantId, quantity: pending },
       token,
     );
-    const items = updated?.items ?? [];
     const cleanedInFlight = { ...state.inFlightByVariant };
     delete cleanedInFlight[variantId];
-    setState({
-      items,
-      serverByVariant: deriveServer(items),
-      productIdByVariant: rememberVariantProduct(items, state.productIdByVariant),
-      inFlightByVariant: cleanedInFlight,
-      hydrated: true,
-    });
+    state = { ...state, inFlightByVariant: cleanedInFlight };
+    applyCartItemsSnapshot(updated?.items ?? [], [variantId]);
   } catch (err) {
     const cleanedInFlight = { ...state.inFlightByVariant };
     delete cleanedInFlight[variantId];
-    setState({ inFlightByVariant: cleanedInFlight });
+    const rollbackPending = (state.pendingByVariant[variantId] ?? 0) + pending;
+    const nextPendingRollback = { ...state.pendingByVariant, [variantId]: rollbackPending };
+    setState(
+      { inFlightByVariant: cleanedInFlight, pendingByVariant: nextPendingRollback },
+      { variantIds: [variantId] },
+    );
     const now = Date.now();
     if (now - lastRollbackToastAt > 1500) {
       lastRollbackToastAt = now;
@@ -423,13 +442,16 @@ export function incrementCart(
     delete nextPending[variantId];
   }
 
-  setState({
-    pendingByVariant: nextPending,
-    productIdByVariant: {
-      ...state.productIdByVariant,
-      [variantId]: productId,
+  setState(
+    {
+      pendingByVariant: nextPending,
+      productIdByVariant: {
+        ...state.productIdByVariant,
+        [variantId]: productId,
+      },
     },
-  });
+    { variantIds: [variantId], notifyGlobal: true },
+  );
 
   scheduleFlush(variantId);
 }
