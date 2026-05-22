@@ -31,7 +31,10 @@ import {
   type DeliveryTimeMode,
 } from '@/components/checkout/delivery-time-selector';
 import { fetchPublicSettings } from '@/lib/public-settings';
-import { formatScheduledDeliveryMessage } from '@/lib/scheduled-delivery';
+import {
+  formatScheduleOrderSummary,
+  formatScheduledDeliveryMessage,
+} from '@/lib/scheduled-delivery';
 
 const STICKY_BOTTOM = 'calc(var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))';
 
@@ -190,9 +193,22 @@ export function CheckoutScreen() {
   );
 
   useEffect(() => {
-    void fetchPublicSettings().then((s) => {
-      setSchedulingEnabled(Boolean(s.scheduling?.enabled));
-    });
+    const loadScheduling = async () => {
+      try {
+        const s = await api.get<{ scheduledOrdersEnabled?: boolean }>('/settings/scheduling');
+        setSchedulingEnabled(Boolean(s.scheduledOrdersEnabled));
+        return;
+      } catch {
+        // fallback to public settings payload
+      }
+      try {
+        const pub = await fetchPublicSettings();
+        setSchedulingEnabled(Boolean(pub.scheduling?.enabled));
+      } catch {
+        setSchedulingEnabled(false);
+      }
+    };
+    void loadScheduling();
   }, []);
 
   useEffect(() => {
@@ -413,9 +429,27 @@ export function CheckoutScreen() {
   const phoneOk = isUzbekPhoneComplete(phone);
   const manualAddressOk = locationMode === 'MANUAL' && isManualAddressValid(address);
   const autoLocationOk = locationMode === 'AUTO' && geoCoords !== null && geoState === 'ok';
-  const scheduleReady = deliveryMode !== 'schedule' || Boolean(deliverySlotKey);
+  const addressReady = manualAddressOk || autoLocationOk;
+  const scheduleNeedsSlot = schedulingEnabled && deliveryMode === 'schedule';
+  const scheduleReady = !scheduleNeedsSlot || Boolean(deliverySlotKey);
   const canSubmit =
-    !loading && cartItems.length > 0 && phoneOk && (manualAddressOk || autoLocationOk) && scheduleReady;
+    !loading && cartItems.length > 0 && phoneOk && addressReady && scheduleReady;
+  const scheduleValidationMessage =
+    scheduleNeedsSlot && addressReady && phoneOk && !deliverySlotKey
+      ? 'Yetkazish vaqtini tanlang'
+      : '';
+  const scheduleSummaryText = formatScheduleOrderSummary(deliverySlotLabel);
+
+  const handleDeliveryModeChange = (mode: DeliveryTimeMode) => {
+    setDeliveryMode(mode);
+    if (mode === 'now') {
+      setDeliverySlotKey(null);
+      setDeliverySlotLabel(null);
+    } else {
+      setDeliverySlotKey(null);
+      setDeliverySlotLabel(null);
+    }
+  };
 
   const canOfferSave = phoneOk && autoLocationOk && geoCoords !== null && !selectedSavedId;
 
@@ -880,7 +914,7 @@ export function CheckoutScreen() {
                   <DeliveryTimeSelector
                     enabled={schedulingEnabled}
                     mode={deliveryMode}
-                    onModeChange={setDeliveryMode}
+                    onModeChange={handleDeliveryModeChange}
                     selectedSlotKey={deliverySlotKey}
                     onSlotChange={(key, label) => {
                       setDeliverySlotKey(key);
@@ -890,6 +924,11 @@ export function CheckoutScreen() {
 
                   <div className="rounded-2xl bg-white p-3 shadow-[0_4px_20px_rgba(15,23,42,0.05)] ring-1 ring-slate-100/90">
                     <h2 className="text-[15px] font-bold text-[#121212]">Xulosa</h2>
+                    {scheduleSummaryText ? (
+                      <p className="mt-2 rounded-xl border border-violet-100 bg-violet-50 px-3 py-2.5 text-[13px] font-semibold leading-snug text-violet-900">
+                        {scheduleSummaryText}
+                      </p>
+                    ) : null}
                     <div className="mt-3">
                       <CartSummary rows={summaryRows} />
                     </div>
@@ -980,9 +1019,18 @@ export function CheckoutScreen() {
           style={{ bottom: STICKY_BOTTOM }}
         >
           <div className="mx-auto w-full max-w-lg px-4 py-3">
+            {scheduleValidationMessage ? (
+              <p className="mb-2 text-center text-xs font-semibold text-rose-600" role="alert">
+                {scheduleValidationMessage}
+              </p>
+            ) : null}
             <button
               type="button"
-              className="flex min-h-[52px] w-full items-center justify-center rounded-[18px] bg-[#16A34A] text-[16px] font-bold text-white shadow-lg shadow-green-600/25 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
+              className={`flex min-h-[52px] w-full items-center justify-center rounded-[18px] text-[16px] font-bold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:shadow-none ${
+                canSubmit
+                  ? 'bg-[#16A34A] text-white shadow-lg shadow-green-600/25'
+                  : 'bg-slate-200 text-slate-500'
+              }`}
               disabled={!canSubmit}
               onClick={placeOrder}
               aria-busy={loading}
