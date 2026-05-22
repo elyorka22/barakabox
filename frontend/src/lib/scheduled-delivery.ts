@@ -33,8 +33,17 @@ export type ScheduleSelection = {
   timeHm?: string;
 };
 
+export type WheelTimePlan = {
+  dateKey: string;
+  times: string[];
+  isTomorrow: boolean;
+};
+
 const RULES_CACHE_MS = 60_000;
 let rulesCache: { at: number; data: SchedulingRules } | null = null;
+
+const TZ_OFFSET_MS = 5 * 60 * 60 * 1000;
+const WHEEL_STEP_MIN = 30;
 
 /** Current calendar date in Asia/Tashkent (YYYY-MM-DD). */
 export function getTashkentDateKey(now = new Date()): string {
@@ -52,8 +61,6 @@ export function addDaysToDateKey(dateKey: string, days: number): string {
   return getTashkentDateKey(new Date(utc));
 }
 
-const TZ_OFFSET_MS = 5 * 60 * 60 * 1000;
-
 function tashkentLocalToUtc(year: number, month: number, day: number, hour: number, minute: number): Date {
   return new Date(Date.UTC(year, month - 1, day, hour, minute, 0) - TZ_OFFSET_MS);
 }
@@ -69,6 +76,22 @@ function parseTimeHm(value: string): { hour: number; minute: number } | null {
   const minute = Number(m[2]);
   if (hour > 23 || minute > 59) return null;
   return { hour, minute };
+}
+
+function hmToMinutes(hm: string): number {
+  const p = parseTimeHm(hm);
+  if (!p) return 0;
+  return p.hour * 60 + p.minute;
+}
+
+function minutesToHm(total: number): string {
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return formatTimeHm(h, m);
+}
+
+function ceilToStepMinutes(total: number, step = WHEEL_STEP_MIN): number {
+  return Math.ceil(total / step) * step;
 }
 
 export function formatDisplayDate(dateKey: string): string {
@@ -109,6 +132,47 @@ export function getTimeBoundsForDate(rules: SchedulingRules, dateKey: string, no
   return { minHm: formatTimeHm(minHour, minMinute), maxHm: formatTimeHm(maxHour, maxMinute) };
 }
 
+/** Build 30-minute wheel options; uses today, or tomorrow if today has no valid times. */
+export function buildWheelTimeOptions(rules: SchedulingRules, now = new Date()): WheelTimePlan | null {
+  if (!rules.enabled) return null;
+
+  const buildForDate = (dateKey: string): string[] => {
+    const bounds = getTimeBoundsForDate(rules, dateKey, now);
+    let start = ceilToStepMinutes(hmToMinutes(bounds.minHm), WHEEL_STEP_MIN);
+    const end = hmToMinutes(bounds.maxHm);
+    const times: string[] = [];
+    for (let m = start; m <= end; m += WHEEL_STEP_MIN) {
+      times.push(minutesToHm(m));
+    }
+    return times;
+  };
+
+  const todayTimes = buildForDate(rules.todayDateKey);
+  if (todayTimes.length > 0) {
+    return { dateKey: rules.todayDateKey, times: todayTimes, isTomorrow: false };
+  }
+
+  const tomorrowKey = addDaysToDateKey(rules.todayDateKey, 1);
+  const tomorrowTimes = buildForDate(tomorrowKey);
+  if (tomorrowTimes.length > 0) {
+    return { dateKey: tomorrowKey, times: tomorrowTimes, isTomorrow: true };
+  }
+
+  return null;
+}
+
+export function formatScheduleTimeLabel(
+  timeHm: string,
+  plan: WheelTimePlan | null,
+): string {
+  if (!timeHm) return '';
+  if (!plan) return timeHm;
+  return plan.isTomorrow ? `Ertaga ${timeHm}` : `Bugun ${timeHm}`;
+}
+
+export const SCHEDULE_DELIVERY_HELPER_UZ =
+  'Belgilangan vaqtingizdan taxminan 20 daqiqa ichida yetkazib beramiz';
+
 export function validateScheduleSelection(
   rules: SchedulingRules | null,
   dateKey: string,
@@ -117,9 +181,6 @@ export function validateScheduleSelection(
 ): ScheduleSelection {
   if (!rules?.enabled) {
     return { valid: false, error: 'Rejalashtirilgan yetkazish o‘chirilgan' };
-  }
-  if (!dateKey.trim()) {
-    return { valid: false, error: 'Sanani tanlang' };
   }
   if (!timeHm.trim()) {
     return { valid: false, error: 'Vaqtni tanlang' };
@@ -130,11 +191,15 @@ export function validateScheduleSelection(
     return { valid: false, error: 'Vaqt noto‘g‘ri' };
   }
 
-  if (dateKey < rules.todayDateKey || dateKey > rules.maxDateKey) {
+  const resolvedDate =
+    dateKey.trim() ||
+    rules.todayDateKey;
+
+  if (resolvedDate < rules.todayDateKey || resolvedDate > rules.maxDateKey) {
     return { valid: false, error: 'Sana mavjud emas' };
   }
 
-  const [year, month, day] = dateKey.split('-').map(Number);
+  const [year, month, day] = resolvedDate.split('-').map(Number);
   const scheduledAt = tashkentLocalToUtc(year, month, day, hm.hour, hm.minute);
   const minAllowedMs = now.getTime() + rules.minDelayMinutes * 60_000;
   if (scheduledAt.getTime() < minAllowedMs) {
@@ -147,17 +212,21 @@ export function validateScheduleSelection(
     return { valid: false, error: 'Faqat ish vaqtida yetkazish mumkin' };
   }
 
-  const bounds = getTimeBoundsForDate(rules, dateKey, now);
+  const bounds = getTimeBoundsForDate(rules, resolvedDate, now);
   if (timeHm < bounds.minHm || timeHm > bounds.maxHm) {
     return { valid: false, error: `Vaqt ${bounds.minHm}–${bounds.maxHm} oralig‘ida bo‘lishi kerak` };
   }
 
-  const dateLabel = formatDisplayDate(dateKey);
+  const isTomorrow = resolvedDate !== rules.todayDateKey;
+  const summaryLabel = isTomorrow
+    ? `Ertaga soat ${timeHm} da yetkaziladi`
+    : `Bugun soat ${timeHm} da yetkaziladi`;
+
   return {
     valid: true,
     scheduledAtIso: scheduledAt.toISOString(),
-    summaryLabel: `Buyurtma ${dateLabel} ${timeHm} da yetkaziladi`,
-    dateKey,
+    summaryLabel,
+    dateKey: resolvedDate,
     timeHm,
   };
 }

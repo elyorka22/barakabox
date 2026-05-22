@@ -1,15 +1,17 @@
 'use client';
 
 import { memo, useEffect, useMemo, useState } from 'react';
-import { CalendarClock, Clock, Zap } from 'lucide-react';
+import { CalendarClock, ChevronRight, Clock, Zap } from 'lucide-react';
+import { TimeWheelPickerSheet } from '@/components/checkout/time-wheel-picker-sheet';
 import {
+  SCHEDULE_DELIVERY_HELPER_UZ,
+  buildWheelTimeOptions,
   fetchSchedulingRules,
-  formatDisplayDate,
-  getTimeBoundsForDate,
-  getTashkentDateKey,
+  formatScheduleTimeLabel,
   validateScheduleSelection,
   type SchedulingRules,
   type ScheduleSelection,
+  type WheelTimePlan,
 } from '@/lib/scheduled-delivery';
 
 export type DeliveryTimeMode = 'now' | 'schedule';
@@ -30,9 +32,22 @@ type Props = {
 
 const emptySelection: ScheduleSelection = { valid: false };
 
+function applyTime(
+  rules: SchedulingRules | null,
+  plan: WheelTimePlan | null,
+  timeHm: string,
+): SchedulePickerValue {
+  const dateKey = plan?.dateKey ?? rules?.todayDateKey ?? '';
+  const selection = rules
+    ? validateScheduleSelection(rules, dateKey, timeHm)
+    : { valid: false, error: 'Qoidalar yuklanmoqda' };
+  return { dateKey, timeHm, selection };
+}
+
 function DeliveryTimeSelectorInner({ enabled, mode, onModeChange, value, onChange }: Props) {
   const [rules, setRules] = useState<SchedulingRules | null>(null);
   const [rulesLoading, setRulesLoading] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
     if (!enabled) return;
@@ -53,130 +68,127 @@ function DeliveryTimeSelectorInner({ enabled, mode, onModeChange, value, onChang
     };
   }, [enabled]);
 
-  const todayKey = rules?.todayDateKey ?? getTashkentDateKey();
-  const maxDate = rules?.maxDateKey ?? todayKey;
-
-  const timeBounds = useMemo(() => {
-    if (!rules || !value.dateKey) return { minHm: '09:00', maxHm: '20:59' };
-    return getTimeBoundsForDate(rules, value.dateKey);
-  }, [rules, value.dateKey]);
-
-  const patch = (dateKey: string, timeHm: string) => {
-    const selection = rules
-      ? validateScheduleSelection(rules, dateKey, timeHm)
-      : { valid: false, error: 'Qoidalar yuklanmoqda' };
-    onChange({ dateKey, timeHm, selection });
-  };
+  const wheelPlan = useMemo(() => {
+    if (!rules) return null;
+    return buildWheelTimeOptions(rules);
+  }, [rules]);
 
   const handleModeNow = () => {
     onModeChange('now');
     onChange({ dateKey: '', timeHm: '', selection: emptySelection });
+    setPickerOpen(false);
   };
 
   const handleModeSchedule = () => {
     onModeChange('schedule');
-    onChange({ dateKey: todayKey, timeHm: '', selection: emptySelection });
+    onChange({ dateKey: '', timeHm: '', selection: emptySelection });
+  };
+
+  const handleConfirmTime = (timeHm: string) => {
+    onChange(applyTime(rules, wheelPlan, timeHm));
+    setPickerOpen(false);
   };
 
   if (!enabled) return null;
 
+  const hasTime = Boolean(value.timeHm && value.selection.valid);
+  const timeLabel = formatScheduleTimeLabel(value.timeHm, wheelPlan);
+
   return (
-    <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex items-center gap-2">
-        <CalendarClock className="h-5 w-5 text-[#16A34A]" strokeWidth={2} />
-        <h2 className="text-[15px] font-bold text-[#121212]">Yetkazish vaqti</h2>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={handleModeNow}
-          className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border px-2 py-2 text-center text-xs font-bold transition ${
-            mode === 'now'
-              ? 'border-[#16A34A] bg-[#F0FDF4] text-[#166534] ring-2 ring-[#16A34A]/15'
-              : 'border-slate-200 bg-slate-50 text-slate-600'
-          }`}
-        >
-          <Zap className="h-4 w-4" />
-          Hozir yetkazish
-        </button>
-        <button
-          type="button"
-          onClick={handleModeSchedule}
-          className={`flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border px-2 py-2 text-center text-xs font-bold transition ${
-            mode === 'schedule'
-              ? 'border-[#16A34A] bg-[#F0FDF4] text-[#166534] ring-2 ring-[#16A34A]/15'
-              : 'border-slate-200 bg-slate-50 text-slate-600'
-          }`}
-        >
-          <Clock className="h-4 w-4" />
-          Reja qilish
-        </button>
-      </div>
-
-      {mode === 'schedule' ? (
-        <div className="mt-4 space-y-4">
-          {rulesLoading ? (
-            <div className="space-y-3">
-              <div className="bb-skeleton h-12 w-full rounded-xl" />
-              <div className="bb-skeleton h-12 w-full rounded-xl" />
-            </div>
-          ) : (
-            <>
-              <label className="block">
-                <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                  Yetkazish sanasi
-                </span>
-                <input
-                  type="date"
-                  min={todayKey}
-                  max={maxDate}
-                  value={value.dateKey || todayKey}
-                  onChange={(e) => patch(e.target.value, value.timeHm)}
-                  className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[15px] font-medium text-[#121212] outline-none transition focus:border-[#16A34A] focus:ring-2 focus:ring-[#16A34A]/15"
-                />
-                {value.dateKey ? (
-                  <span className="mt-1 block text-xs text-slate-500">{formatDisplayDate(value.dateKey)}</span>
-                ) : null}
-              </label>
-
-              <label className="block">
-                <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                  Yetkazish vaqti
-                </span>
-                <input
-                  type="time"
-                  min={timeBounds.minHm}
-                  max={timeBounds.maxHm}
-                  step={60}
-                  value={value.timeHm}
-                  onChange={(e) => patch(value.dateKey || todayKey, e.target.value)}
-                  className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[15px] font-semibold tabular-nums text-[#121212] outline-none transition focus:border-[#16A34A] focus:ring-2 focus:ring-[#16A34A]/15"
-                />
-                <span className="mt-1 block text-xs text-slate-500">
-                  Mavjud: {timeBounds.minHm} – {timeBounds.maxHm}
-                  {rules ? ` · tayyorlash ${rules.minDelayMinutes} daq` : ''}
-                </span>
-              </label>
-
-              {value.selection.valid && value.selection.summaryLabel ? (
-                <p className="rounded-xl border border-violet-100 bg-violet-50 px-3 py-2.5 text-[13px] font-semibold leading-snug text-violet-900">
-                  {value.selection.summaryLabel}
-                </p>
-              ) : value.selection.error ? (
-                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
-                  {value.selection.error}
-                </p>
-              ) : (
-                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
-                  Sanani va vaqtni tanlang
-                </p>
-              )}
-            </>
-          )}
+    <>
+      <section className="mt-4 rounded-[24px] border border-slate-100 bg-white p-4 shadow-[0_8px_28px_rgba(15,23,42,0.06)]">
+        <div className="mb-3 flex items-center gap-2">
+          <CalendarClock className="h-5 w-5 text-[#22c55e]" strokeWidth={2} />
+          <h2 className="text-[16px] font-bold text-[#121212]">Yetkazish vaqti</h2>
         </div>
-      ) : null}
-    </section>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <button
+            type="button"
+            onClick={handleModeNow}
+            className={`flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-[20px] border px-2 py-2.5 text-center text-xs font-bold transition active:scale-[0.98] ${
+              mode === 'now'
+                ? 'border-[#22c55e] bg-[#f0fdf4] text-[#166534] shadow-[0_4px_16px_rgba(34,197,94,0.15)]'
+                : 'border-slate-100 bg-[#fafafa] text-slate-600'
+            }`}
+          >
+            <Zap className="h-4 w-4" />
+            Hozir yetkazish
+          </button>
+          <button
+            type="button"
+            onClick={handleModeSchedule}
+            className={`flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-[20px] border px-2 py-2.5 text-center text-xs font-bold transition active:scale-[0.98] ${
+              mode === 'schedule'
+                ? 'border-[#22c55e] bg-[#f0fdf4] text-[#166534] shadow-[0_4px_16px_rgba(34,197,94,0.15)]'
+                : 'border-slate-100 bg-[#fafafa] text-slate-600'
+            }`}
+          >
+            <Clock className="h-4 w-4" />
+            Reja qilish
+          </button>
+        </div>
+
+        {mode === 'schedule' ? (
+          <div className="mt-4 space-y-3">
+            {rulesLoading ? (
+              <div className="bb-skeleton h-14 w-full rounded-[20px]" />
+            ) : !wheelPlan?.times.length ? (
+              <p className="rounded-[20px] bg-amber-50 px-3 py-3 text-center text-xs font-medium text-amber-900">
+                Bugun va ertaga uchun mavjud vaqt topilmadi
+              </p>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setPickerOpen(true)}
+                  className="flex min-h-[56px] w-full items-center justify-between gap-3 rounded-[20px] border border-slate-100 bg-[#fafafa] px-4 py-3 text-left transition active:bg-slate-50"
+                >
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      Yetkazish vaqti
+                    </p>
+                    <p
+                      className={`mt-0.5 tabular-nums ${
+                        hasTime
+                          ? 'text-[22px] font-bold text-[#22c55e]'
+                          : 'text-[15px] font-semibold text-slate-600'
+                      }`}
+                    >
+                      {hasTime ? value.timeHm : 'Vaqtni tanlang'}
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 shrink-0 text-slate-400" />
+                </button>
+
+                {hasTime ? (
+                  <div className="space-y-2 rounded-[20px] border border-[#bbf7d0] bg-[#f0fdf4] px-3.5 py-3">
+                    <p className="text-[15px] font-bold text-[#166534]">{timeLabel}</p>
+                    <p className="text-[12px] leading-snug text-[#15803d]/90">{SCHEDULE_DELIVERY_HELPER_UZ}</p>
+                  </div>
+                ) : (
+                  <p className="rounded-[20px] border border-amber-100 bg-amber-50 px-3 py-2.5 text-center text-xs font-medium text-amber-900">
+                    Yetkazish vaqtini tanlang
+                  </p>
+                )}
+
+                {value.selection.error && !hasTime ? (
+                  <p className="text-center text-xs font-medium text-rose-600">{value.selection.error}</p>
+                ) : null}
+              </>
+            )}
+          </div>
+        ) : null}
+      </section>
+
+      <TimeWheelPickerSheet
+        open={pickerOpen && mode === 'schedule'}
+        times={wheelPlan?.times ?? []}
+        value={value.timeHm}
+        onClose={() => setPickerOpen(false)}
+        onConfirm={handleConfirmTime}
+      />
+    </>
   );
 }
 
