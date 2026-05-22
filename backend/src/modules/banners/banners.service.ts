@@ -69,9 +69,13 @@ export class BannersService {
     };
   }
 
+  private async bustBannerCache() {
+    await this.cache.del(cacheKeys.bannersActive());
+  }
+
   async create(dto: CreateBannerDto) {
     const nextSort = dto.sortOrder ?? (await this.computeNextSortOrder());
-    return this.prisma.banner.create({
+    const row = await this.prisma.banner.create({
       data: {
         title: dto.title?.trim() || null,
         subtitle: dto.subtitle?.trim() || null,
@@ -85,6 +89,8 @@ export class BannersService {
         isActive: dto.isActive ?? true,
       },
     });
+    await this.bustBannerCache();
+    return row;
   }
 
   async update(id: string, dto: UpdateBannerDto) {
@@ -114,10 +120,12 @@ export class BannersService {
     if (!existing) {
       throw new NotFoundException('Banner topilmadi');
     }
-    return this.prisma.banner.update({
+    const row = await this.prisma.banner.update({
       where: { id },
       data: { isActive },
     });
+    await this.bustBannerCache();
+    return row;
   }
 
   async remove(id: string) {
@@ -125,7 +133,9 @@ export class BannersService {
     if (!existing) {
       throw new NotFoundException('Banner topilmadi');
     }
-    return this.prisma.banner.delete({ where: { id } });
+    const row = await this.prisma.banner.delete({ where: { id } });
+    await this.bustBannerCache();
+    return row;
   }
 
   async reorder(items: ReorderBannerEntryDto[]) {
@@ -140,6 +150,7 @@ export class BannersService {
         }),
       ),
     );
+    await this.bustBannerCache();
     return { updated: items.length };
   }
 

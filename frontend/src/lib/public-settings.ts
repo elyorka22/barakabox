@@ -1,8 +1,10 @@
 import { api } from './api';
+import type { PublicSchedulingConfig } from '@/lib/scheduled-delivery';
 
 export type PublicSettings = {
   supportTelegramUrl: string | null;
   supportTitle: string | null;
+  scheduling?: PublicSchedulingConfig;
 };
 
 export const emptyPublicSettings = (): PublicSettings => ({

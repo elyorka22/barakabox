@@ -82,7 +82,13 @@ export function sortOrdersByPriority(orders: CourierOrder[]): CourierOrder[] {
 
 function priorityScore(order: CourierOrder): number {
   const p = order.priorities ?? [];
-  return p.reduce((s, tag) => s + (PRIORITY_WEIGHT[tag] ?? 0), 0);
+  let score = p.reduce((s, tag) => s + (PRIORITY_WEIGHT[tag] ?? 0), 0);
+  if (order.isScheduled && order.scheduledAt) {
+    const ms = new Date(order.scheduledAt).getTime() - Date.now();
+    if (ms <= 30 * 60_000) score += 50;
+    else if (ms <= 60 * 60_000) score += 25;
+  }
+  return score;
 }
 
 export function playNewOrderAlert(): void {

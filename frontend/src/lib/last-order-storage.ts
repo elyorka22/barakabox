@@ -14,7 +14,14 @@ import {
   isActiveCustomerOrder,
 } from '@/lib/order-status';
 
-export type OrderStatusLite = 'NEW' | 'PICKING' | 'READY' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED';
+export type OrderStatusLite =
+  | 'PENDING_SCHEDULE'
+  | 'NEW'
+  | 'PICKING'
+  | 'READY'
+  | 'DELIVERING'
+  | 'DELIVERED'
+  | 'CANCELLED';
 
 export type LastOrderItemLine = {
   title: string;

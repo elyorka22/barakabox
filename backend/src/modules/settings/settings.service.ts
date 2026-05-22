@@ -8,6 +8,18 @@ import {
   type DeliveryQuote,
   type DeliverySettings,
 } from '../../common/delivery/delivery-quote.util';
+import {
+  generateSlotsForDate,
+  getTashkentParts,
+  listDatesForPicker,
+  mapSchedulingSettings,
+  parseDateKey,
+  parseSlotKey,
+  resolveScheduledSlot,
+  tashkentLocalToUtc,
+  type DeliverySlotDto,
+  type SchedulingSettings,
+} from '../../common/delivery/scheduled-delivery.util';
 
 const SETTINGS_ID = 'global';
 
@@ -15,10 +27,19 @@ export type DeliverySettingsDto = DeliverySettings;
 
 export type DeliveryQuoteDto = DeliveryQuote;
 
+export type PublicSchedulingDto = {
+  enabled: boolean;
+  slotMinutes: number;
+  workStartHour: number;
+  workEndHour: number;
+  minDelayMinutes: number;
+};
+
 export type PublicSettingsDto = {
   supportTelegramUrl: string | null;
   supportTitle: string | null;
   delivery: DeliverySettingsDto;
+  scheduling: PublicSchedulingDto;
 };
 
 export type HomepageBannerDto = {
@@ -97,16 +118,20 @@ export class SettingsService {
     return this.cache.getOrSet(cacheKeys.publicSettings(), CACHE_TTL.publicSettings, async () => {
       const row = await this.prisma.siteSettings.findUnique({ where: { id: SETTINGS_ID } });
       if (!row) {
+        const scheduling = mapSchedulingSettings(null);
         return {
           supportTelegramUrl: null,
           supportTitle: null,
           delivery: defaultDeliverySettings(),
+          scheduling: this.mapPublicScheduling(scheduling),
         };
       }
+      const scheduling = mapSchedulingSettings(row);
       return {
         supportTelegramUrl: row.supportTelegramUrl?.trim() || null,
         supportTitle: row.supportTitle?.trim() || null,
         delivery: this.mapDeliverySettings(row),
+        scheduling: this.mapPublicScheduling(scheduling),
       };
     });
   }
@@ -173,10 +198,12 @@ export class SettingsService {
     });
 
     await this.cache.del(cacheKeys.publicSettings());
+    const scheduling = mapSchedulingSettings(row);
     return {
       supportTelegramUrl: row.supportTelegramUrl?.trim() || null,
       supportTitle: row.supportTitle?.trim() || null,
       delivery: this.mapDeliverySettings(row),
+      scheduling: this.mapPublicScheduling(scheduling),
     };
   }
 
@@ -227,6 +254,118 @@ export class SettingsService {
       data,
     });
     return this.getHomepageBannerFromRow(row);
+  }
+
+  private mapPublicScheduling(s: SchedulingSettings): PublicSchedulingDto {
+    return {
+      enabled: s.scheduledOrdersEnabled,
+      slotMinutes: s.slotMinutes,
+      workStartHour: s.workStartHour,
+      workEndHour: s.workEndHour,
+      minDelayMinutes: s.minDelayMinutes,
+    };
+  }
+
+  async getSchedulingSettings(): Promise<SchedulingSettings> {
+    return this.cache.getOrSet(cacheKeys.schedulingSettings(), CACHE_TTL.schedulingSettings, async () => {
+      const row = await this.prisma.siteSettings.findUnique({ where: { id: SETTINGS_ID } });
+      return mapSchedulingSettings(row);
+    });
+  }
+
+  async updateSchedulingSettings(input: Partial<SchedulingSettings>): Promise<SchedulingSettings> {
+    await this.ensureRow();
+    const data: Record<string, number | boolean> = {};
+
+    if (input.scheduledOrdersEnabled !== undefined) {
+      data.scheduledOrdersEnabled = Boolean(input.scheduledOrdersEnabled);
+    }
+    if (input.slotMinutes !== undefined) {
+      data.scheduleSlotMinutes = input.slotMinutes <= 30 ? 30 : 60;
+    }
+    if (input.workStartHour !== undefined) {
+      data.scheduleWorkStartHour = Math.max(0, Math.min(23, Math.round(input.workStartHour)));
+    }
+    if (input.workEndHour !== undefined) {
+      const end = Math.max(1, Math.min(24, Math.round(input.workEndHour)));
+      data.scheduleWorkEndHour = end;
+    }
+    if (input.minDelayMinutes !== undefined) {
+      data.scheduleMinDelayMinutes = Math.max(15, Math.min(1440, Math.round(input.minDelayMinutes)));
+    }
+    if (input.maxOrdersPerSlot !== undefined) {
+      data.scheduleMaxOrdersPerSlot = Math.max(1, Math.min(500, Math.round(input.maxOrdersPerSlot)));
+    }
+    if (input.prepLeadMinutes !== undefined) {
+      data.schedulePrepLeadMinutes = Math.max(5, Math.min(1440, Math.round(input.prepLeadMinutes)));
+    }
+
+    const row = await this.prisma.siteSettings.update({ where: { id: SETTINGS_ID }, data });
+    await this.cache.del(cacheKeys.schedulingSettings());
+    await this.cache.del(cacheKeys.publicSettings());
+    return mapSchedulingSettings(row);
+  }
+
+  async resolveSlotForOrder(slotKey: string) {
+    const settings = await this.getSchedulingSettings();
+    const parsed = parseSlotKey(slotKey);
+    if (!parsed) {
+      throw new BadRequestException('Yetkazish vaqti noto‘g‘ri');
+    }
+    const booked = await this.countBookedSlotsForDate(parsed.dateKey);
+    try {
+      return resolveScheduledSlot(slotKey, settings, booked);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Yetkazish vaqti mavjud emas';
+      throw new BadRequestException(message);
+    }
+  }
+
+  async getAvailableDeliverySlots(dateKey: string): Promise<{
+    dateKey: string;
+    dates: string[];
+    slots: DeliverySlotDto[];
+  }> {
+    const parsed = parseDateKey(dateKey);
+    if (!parsed) {
+      throw new BadRequestException('Sana noto‘g‘ri');
+    }
+    const settings = await this.getSchedulingSettings();
+    if (!settings.scheduledOrdersEnabled) {
+      return { dateKey, dates: listDatesForPicker(7), slots: [] };
+    }
+
+    return this.cache.getOrSet(cacheKeys.deliverySlots(dateKey), CACHE_TTL.deliverySlots, async () => {
+      const booked = await this.countBookedSlotsForDate(dateKey);
+      const slots = generateSlotsForDate(dateKey, settings, booked);
+      return {
+        dateKey,
+        dates: listDatesForPicker(7),
+        slots,
+      };
+    });
+  }
+
+  async countBookedSlotsForDate(dateKey: string): Promise<Map<string, number>> {
+    const parsed = parseDateKey(dateKey);
+    if (!parsed) return new Map();
+    const start = tashkentLocalToUtc(parsed.year, parsed.month, parsed.day, 0, 0);
+    const end = tashkentLocalToUtc(parsed.year, parsed.month, parsed.day + 1, 0, 0);
+    const rows = await this.prisma.order.groupBy({
+      by: ['deliverySlot'],
+      where: {
+        isScheduled: true,
+        deliverySlot: { not: null },
+        status: { notIn: ['CANCELLED'] },
+        scheduledAt: { gte: start, lt: end },
+      },
+      _count: { _all: true },
+    });
+    const map = new Map<string, number>();
+    for (const row of rows) {
+      if (row.deliverySlot) map.set(row.deliverySlot, row._count._all);
+    }
+    return map;
   }
 
   private getHomepageBannerFromRow(row: {

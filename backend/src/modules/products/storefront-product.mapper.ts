@@ -1,4 +1,8 @@
 import { Prisma } from '@prisma/client';
+import {
+  productHasStorefrontDiscount,
+  resolvePromotionPricing,
+} from './promotion-product.util';
 
 /** Lean select for storefront lists — avoids business join payload. */
 export const storefrontProductSelect = {
@@ -41,7 +45,12 @@ export type StorefrontProductRow = Prisma.ProductGetPayload<{
   select: typeof storefrontProductSelect;
 }>;
 
-export function mapStorefrontProduct(row: StorefrontProductRow) {
+export function mapStorefrontProduct(row: StorefrontProductRow, opts?: { withPromotionMeta?: boolean }) {
+  const pricing =
+    opts?.withPromotionMeta && productHasStorefrontDiscount(row)
+      ? resolvePromotionPricing(row)
+      : null;
+
   return {
     id: row.id,
     name: row.name,
@@ -64,5 +73,13 @@ export function mapStorefrontProduct(row: StorefrontProductRow) {
     cashbackType: row.cashbackType,
     cashbackValue: row.cashbackValue,
     variants: row.variants,
+    ...(pricing
+      ? {
+          oldPrice: pricing.oldPrice,
+          effectivePrice: pricing.effectivePrice,
+          discountPercent: pricing.discountPercent,
+          isPromotion: pricing.isPromotion,
+        }
+      : {}),
   };
 }

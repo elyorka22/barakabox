@@ -17,6 +17,7 @@ import {
 } from '@/components/admin/dashboard/dashboard-tables';
 import { DashboardActivityFeed } from '@/components/admin/dashboard/dashboard-activity';
 import { DashboardQuickActions } from '@/components/admin/dashboard/dashboard-quick-actions';
+import { DashboardScheduledSection } from '@/components/admin/dashboard/dashboard-scheduled-section';
 
 const DashboardAnalyticsCharts = dynamic(
   () =>
@@ -135,6 +136,8 @@ export default function AdminPage() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <DashboardScheduledSection kpis={data?.kpis ?? null} loading={loading} />
+
         <DashboardSection title="Mijozlar" subtitle="Qaytish va top xaridorlar">
           <DashboardCustomers customers={data?.customers ?? ({} as AdminDashboard['customers'])} loading={loading} />
         </DashboardSection>

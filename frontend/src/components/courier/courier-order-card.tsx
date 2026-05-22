@@ -52,6 +52,11 @@ function CourierOrderCardInner({ order, busy, onAccept, onReject, onComplete }: 
         <div className="min-w-0 flex-1">
           <p className="text-base font-bold text-[#111827] dark:text-white">{order.customerName || 'Mijoz'}</p>
           <p className="mt-0.5 text-xs text-[#6B7280]">#{order.id.slice(-8).toUpperCase()}</p>
+          {order.isScheduled && order.deliverySlotLabel ? (
+            <p className="mt-1 rounded-md bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-900 dark:bg-violet-950 dark:text-violet-200">
+              Oyna: {order.deliverySlotLabel}
+            </p>
+          ) : null}
           <div className="mt-2">
             <CourierPriorityBadges priorities={order.priorities} />
           </div>

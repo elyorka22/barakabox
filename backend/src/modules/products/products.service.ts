@@ -10,6 +10,11 @@ import {
   storefrontProductSelect,
   type StorefrontProductRow,
 } from './storefront-product.mapper';
+import {
+  productHasStorefrontDiscount,
+  sortPromotionRows,
+  type PromotionSort,
+} from './promotion-product.util';
 
 function defaultSellingModeForUnit(unit: ProductUnit): SellingMode {
   if (unit === 'kg') return 'KILOGRAM_STEP';
@@ -35,7 +40,70 @@ export class ProductsService {
   }
 
   private mapRows(rows: StorefrontProductRow[]) {
-    return rows.map(mapStorefrontProduct);
+    return rows.map((row) => mapStorefrontProduct(row));
+  }
+
+  private mapPromotionRows(rows: StorefrontProductRow[]) {
+    return rows.map((row) => mapStorefrontProduct(row, { withPromotionMeta: true }));
+  }
+
+  private async queryPromotionProductRows(sort: PromotionSort, maxScan = 400) {
+    const now = new Date();
+    const candidates = await this.prisma.product.findMany({
+      where: {
+        ...STOREFRONT_WHERE,
+        OR: [
+          {
+            discountEnabled: true,
+            discountedPrice: { not: null, gt: 0 },
+          },
+          { promotionEnabled: true },
+          {
+            variants: {
+              some: {
+                isActive: true,
+                discountPrice: { not: null, gt: 0 },
+              },
+            },
+          },
+        ],
+      },
+      select: storefrontProductSelect,
+      orderBy: { createdAt: 'desc' },
+      take: maxScan,
+    });
+    return sortPromotionRows(
+      candidates.filter((row) => productHasStorefrontDiscount(row, now)),
+      sort,
+    );
+  }
+
+  /** Paginated promotional products — server-filtered, Redis-cached. */
+  async listPromotionsPaginated(opts?: {
+    page?: number;
+    limit?: number;
+    sort?: PromotionSort;
+  }) {
+    const page = Math.max(1, opts?.page ?? 1);
+    const limit = Math.min(48, Math.max(1, opts?.limit ?? 24));
+    const sort: PromotionSort = opts?.sort === 'discount_desc' ? 'discount_desc' : 'newest';
+    const catalogVersion = (await this.cache.get<number>(cacheKeys.catalogVersion())) ?? 0;
+    const cacheKey = cacheKeys.productsPromotions(catalogVersion, page, limit, sort);
+
+    return this.cache.getOrSet(cacheKey, CACHE_TTL.productsPromotions, async () => {
+      const sorted = await this.queryPromotionProductRows(sort);
+      const total = sorted.length;
+      const skip = (page - 1) * limit;
+      const slice = sorted.slice(skip, skip + limit);
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+      return {
+        items: this.mapPromotionRows(slice),
+        total,
+        page,
+        totalPages,
+        hasMore: page < totalPages,
+      };
+    });
   }
 
   private buildStorefrontListResult(
@@ -205,24 +273,14 @@ export class ProductsService {
       });
 
       const mapped = this.mapRows(allRows);
-      const discounted = mapped.filter((p) => {
-        if (p.discountEnabled && p.discountedPrice != null && p.discountedPrice < Number(p.price)) {
-          return true;
-        }
-        return p.variants?.some(
-          (v) =>
-            typeof v.discountPrice === 'number' &&
-            v.discountPrice > 0 &&
-            v.discountPrice < Number(v.price),
-        );
-      });
-
+      const promoRows = await this.queryPromotionProductRows('discount_desc');
+      const discounted = this.mapPromotionRows(promoRows.slice(0, sectionLimit));
       const discountedIds = new Set(discounted.map((p) => p.id));
       const rest = mapped.filter((p) => !discountedIds.has(p.id));
 
       const catalogVersion = (await this.cache.get<number>(cacheKeys.catalogVersion())) ?? 1;
       return {
-        discounted: discounted.slice(0, sectionLimit),
+        discounted,
         popular: rest.slice(0, sectionLimit),
         recommended: rest.slice(sectionLimit, sectionLimit * 2),
         catalogVersion,

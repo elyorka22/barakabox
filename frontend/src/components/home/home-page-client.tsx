@@ -12,9 +12,10 @@ import { HomeInstallCard } from '@/components/pwa/HomeInstallCard';
 import { SafeImage } from '@/components/safe-image';
 import { HomeDeliveryBanner } from '@/components/home/home-delivery-banner';
 import { formatMoneyUz } from '@/lib/format';
-import { fetchHomepageSections, type HomepageSections, type PaginatedProducts } from '@/lib/storefront-api';
+import { fetchPromotionsPage, type PaginatedProducts } from '@/lib/storefront-api';
 import { useProductSheet } from '@/lib/product-sheet-context';
 import type { StorefrontProduct } from '@/types/storefront-product';
+import { hasVisibleDiscount, resolveProductSalePricing } from '@/lib/promotion-product';
 
 type Category = {
   id: string;
@@ -46,9 +47,9 @@ type Props = {
 
 export function HomePageClient({ initialCatalog }: Props) {
   const { openProduct, registerCatalog } = useProductSheet();
-  const [sections, setSections] = useState<HomepageSections | null>(null);
+  const [promoProducts, setPromoProducts] = useState<StorefrontProduct[]>([]);
+  const [loadingPromos, setLoadingPromos] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [loadingSections, setLoadingSections] = useState(true);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [showDeferredSections, setShowDeferredSections] = useState(false);
 
@@ -56,7 +57,7 @@ export function HomePageClient({ initialCatalog }: Props) {
     guestStorage.getGuestId();
     registerCatalog(initialCatalog.items);
     void loadCategories();
-    void loadHomeSections();
+    void loadPromotions();
     const onCategoryChanged = () => void loadCategories();
     window.addEventListener(categoryEvents.changedEventName, onCategoryChanged);
     return () => window.removeEventListener(categoryEvents.changedEventName, onCategoryChanged);
@@ -77,21 +78,21 @@ export function HomePageClient({ initialCatalog }: Props) {
     }
   };
 
-  const loadHomeSections = async () => {
-    setLoadingSections(true);
+  const loadPromotions = async () => {
+    setLoadingPromos(true);
     try {
-      const data = await fetchHomepageSections();
-      setSections(data);
-      const promoCatalog = data.discounted;
-      registerCatalog([...initialCatalog.items, ...promoCatalog]);
+      const data = await fetchPromotionsPage({ page: 1, limit: 12, sort: 'discount_desc' });
+      const items = data.items.filter(hasVisibleDiscount);
+      setPromoProducts(items);
+      registerCatalog([...initialCatalog.items, ...items]);
     } catch {
-      setSections({ discounted: [], popular: [], recommended: [], catalogVersion: 0 });
+      setPromoProducts([]);
     } finally {
-      setLoadingSections(false);
+      setLoadingPromos(false);
     }
   };
 
-  const discounted = sections?.discounted ?? [];
+  const discounted = promoProducts;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -167,11 +168,7 @@ export function HomePageClient({ initialCatalog }: Props) {
         {showDeferredSections ? (
           <>
             {discounted.length > 0 ? (
-              <DiscountedCarousel
-                products={discounted}
-                loading={loadingSections}
-                onOpen={openProduct}
-              />
+              <DiscountedCarousel products={discounted} loading={loadingPromos} onOpen={openProduct} />
             ) : null}
 
             <HomeDeliveryBanner />
@@ -212,27 +209,35 @@ function DiscountedCarousel({
             ))
           : products.map((product) => {
               const variant = product.variants?.[0];
-              const basePrice = Number(variant?.price ?? product.price);
-              const salePrice = Number(variant?.discountPrice ?? basePrice);
+              const { basePrice, salePrice, discountPercent } = resolveProductSalePricing(product);
+              const displayPrice = salePrice ?? basePrice;
               return (
                 <button
                   key={product.id}
                   type="button"
                   onClick={() => onOpen(product)}
-                  className="min-w-[130px] rounded-2xl bg-white p-2 text-left text-[#111111] transition active:scale-[0.98]"
+                  className="relative min-w-[140px] rounded-2xl bg-white p-2 text-left text-[#111111] transition active:scale-[0.98]"
                 >
+                  {discountPercent > 0 ? (
+                    <span className="absolute right-2 top-2 z-10 rounded-full bg-[#EF4444] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      -{discountPercent}%
+                    </span>
+                  ) : null}
                   <div className="relative h-20 overflow-hidden rounded-xl bg-white">
                     <SafeImage
                       src={variant?.imageUrl ?? product.imageCardUrl ?? product.imageUrl ?? undefined}
                       alt={product.name}
                       className="h-full w-full object-contain"
                       loading="lazy"
-                      sizes="130px"
+                      sizes="140px"
                     />
                   </div>
                   <p className="mt-2 line-clamp-1 text-xs font-semibold">{product.name}</p>
+                  {salePrice !== null && salePrice < basePrice ? (
+                    <p className="text-[10px] text-slate-400 line-through">{formatMoneyUz(basePrice)}</p>
+                  ) : null}
                   <p className="mt-0.5 text-sm font-bold tabular-nums text-[#121212]">
-                    {formatMoneyUz(salePrice)}
+                    {formatMoneyUz(displayPrice)}
                   </p>
                 </button>
               );

@@ -20,6 +20,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthUser } from '../../common/decorators/current-user.decorator';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
+import { OrderStatus } from '@prisma/client';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
@@ -73,6 +74,8 @@ export class OrdersController {
       addressLabel: body?.addressLabel,
       cashbackRedeemTiyin: body?.cashbackRedeemTiyin,
       couponCode: body?.couponCode,
+      deliveryType: body?.deliveryType,
+      deliverySlot: body?.deliverySlot,
     });
   }
 
@@ -106,7 +109,16 @@ export class OrdersController {
     return this.ordersService.listForActor(user.sub, user.role, {
       page: Number(page || 1),
       limit: Number(limit || 30),
-      status: status && allowed.has(status) ? (status as 'NEW' | 'PICKING' | 'READY' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED') : undefined,
+      status: status && allowed.has(status)
+        ? (status as
+            | 'PENDING_SCHEDULE'
+            | 'NEW'
+            | 'PICKING'
+            | 'READY'
+            | 'DELIVERING'
+            | 'DELIVERED'
+            | 'CANCELLED')
+        : undefined,
       q,
     });
   }
@@ -116,6 +128,13 @@ export class OrdersController {
   @Roles('PICKER')
   listPickerOrders(@CurrentUser() user: AuthUser) {
     return this.ordersService.listPickerQueue(user.sub);
+  }
+
+  @Get('picker/scheduled')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('PICKER')
+  listPickerScheduled(@CurrentUser() _user: AuthUser) {
+    return this.ordersService.listPickerScheduledQueue();
   }
 
   @Patch(':orderId/start-picking')

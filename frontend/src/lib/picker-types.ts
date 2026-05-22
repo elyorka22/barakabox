@@ -1,4 +1,11 @@
-export type PickerOrderStatus = 'NEW' | 'PICKING' | 'READY' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED';
+export type PickerOrderStatus =
+  | 'PENDING_SCHEDULE'
+  | 'NEW'
+  | 'PICKING'
+  | 'READY'
+  | 'DELIVERING'
+  | 'DELIVERED'
+  | 'CANCELLED';
 
 export type PickerOrderItem = {
   id: string;
@@ -23,6 +30,11 @@ export type PickerOrderItem = {
 export type PickerOrder = {
   id: string;
   status: PickerOrderStatus;
+  isScheduled?: boolean;
+  scheduledAt?: string | null;
+  scheduledSlotEnd?: string | null;
+  deliverySlot?: string | null;
+  deliverySlotLabel?: string | null;
   customerName: string;
   customerPhone: string;
   deliveryAddress: string;

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { OrderStatus } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { getTashkentParts, parseDateKey, tashkentLocalToUtc } from '../../common/delivery/scheduled-delivery.util';
 import { CustomersService } from '../customers/customers.service';
 
 export type DashboardPeriod = 'day' | 'week' | 'month' | 'year';
@@ -25,6 +26,9 @@ export class AdminDashboardService {
 
     const range = this.buildRange(period);
     const todayStart = this.startOfDay(new Date());
+    const tk = getTashkentParts(new Date());
+    const scheduledDayStart = tashkentLocalToUtc(tk.year, tk.month, tk.day, 0, 0);
+    const scheduledDayEnd = tashkentLocalToUtc(tk.year, tk.month, tk.day + 1, 0, 0);
 
     const [
       lifetimeOrders,
@@ -96,6 +100,35 @@ export class AdminDashboardService {
       }),
     ]);
 
+    const [scheduledUpcomingCount, scheduledTodayAgg, busiestSlots] = await Promise.all([
+      this.prisma.order.count({
+        where: {
+          isScheduled: true,
+          status: { in: [OrderStatus.PENDING_SCHEDULE, OrderStatus.NEW, OrderStatus.PICKING, OrderStatus.READY] },
+          scheduledAt: { gte: new Date() },
+        },
+      }),
+      this.prisma.order.aggregate({
+        where: {
+          isScheduled: true,
+          status: { not: OrderStatus.CANCELLED },
+          scheduledAt: { gte: scheduledDayStart, lt: scheduledDayEnd },
+        },
+        _count: { _all: true },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.order.groupBy({
+        by: ['deliverySlot'],
+        where: {
+          isScheduled: true,
+          deliverySlot: { not: null },
+          status: { notIn: [OrderStatus.CANCELLED, OrderStatus.DELIVERED] },
+          scheduledAt: { gte: new Date() },
+        },
+        _count: { _all: true },
+      }),
+    ]);
+
     const totalRevenue = Number(lifetimeRevenue._sum.totalAmount ?? 0);
     const periodRevenue = periodOrders.revenue;
     const periodOrderCount = periodOrders.count;
@@ -122,6 +155,16 @@ export class AdminDashboardService {
         repeatCustomerPercent: customerStats.returningPercent,
         deliveredPercent,
         pendingOrders: pendingCount,
+        scheduledUpcoming: scheduledUpcomingCount,
+        scheduledTodayCount: scheduledTodayAgg._count._all,
+        scheduledTodayRevenue: Number(scheduledTodayAgg._sum.totalAmount ?? 0),
+        busiestDeliverySlots: [...busiestSlots]
+          .sort((a, b) => b._count._all - a._count._all)
+          .slice(0, 5)
+          .map((s) => ({
+            slot: s.deliverySlot,
+            orders: s._count._all,
+          })),
         todayRevenue: Number(todayRevenue._sum.totalAmount ?? 0),
         todayOrders: todayOrders.count,
         activeProducts,

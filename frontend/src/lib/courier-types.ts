@@ -20,6 +20,11 @@ export type CourierOrder = {
   manualAddress?: string | null;
   addressLabel?: string | null;
   deliveryNote?: string | null;
+  isScheduled?: boolean;
+  scheduledAt?: string | null;
+  scheduledSlotEnd?: string | null;
+  deliverySlot?: string | null;
+  deliverySlotLabel?: string | null;
   createdAt: string;
   assignedCourierId?: string | null;
   distanceKm?: number | null;

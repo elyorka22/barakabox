@@ -24,12 +24,18 @@ enum BusinessStatus {
 }
 
 enum OrderStatus {
+  PENDING_SCHEDULE
   NEW
   PICKING
   READY
   DELIVERING
   DELIVERED
   CANCELLED
+}
+
+enum DeliveryType {
+  INSTANT
+  SCHEDULED
 }
 
 enum UnitType {
@@ -308,6 +314,8 @@ model Product {
   @@index([businessId])
   @@index([categoryId])
   @@index([isActive])
+  @@index([discountEnabled, discountedPrice])
+  @@index([promotionEnabled])
 }
 
 model ProductImageAsset {
@@ -476,6 +484,11 @@ model Order {
   deliveryNote  String?
   addressLabel  String?
   status        OrderStatus @default(NEW)
+  deliveryType  DeliveryType @default(INSTANT)
+  isScheduled   Boolean     @default(false)
+  scheduledAt   DateTime?
+  scheduledSlotEnd DateTime?
+  deliverySlot  String?
   pickingAt     DateTime?
   readyAt       DateTime?
   deliveringAt  DateTime?
@@ -562,6 +575,7 @@ model ProductVariant {
   @@index([productId, isActive])
   @@index([sku])
   @@index([barcode])
+  @@index([discountPrice])
 }
 
 model InventoryLog {
@@ -603,6 +617,13 @@ model SiteSettings {
   deliveryPrice      Int      @default(15000)
   freeDeliveryEnabled Boolean @default(true)
   freeDeliveryThreshold Int   @default(350000)
+  scheduledOrdersEnabled Boolean @default(true)
+  scheduleSlotMinutes Int      @default(60)
+  scheduleWorkStartHour Int    @default(9)
+  scheduleWorkEndHour Int      @default(21)
+  scheduleMinDelayMinutes Int  @default(60)
+  scheduleMaxOrdersPerSlot Int @default(20)
+  schedulePrepLeadMinutes Int  @default(30)
   updatedAt          DateTime @updatedAt
 }
 

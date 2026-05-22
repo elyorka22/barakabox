@@ -42,5 +42,7 @@ export type BusinessDashboard = {
     addressLabel: string | null;
     createdAt: string;
     itemCount: number;
+    isScheduled?: boolean;
+    deliverySlotLabel?: string | null;
   }>;
 };

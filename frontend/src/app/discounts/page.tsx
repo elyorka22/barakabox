@@ -1,74 +1,50 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Filter, Search } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { fetchHomepageSections } from '@/lib/storefront-api';
+import { useCallback, useEffect, useState } from 'react';
+import { Filter, Loader2 } from 'lucide-react';
+import { fetchPromotionsPage, type PromotionSort } from '@/lib/storefront-api';
 import { MobileNav } from '@/components/app-nav';
 import { ProductCard } from '@/components/product-card';
+import { hasVisibleDiscount } from '@/lib/promotion-product';
+import type { StorefrontProduct } from '@/types/storefront-product';
 
-type Product = {
-  id: string;
-  name: string;
-  price: string;
-  unit?: string | null;
-  unitType?: string | null;
-  sellingMode?: string | null;
-  stepAmount?: number | null;
-  minimumAmount?: number | null;
-  imageUrl?: string | null;
-  imageCardUrl?: string | null;
-  cashbackType?: string | null;
-  cashbackValue?: number | null;
-  discountEnabled?: boolean;
-  discountedPrice?: number | null;
-  promotionBadge?: 'HOT' | 'TOP' | 'YANGI' | 'AKSIYA' | 'PREMIUM' | null;
-  promotionEnabled?: boolean;
-  promotionStartAt?: string | null;
-  promotionEndAt?: string | null;
-  variants?: Array<{
-    id: string;
-    flavor?: string | null;
-    description?: string | null;
-    price: number;
-    discountPrice?: number | null;
-    stock: number;
-    imageUrl?: string | null;
-  }>;
-};
-
-const tabs = ['Barcha', 'Oziq-ovqat', 'Ichimliklar', 'Mevalar', "Go'sht"] as const;
+const SORT_OPTIONS: { id: PromotionSort; label: string }[] = [
+  { id: 'discount_desc', label: 'Eng katta chegirma' },
+  { id: 'newest', label: 'Yangi' },
+];
 
 export default function DiscountsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [activeTab, setActiveTab] = useState<typeof tabs[number]>('Barcha');
+  const [products, setProducts] = useState<StorefrontProduct[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [sort, setSort] = useState<PromotionSort>('discount_desc');
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState('');
 
-  const loadProducts = async () => {
-    const data = await fetchHomepageSections();
-    setProducts(data.discounted as Product[]);
-  };
+  const loadPage = useCallback(async (targetPage: number, replace: boolean) => {
+    if (replace) setLoading(true);
+    else setLoadingMore(true);
+    setError('');
+    try {
+      const res = await fetchPromotionsPage({ page: targetPage, limit: 24, sort });
+      const items = res.items.filter(hasVisibleDiscount);
+      setProducts((prev) => (replace ? items : [...prev, ...items]));
+      setPage(res.page);
+      setHasMore(res.hasMore);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Aksiyalarni yuklab bo‘lmadi');
+      if (replace) setProducts([]);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [sort]);
 
   useEffect(() => {
-    void loadProducts();
-  }, []);
-
-  const discountedProducts = useMemo(() => {
-    return products
-      .filter((product) =>
-        product.variants?.some(
-          (variant) =>
-            typeof variant.discountPrice === 'number' &&
-            variant.discountPrice > 0 &&
-            variant.discountPrice < Number(variant.price),
-        ),
-      )
-      .filter((product) => {
-        if (activeTab === 'Barcha') return true;
-        const lower = activeTab.toLowerCase();
-        return product.name.toLowerCase().includes(lower);
-      });
-  }, [products, activeTab]);
+    void loadPage(1, true);
+  }, [loadPage]);
 
   return (
     <main className="bb-page bg-[#F8F8F8]">
@@ -77,46 +53,51 @@ export default function DiscountsPage() {
           <Link href="/" className="text-lg font-semibold text-[#111111]">
             ← Aksiya va chegirmalar
           </Link>
-          <button className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-slate-600">
-            <Search className="h-4 w-4" />
-          </button>
         </div>
 
-        <div className="bb-scrollbar-hide mt-2 flex gap-2 overflow-x-auto pb-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                activeTab === tab ? 'bg-[#8B5CF6] text-white' : 'bg-white text-slate-600'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-3 rounded-3xl bg-[#8B5CF6] p-4 text-white">
-          <h2 className="text-xl font-semibold">Eng yaxshi aksiyalar siz uchun!</h2>
+        <div className="mt-3 rounded-3xl bg-gradient-to-br from-[#FF6B35] to-[#F43F5E] p-4 text-white shadow-[0_12px_24px_rgba(244,63,94,0.28)]">
+          <h1 className="text-xl font-semibold">Eng yaxshi aksiyalar siz uchun!</h1>
           <p className="mt-1 text-sm text-white/85">Chegirmalarni boy bermang</p>
         </div>
 
-        <div className="mt-3 flex items-center justify-end rounded-2xl bg-white px-3 py-2">
-          <button className="flex items-center gap-1 rounded-xl bg-[#F3F4F6] px-3 py-2 text-xs font-medium text-slate-600">
+        <div className="mt-3 flex items-center justify-between gap-2 rounded-2xl bg-white px-3 py-2">
+          <div className="bb-scrollbar-hide flex gap-1.5 overflow-x-auto">
+            {SORT_OPTIONS.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setSort(opt.id)}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
+                  sort === opt.id ? 'bg-[#8B5CF6] text-white' : 'bg-[#F3F4F6] text-slate-600'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <span className="flex shrink-0 items-center gap-1 text-[11px] text-slate-500">
             <Filter className="h-3.5 w-3.5" />
             Filtr
-          </button>
+          </span>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          {discountedProducts.map((product, idx) => (
-            <motion.div
-              key={product.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.18, delay: idx * 0.02 }}
-            >
+        {error ? (
+          <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>
+        ) : null}
+
+        {loading ? (
+          <div className="mt-6 grid grid-cols-2 gap-2">
+            {Array.from({ length: 6 }).map((_, idx) => (
+              <div key={idx} className="bb-skeleton aspect-[3/4] rounded-2xl" />
+            ))}
+          </div>
+        ) : products.length === 0 ? (
+          <p className="mt-8 text-center text-sm text-slate-500">Hozircha aksiya mahsulotlari yo‘q</p>
+        ) : (
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {products.map((product, idx) => (
               <ProductCard
+                key={product.id}
                 id={product.id}
                 name={product.name}
                 price={product.price}
@@ -124,6 +105,7 @@ export default function DiscountsPage() {
                 sellingMode={product.sellingMode ?? undefined}
                 variants={product.variants?.map((variant) => ({
                   ...variant,
+                  price: variant.price,
                   imageUrl: variant.imageUrl ?? product.imageCardUrl ?? product.imageUrl,
                 }))}
                 imageUrl={product.imageCardUrl ?? product.imageUrl}
@@ -133,18 +115,36 @@ export default function DiscountsPage() {
                 cashbackType={product.cashbackType ?? undefined}
                 cashbackValue={product.cashbackValue ?? undefined}
                 discountEnabled={product.discountEnabled}
-                discountedPrice={product.discountedPrice}
+                discountedPrice={product.discountedPrice ?? product.effectivePrice ?? undefined}
                 promotionBadge={product.promotionBadge}
                 promotionEnabled={product.promotionEnabled}
                 promotionStartAt={product.promotionStartAt}
                 promotionEndAt={product.promotionEndAt}
+                imagePriority={idx < 4}
               />
-            </motion.div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
+
+        {hasMore && !loading ? (
+          <button
+            type="button"
+            disabled={loadingMore}
+            onClick={() => void loadPage(page + 1, false)}
+            className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white text-sm font-semibold text-[#111111] disabled:opacity-60"
+          >
+            {loadingMore ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Yuklanmoqda…
+              </>
+            ) : (
+              'Ko‘proq yuklash'
+            )}
+          </button>
+        ) : null}
       </section>
       <MobileNav />
     </main>
   );
 }
-

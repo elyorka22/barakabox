@@ -11,6 +11,10 @@ export type AdminDashboard = {
     repeatCustomerPercent: number;
     deliveredPercent: number;
     pendingOrders: number;
+    scheduledUpcoming: number;
+    scheduledTodayCount: number;
+    scheduledTodayRevenue: number;
+    busiestDeliverySlots: Array<{ slot: string | null; orders: number }>;
     todayRevenue: number;
     todayOrders: number;
     activeProducts: number;

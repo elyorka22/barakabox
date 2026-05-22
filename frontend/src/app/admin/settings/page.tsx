@@ -10,6 +10,11 @@ import {
   invalidateDeliveryConfigCache,
   type DeliveryConfig,
 } from '@/lib/delivery-pricing';
+import {
+  fetchSchedulingSettingsAdmin,
+  updateSchedulingSettingsAdmin,
+  type SchedulingSettings,
+} from '@/lib/scheduled-delivery';
 
 export default function AdminSettingsPage() {
   const token = authStorage.getAccessToken();
@@ -31,6 +36,15 @@ export default function AdminSettingsPage() {
   const [deliveryPrice, setDeliveryPrice] = useState('15000');
   const [freeDeliveryThreshold, setFreeDeliveryThreshold] = useState('350000');
   const [freeDeliveryEnabled, setFreeDeliveryEnabled] = useState(true);
+  const [schedulingLoading, setSchedulingLoading] = useState(true);
+  const [schedulingSaving, setSchedulingSaving] = useState(false);
+  const [schedulingEnabled, setSchedulingEnabled] = useState(true);
+  const [scheduleSlotMinutes, setScheduleSlotMinutes] = useState('60');
+  const [scheduleWorkStartHour, setScheduleWorkStartHour] = useState('9');
+  const [scheduleWorkEndHour, setScheduleWorkEndHour] = useState('21');
+  const [scheduleMinDelayMinutes, setScheduleMinDelayMinutes] = useState('60');
+  const [scheduleMaxOrdersPerSlot, setScheduleMaxOrdersPerSlot] = useState('20');
+  const [schedulePrepLeadMinutes, setSchedulePrepLeadMinutes] = useState('30');
 
   useEffect(() => {
     if (!token) return;
@@ -106,6 +120,55 @@ export default function AdminSettingsPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        if (!token) return;
+        const data = await fetchSchedulingSettingsAdmin(token);
+        if (cancelled) return;
+        setSchedulingEnabled(data.scheduledOrdersEnabled ?? true);
+        setScheduleSlotMinutes(String(data.slotMinutes ?? 60));
+        setScheduleWorkStartHour(String(data.workStartHour ?? 9));
+        setScheduleWorkEndHour(String(data.workEndHour ?? 21));
+        setScheduleMinDelayMinutes(String(data.minDelayMinutes ?? 60));
+        setScheduleMaxOrdersPerSlot(String(data.maxOrdersPerSlot ?? 20));
+        setSchedulePrepLeadMinutes(String(data.prepLeadMinutes ?? 30));
+      } catch {
+        if (!cancelled) showToast({ type: 'error', message: 'Reja yetkazish sozlamalari yuklanmadi' });
+      } finally {
+        if (!cancelled) setSchedulingLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const saveScheduling = async () => {
+    if (!token) {
+      showToast({ type: 'error', message: 'Avval tizimga kiring' });
+      return;
+    }
+    setSchedulingSaving(true);
+    try {
+      await updateSchedulingSettingsAdmin(token, {
+        scheduledOrdersEnabled: schedulingEnabled,
+        slotMinutes: Number(scheduleSlotMinutes) === 30 ? 30 : 60,
+        workStartHour: Number(scheduleWorkStartHour),
+        workEndHour: Number(scheduleWorkEndHour),
+        minDelayMinutes: Number(scheduleMinDelayMinutes),
+        maxOrdersPerSlot: Number(scheduleMaxOrdersPerSlot),
+        prepLeadMinutes: Number(schedulePrepLeadMinutes),
+      });
+      showToast({ type: 'success', message: 'Reja yetkazish saqlandi' });
+    } catch (err) {
+      showToast({ type: 'error', message: err instanceof Error ? err.message : 'Saqlanmadi' });
+    } finally {
+      setSchedulingSaving(false);
+    }
+  };
 
   const saveDelivery = async () => {
     if (!token) {
@@ -286,6 +349,96 @@ export default function AdminSettingsPage() {
               className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
               {deliverySaving ? 'Saqlanmoqda...' : 'Yetkazishni saqlash'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <h3 className="text-sm font-semibold">Reja yetkazish sozlamalari</h3>
+        <p className="mt-1 text-xs text-slate-500">Ish vaqti, slotlar va buyurtma limitlari.</p>
+        {schedulingLoading ? (
+          <p className="mt-3 text-sm text-slate-500">Yuklanmoqda...</p>
+        ) : (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <input
+                type="checkbox"
+                checked={schedulingEnabled}
+                onChange={(e) => setSchedulingEnabled(e.target.checked)}
+              />
+              <span className="font-medium text-slate-700">Rejalashtirilgan buyurtmalar yoqilgan</span>
+            </label>
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Slot davomiyligi (daq)</span>
+              <select
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                value={scheduleSlotMinutes}
+                onChange={(e) => setScheduleSlotMinutes(e.target.value)}
+              >
+                <option value="30">30 daqiqa</option>
+                <option value="60">1 soat</option>
+              </select>
+            </label>
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Ish boshlanishi (soat)</span>
+              <input
+                type="number"
+                min={0}
+                max={23}
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                value={scheduleWorkStartHour}
+                onChange={(e) => setScheduleWorkStartHour(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Ish tugashi (soat)</span>
+              <input
+                type="number"
+                min={1}
+                max={24}
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                value={scheduleWorkEndHour}
+                onChange={(e) => setScheduleWorkEndHour(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Minimal kechikish (daq)</span>
+              <input
+                type="number"
+                min={15}
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                value={scheduleMinDelayMinutes}
+                onChange={(e) => setScheduleMinDelayMinutes(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Slot uchun maks. buyurtma</span>
+              <input
+                type="number"
+                min={1}
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                value={scheduleMaxOrdersPerSlot}
+                onChange={(e) => setScheduleMaxOrdersPerSlot(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm sm:col-span-2">
+              <span className="font-medium text-slate-700">Yig‘ishni boshlash (daq oldin)</span>
+              <input
+                type="number"
+                min={5}
+                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                value={schedulePrepLeadMinutes}
+                onChange={(e) => setSchedulePrepLeadMinutes(e.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={schedulingSaving}
+              onClick={() => void saveScheduling()}
+              className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 sm:col-span-2"
+            >
+              {schedulingSaving ? 'Saqlanmoqda...' : 'Reja yetkazishni saqlash'}
             </button>
           </div>
         )}

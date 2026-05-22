@@ -6,6 +6,7 @@ import { formatMoneyUz } from '@/lib/format';
 import type { BusinessDashboard } from '@/types/business-dashboard';
 
 const STATUS_LABEL: Record<string, string> = {
+  PENDING_SCHEDULE: 'Reja',
   NEW: 'Yangi',
   PICKING: 'Tayyorlanmoqda',
   READY: 'Tayyor',
@@ -14,7 +15,10 @@ const STATUS_LABEL: Record<string, string> = {
   CANCELLED: 'Bekor',
 };
 
-type OrderRow = BusinessDashboard['recentOrders'][number];
+type OrderRow = BusinessDashboard['recentOrders'][number] & {
+  isScheduled?: boolean;
+  deliverySlotLabel?: string | null;
+};
 
 type Props = {
   orders?: OrderRow[];
@@ -30,8 +34,8 @@ export function BusinessOrdersPanel({ orders: initialOrders, onRefresh }: Props)
     const load = async () => {
       const token = authStorage.getAccessToken();
       if (!token) return;
-      const rows = await api.get<
-        Array<{
+      const res = await api.get<{
+        items: Array<{
           id: string;
           status: string;
           totalAmount: number;
@@ -39,11 +43,12 @@ export function BusinessOrdersPanel({ orders: initialOrders, onRefresh }: Props)
           customerPhone: string;
           addressLabel: string | null;
           createdAt: string;
-          items: Array<{ quantity: number }>;
-        }>
-      >('/orders', token);
+          isScheduled?: boolean;
+          deliverySlotLabel?: string | null;
+        }>;
+      }>('/orders?page=1&limit=50', token);
       setOrders(
-        rows.map((o) => ({
+        res.items.map((o) => ({
           id: o.id,
           status: o.status,
           totalAmount: o.totalAmount,
@@ -51,7 +56,9 @@ export function BusinessOrdersPanel({ orders: initialOrders, onRefresh }: Props)
           customerPhone: o.customerPhone,
           addressLabel: o.addressLabel,
           createdAt: o.createdAt,
-          itemCount: o.items.reduce((s, i) => s + i.quantity, 0),
+          isScheduled: o.isScheduled,
+          deliverySlotLabel: o.deliverySlotLabel,
+          itemCount: 0,
         })),
       );
     };
@@ -80,7 +87,7 @@ export function BusinessOrdersPanel({ orders: initialOrders, onRefresh }: Props)
         onChange={(e) => setSearch(e.target.value)}
       />
       <div className="bb-scrollbar-hide flex gap-1.5 overflow-x-auto">
-        {['ALL', 'NEW', 'PICKING', 'DELIVERING', 'DELIVERED', 'CANCELLED'].map((s) => (
+        {['ALL', 'PENDING_SCHEDULE', 'NEW', 'PICKING', 'DELIVERING', 'DELIVERED', 'CANCELLED'].map((s) => (
           <button
             key={s}
             type="button"
@@ -107,9 +114,16 @@ export function BusinessOrdersPanel({ orders: initialOrders, onRefresh }: Props)
                   <p className="font-semibold text-[#111827]">{o.customerName}</p>
                   <p className="text-xs text-slate-500">{o.customerPhone}</p>
                 </div>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
-                  {STATUS_LABEL[o.status] ?? o.status}
-                </span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
+                    {STATUS_LABEL[o.status] ?? o.status}
+                  </span>
+                  {o.isScheduled && o.deliverySlotLabel ? (
+                    <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold text-violet-800">
+                      {o.deliverySlotLabel}
+                    </span>
+                  ) : null}
+                </div>
               </div>
               <p className="mt-2 text-sm font-bold tabular-nums">{formatMoneyUz(o.totalAmount)}</p>
               <p className="text-[11px] text-slate-500">

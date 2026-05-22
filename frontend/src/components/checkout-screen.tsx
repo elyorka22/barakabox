@@ -26,6 +26,12 @@ import { phoneDigitsForApi, isUzbekPhoneComplete, onPhoneUzInputChange } from '@
 import { useGuestOrderTracking } from '@/hooks/use-guest-order-tracking';
 import { GuestOrderTrackingPanel } from '@/components/order/guest-order-tracking-panel';
 import { GuestOrderCompletionBanner } from '@/components/order/guest-order-completion-banner';
+import {
+  DeliveryTimeSelector,
+  type DeliveryTimeMode,
+} from '@/components/checkout/delivery-time-selector';
+import { fetchPublicSettings } from '@/lib/public-settings';
+import { formatScheduledDeliveryMessage } from '@/lib/scheduled-delivery';
 
 const STICKY_BOTTOM = 'calc(var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))';
 
@@ -73,6 +79,10 @@ export function CheckoutScreen() {
   const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null);
   const [saveAddressChecked, setSaveAddressChecked] = useState(false);
   const [saveAddressLabel, setSaveAddressLabel] = useState('Uy');
+  const [schedulingEnabled, setSchedulingEnabled] = useState(false);
+  const [deliveryMode, setDeliveryMode] = useState<DeliveryTimeMode>('now');
+  const [deliverySlotKey, setDeliverySlotKey] = useState<string | null>(null);
+  const [deliverySlotLabel, setDeliverySlotLabel] = useState<string | null>(null);
   const token = authStorage.getAccessToken();
   const apiPhone = phoneDigitsForApi(phone);
 
@@ -178,6 +188,12 @@ export function CheckoutScreen() {
     ],
     [subtotal, delivery, earnEstimate, couponDiscount, couponAppliedCode, redeemTiyin, total],
   );
+
+  useEffect(() => {
+    void fetchPublicSettings().then((s) => {
+      setSchedulingEnabled(Boolean(s.scheduling?.enabled));
+    });
+  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -397,8 +413,9 @@ export function CheckoutScreen() {
   const phoneOk = isUzbekPhoneComplete(phone);
   const manualAddressOk = locationMode === 'MANUAL' && isManualAddressValid(address);
   const autoLocationOk = locationMode === 'AUTO' && geoCoords !== null && geoState === 'ok';
+  const scheduleReady = deliveryMode !== 'schedule' || Boolean(deliverySlotKey);
   const canSubmit =
-    !loading && cartItems.length > 0 && phoneOk && (manualAddressOk || autoLocationOk);
+    !loading && cartItems.length > 0 && phoneOk && (manualAddressOk || autoLocationOk) && scheduleReady;
 
   const canOfferSave = phoneOk && autoLocationOk && geoCoords !== null && !selectedSavedId;
 
@@ -442,6 +459,12 @@ export function CheckoutScreen() {
       }
       if (locationMode === 'MANUAL' && !geoCoords) {
         body.manualAddress = streetLine;
+      }
+      if (schedulingEnabled && deliveryMode === 'schedule' && deliverySlotKey) {
+        body.deliveryType = 'SCHEDULED';
+        body.deliverySlot = deliverySlotKey;
+      } else {
+        body.deliveryType = 'INSTANT';
       }
       const order = await api.post<PublicOrderTrackSnapshot & { id?: string }>('/orders', body, token);
       saveLastOrderSnapshot(
@@ -854,6 +877,17 @@ export function CheckoutScreen() {
                     ) : null}
                   </div>
 
+                  <DeliveryTimeSelector
+                    enabled={schedulingEnabled}
+                    mode={deliveryMode}
+                    onModeChange={setDeliveryMode}
+                    selectedSlotKey={deliverySlotKey}
+                    onSlotChange={(key, label) => {
+                      setDeliverySlotKey(key);
+                      setDeliverySlotLabel(label);
+                    }}
+                  />
+
                   <div className="rounded-2xl bg-white p-3 shadow-[0_4px_20px_rgba(15,23,42,0.05)] ring-1 ring-slate-100/90">
                     <h2 className="text-[15px] font-bold text-[#121212]">Xulosa</h2>
                     <div className="mt-3">
@@ -923,7 +957,17 @@ export function CheckoutScreen() {
             <div className="text-center">
               <CheckCircle2 className="mx-auto h-12 w-12 text-[#16A34A]" strokeWidth={1.75} aria-hidden />
               <h2 className="mt-3 text-xl font-bold text-[#121212]">Buyurtma qabul qilindi</h2>
-              <p className="mt-1 text-[14px] text-slate-500">Holatni real vaqtda kuzatishingiz mumkin</p>
+              {guestTracking.snapshot?.isScheduled ? (
+                <p className="mt-2 rounded-xl bg-violet-50 px-3 py-2 text-[14px] font-semibold text-violet-900">
+                  Yetkazish:{' '}
+                  {formatScheduledDeliveryMessage(
+                    guestTracking.snapshot.deliverySlotLabel,
+                    guestTracking.snapshot.scheduledAt,
+                  ) ?? 'rejalashtirilgan vaqt'}
+                </p>
+              ) : (
+                <p className="mt-1 text-[14px] text-slate-500">Holatni real vaqtda kuzatishingiz mumkin</p>
+              )}
             </div>
             <GuestOrderTrackingPanel tracking={guestTracking} title="Buyurtma holati" />
           </div>
@@ -948,6 +992,8 @@ export function CheckoutScreen() {
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" aria-hidden />
                   Yuborilmoqda…
                 </>
+              ) : deliveryMode === 'schedule' ? (
+                'Buyurtmani rejalashtirish'
               ) : (
                 'Buyurtma berish'
               )}

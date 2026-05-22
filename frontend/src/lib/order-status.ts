@@ -30,6 +30,7 @@ export const CUSTOMER_ORDER_STEPS: CustomerOrderStep[] = [
 /** Active step index: 0–2 in progress, 3 = all complete. */
 export function customerProgressStepIndex(status: OrderStatusLite): number {
   switch (status) {
+    case 'PENDING_SCHEDULE':
     case 'NEW':
       return 0;
     case 'PICKING':
@@ -48,6 +49,8 @@ export function customerProgressStepIndex(status: OrderStatusLite): number {
 
 export function customerOrderStatusLabel(status: OrderStatusLite): string {
   switch (status) {
+    case 'PENDING_SCHEDULE':
+      return 'Yetkazish rejalashtirildi';
     case 'NEW':
       return 'Buyurtma yuborildi';
     case 'PICKING':
@@ -72,5 +75,11 @@ export function customerOrderProgressPercent(status: OrderStatusLite): number {
 }
 
 export function isActiveCustomerOrder(status: OrderStatusLite): boolean {
-  return status === 'NEW' || status === 'PICKING' || status === 'READY' || status === 'DELIVERING';
+  return (
+    status === 'PENDING_SCHEDULE' ||
+    status === 'NEW' ||
+    status === 'PICKING' ||
+    status === 'READY' ||
+    status === 'DELIVERING'
+  );
 }

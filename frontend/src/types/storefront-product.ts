@@ -17,6 +17,12 @@ export type StorefrontProduct = {
   promotionEnabled?: boolean;
   promotionStartAt?: string | null;
   promotionEndAt?: string | null;
+  /** Base price before discount (tiyin) */
+  oldPrice?: number | null;
+  /** Best sale price (tiyin) */
+  effectivePrice?: number | null;
+  discountPercent?: number | null;
+  isPromotion?: boolean;
   cashbackType?: 'NONE' | 'PERCENT' | 'FIXED_AMOUNT' | string | null;
   cashbackValue?: number | null;
   variants?: Array<{

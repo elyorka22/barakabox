@@ -19,6 +19,7 @@ import { PickerSkeleton } from './picker-skeleton';
 import { PickerHistoryPanel } from './picker-history-panel';
 import { PickerStatsPanel } from './picker-stats-panel';
 import { PickerRefreshFab } from './picker-refresh-fab';
+import { PickerScheduledPanel } from './picker-scheduled-panel';
 import { showToast } from '@/lib/toast';
 
 const TAB_ORDER: PickerTab[] = ['active', 'history', 'stats', 'profile'];
@@ -83,6 +84,7 @@ export function PickerDashboard() {
                     onlineSeconds={stats.onlineSeconds}
                   />
                   <PickerAvailabilityToggle online={online} onChange={handleOnline} />
+                  <PickerScheduledPanel />
                   {offline ? <p className="text-xs text-amber-700">Oflayn — kesh</p> : null}
                   {error ? <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</p> : null}
                   {loading ? <PickerSkeleton /> : null}

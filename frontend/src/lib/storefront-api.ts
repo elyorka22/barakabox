@@ -40,6 +40,20 @@ export async function fetchHomepageSections(): Promise<HomepageSections> {
   return api.get<HomepageSections>('/products/home');
 }
 
+export type PromotionSort = 'newest' | 'discount_desc';
+
+export async function fetchPromotionsPage(opts?: {
+  page?: number;
+  limit?: number;
+  sort?: PromotionSort;
+}): Promise<PaginatedProducts> {
+  const params = new URLSearchParams();
+  params.set('page', String(opts?.page ?? 1));
+  params.set('limit', String(opts?.limit ?? 24));
+  params.set('sort', opts?.sort ?? 'discount_desc');
+  return api.get<PaginatedProducts>(`/products/promotions?${params.toString()}`);
+}
+
 export async function fetchProductsPage(opts: FetchProductsOpts = {}): Promise<PaginatedProducts> {
   return api.get<PaginatedProducts>(`/products?${buildProductsQuery(opts)}`);
 }

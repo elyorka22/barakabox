@@ -17,6 +17,20 @@ export class ProductsController {
     return this.productsService.getHomepageSections();
   }
 
+  @Get('promotions')
+  listPromotions(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('sort') sort?: string,
+  ) {
+    const allowedSort = new Set(['newest', 'discount_desc']);
+    return this.productsService.listPromotionsPaginated({
+      page: Number(page || 1),
+      limit: Number(limit || 24),
+      sort: allowedSort.has(sort ?? '') ? (sort as 'newest' | 'discount_desc') : 'discount_desc',
+    });
+  }
+
   @Get()
   list(
     @Query('page') page?: string,

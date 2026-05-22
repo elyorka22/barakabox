@@ -19,7 +19,7 @@ import { QueueService } from '../../infrastructure/queue/queue.service';
 import { EventEmitterService } from '../../infrastructure/events/event-emitter.service';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'crypto';
-import { OrderStatus, Prisma, UnitType } from '@prisma/client';
+import { DeliveryType, OrderStatus, Prisma, UnitType } from '@prisma/client';
 import {
   canLinkCustomerFromPhone,
   cashbackPendingForLine,
@@ -30,9 +30,17 @@ import { CouponsService } from '../coupons/coupons.service';
 import { SettingsService } from '../settings/settings.service';
 import { CacheService } from '../../infrastructure/cache/cache.service';
 import { CACHE_TTL, cacheKeys } from '../../common/cache/cache-keys';
+import {
+  formatSlotLabel,
+  getTashkentParts,
+  parseDateKey,
+  parseSlotKey,
+  tashkentLocalToUtc,
+} from '../../common/delivery/scheduled-delivery.util';
 import { mapPickerOrderItems, pickerOrderItemSelect } from './picker-order.mapper';
 
 const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  PENDING_SCHEDULE: ['NEW', 'CANCELLED'],
   NEW: ['PICKING', 'CANCELLED'],
   PICKING: ['READY', 'CANCELLED'],
   READY: ['DELIVERING', 'CANCELLED'],
@@ -86,6 +94,11 @@ export class OrdersService {
     deliveryNote: true,
     addressLabel: true,
     createdAt: true,
+    deliveryType: true,
+    isScheduled: true,
+    scheduledAt: true,
+    scheduledSlotEnd: true,
+    deliverySlot: true,
     cashbackRedeemTiyin: true,
     couponDiscountTiyin: true,
     couponCode: true,
@@ -107,6 +120,8 @@ export class OrdersService {
       addressLabel?: string;
       cashbackRedeemTiyin?: number;
       couponCode?: string;
+      deliveryType?: 'INSTANT' | 'SCHEDULED';
+      deliverySlot?: string;
     },
   ) {
     const latRaw = deliveryInfo?.latitude;
@@ -249,6 +264,25 @@ export class OrdersService {
 
     const stockPlan = await this.buildStockPlan(preparedLines);
 
+    const wantsScheduled = deliveryInfo?.deliveryType === 'SCHEDULED';
+    let scheduleMeta: {
+      scheduledAt: Date;
+      scheduledSlotEnd: Date;
+      deliverySlot: string;
+      label: string;
+    } | null = null;
+    if (wantsScheduled) {
+      const scheduling = await this.settingsService.getSchedulingSettings();
+      if (!scheduling.scheduledOrdersEnabled) {
+        throw new BadRequestException('Rejalashtirilgan yetkazish vaqtincha o‘chirilgan');
+      }
+      const slotKey = deliveryInfo?.deliverySlot?.trim();
+      if (!slotKey) {
+        throw new BadRequestException('Rejalashtirilgan yetkazish vaqti tanlanmagan');
+      }
+      scheduleMeta = await this.settingsService.resolveSlotForOrder(slotKey);
+    }
+
     const order = await this.prisma.$transaction(async (tx) => {
       let customerId: string | undefined;
       let customerBalance = 0;
@@ -315,6 +349,12 @@ export class OrdersService {
           couponId: couponResolved?.couponId ?? null,
           couponCode: couponResolved?.couponCode ?? null,
           couponDiscountTiyin: couponResolved?.couponDiscountTiyin ?? 0,
+          deliveryType: wantsScheduled ? DeliveryType.SCHEDULED : DeliveryType.INSTANT,
+          isScheduled: Boolean(wantsScheduled),
+          scheduledAt: scheduleMeta?.scheduledAt ?? null,
+          scheduledSlotEnd: scheduleMeta?.scheduledSlotEnd ?? null,
+          deliverySlot: scheduleMeta?.deliverySlot ?? null,
+          status: wantsScheduled ? OrderStatus.PENDING_SCHEDULE : OrderStatus.NEW,
           items: {
             create: preparedLines.map((item) => ({
               productId: item.type === 'product' ? item.entityId : null,
@@ -415,8 +455,29 @@ export class OrdersService {
 
     await this.queueService.enqueue('order.created', { orderId: order.id });
     this.events.emit('order.created', { orderId: order.id });
+    if (order.isScheduled) {
+      this.events.emit('order.scheduled.created', {
+        orderId: order.id,
+        scheduledAt: order.scheduledAt?.toISOString(),
+        deliverySlot: order.deliverySlot,
+      });
+      if (order.deliverySlot) {
+        const dateKey = order.deliverySlot.split('|')[0];
+        if (dateKey) await this.cache.del(cacheKeys.deliverySlots(dateKey));
+      }
+    }
 
-    return order;
+    const track = this.toPublicTrackPayload(order, null);
+    return {
+      id: order.id,
+      ...track,
+      deliveryType: order.deliveryType,
+      isScheduled: order.isScheduled,
+      scheduledAt: order.scheduledAt?.toISOString() ?? null,
+      scheduledSlotEnd: order.scheduledSlotEnd?.toISOString() ?? null,
+      deliverySlot: order.deliverySlot,
+      deliverySlotLabel: scheduleMeta?.label ?? null,
+    };
   }
 
   async getTrackByPhone(orderId: string, phoneRaw: string) {
@@ -437,6 +498,11 @@ export class OrdersService {
         cashbackEarnedSnapshotTiyin: true,
         cashbackCreditedAt: true,
         trackingToken: true,
+        isScheduled: true,
+        scheduledAt: true,
+        scheduledSlotEnd: true,
+        deliverySlot: true,
+        deliveryType: true,
         assignedCourier: { select: { fullName: true } },
       },
     });
@@ -458,7 +524,7 @@ export class OrdersService {
     }
 
     const courierName = order.assignedCourier?.fullName?.trim() || null;
-    return this.toPublicTrackPayload(order, courierName);
+    return this.toPublicTrackPayload(order, courierName, this.deliverySlotLabel(order.deliverySlot));
   }
 
   async getTrackByToken(tokenRaw: string) {
@@ -484,6 +550,11 @@ export class OrdersService {
             cashbackCreditedAt: true,
             trackingToken: true,
             updatedAt: true,
+            isScheduled: true,
+            scheduledAt: true,
+            scheduledSlotEnd: true,
+            deliverySlot: true,
+            deliveryType: true,
             assignedCourier: { select: { fullName: true } },
           },
         });
@@ -491,7 +562,11 @@ export class OrdersService {
           return null;
         }
         const courierName = order.assignedCourier?.fullName?.trim() || null;
-        const track = this.toPublicTrackPayload(order, courierName);
+        const track = this.toPublicTrackPayload(
+          order,
+          courierName,
+          this.deliverySlotLabel(order.deliverySlot),
+        );
         return { ...track, version: order.updatedAt.toISOString() };
       },
     );
@@ -500,6 +575,13 @@ export class OrdersService {
       throw new NotFoundException('Buyurtma topilmadi');
     }
     return payload;
+  }
+
+  private deliverySlotLabel(deliverySlot: string | null | undefined): string | null {
+    if (!deliverySlot) return null;
+    const parsed = parseSlotKey(deliverySlot);
+    if (!parsed) return null;
+    return formatSlotLabel(parsed.dateKey, parsed.startHm, parsed.endHm);
   }
 
   private async buildStockPlan(lines: PreparedLine[]) {
@@ -570,8 +652,14 @@ export class OrdersService {
       cashbackEarnedSnapshotTiyin: number;
       cashbackCreditedAt: Date | null;
       trackingToken: string | null;
+      isScheduled?: boolean;
+      scheduledAt?: Date | null;
+      scheduledSlotEnd?: Date | null;
+      deliverySlot?: string | null;
+      deliveryType?: DeliveryType;
     },
     courierName: string | null,
+    deliverySlotLabel?: string | null,
   ) {
     const trackingToken = order.trackingToken ?? '';
     return {
@@ -583,6 +671,12 @@ export class OrdersService {
       cashbackEarnedTiyin: order.cashbackEarnedSnapshotTiyin,
       cashbackCredited: Boolean(order.cashbackCreditedAt),
       courierName,
+      deliveryType: order.deliveryType ?? DeliveryType.INSTANT,
+      isScheduled: Boolean(order.isScheduled),
+      scheduledAt: order.scheduledAt?.toISOString() ?? null,
+      scheduledSlotEnd: order.scheduledSlotEnd?.toISOString() ?? null,
+      deliverySlot: order.deliverySlot ?? null,
+      deliverySlotLabel: deliverySlotLabel ?? null,
     };
   }
 
@@ -777,6 +871,10 @@ export class OrdersService {
         manualAddress: true,
         deliveryFee: true,
         totalAmount: true,
+        scheduledAt: true,
+        scheduledSlotEnd: true,
+        deliverySlot: true,
+        isScheduled: true,
         items: {
           select: {
             id: true,
@@ -788,9 +886,14 @@ export class OrdersService {
           },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ scheduledAt: 'asc' }, { createdAt: 'desc' }],
       take: 60,
-    });
+    }).then((rows) =>
+      rows.map((row) => ({
+        ...row,
+        deliverySlotLabel: this.deliverySlotLabel(row.deliverySlot),
+      })),
+    );
   }
 
   listForBusiness(businessProfileId: string) {
@@ -819,7 +922,14 @@ export class OrdersService {
   async listForActor(
     userId: string,
     role: string,
-    opts?: { page?: number; limit?: number; status?: OrderStatus; q?: string },
+    opts?: {
+      page?: number;
+      limit?: number;
+      status?: OrderStatus;
+      q?: string;
+      deliveryType?: 'INSTANT' | 'SCHEDULED';
+      scheduledToday?: boolean;
+    },
   ) {
     const r = role.toUpperCase();
     if (r === 'ADMIN' || r === 'SUPER_ADMIN') {
@@ -840,6 +950,8 @@ export class OrdersService {
     limit?: number;
     status?: OrderStatus;
     q?: string;
+    deliveryType?: 'INSTANT' | 'SCHEDULED';
+    scheduledToday?: boolean;
   }) {
     const page = Math.max(1, opts?.page ?? 1);
     const limit = Math.min(100, Math.max(1, opts?.limit ?? 30));
@@ -848,6 +960,22 @@ export class OrdersService {
 
     const where: Prisma.OrderWhereInput = {};
     if (opts?.status) where.status = opts.status;
+    if (opts?.deliveryType === 'INSTANT') {
+      where.isScheduled = false;
+    } else if (opts?.deliveryType === 'SCHEDULED') {
+      where.isScheduled = true;
+    }
+    if (opts?.scheduledToday) {
+      const today = getTashkentParts().dateKey;
+      const p = parseDateKey(today);
+      if (p) {
+        where.isScheduled = true;
+        where.scheduledAt = {
+          gte: tashkentLocalToUtc(p.year, p.month, p.day, 0, 0),
+          lt: tashkentLocalToUtc(p.year, p.month, p.day + 1, 0, 0),
+        };
+      }
+    }
     if (q) {
       where.OR = [
         { customerName: { contains: q, mode: 'insensitive' } },
@@ -869,7 +997,10 @@ export class OrdersService {
     ]);
 
     return {
-      items,
+      items: items.map((order) => ({
+        ...order,
+        deliverySlotLabel: this.deliverySlotLabel(order.deliverySlot),
+      })),
       page,
       limit,
       total,
@@ -908,7 +1039,16 @@ export class OrdersService {
       this.prisma.order.count({ where }),
     ]);
 
-    return { items, page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) };
+    return {
+      items: items.map((order) => ({
+        ...order,
+        deliverySlotLabel: this.deliverySlotLabel(order.deliverySlot),
+      })),
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    };
   }
 
   listPickerQueue(pickerUserId: string) {
@@ -922,6 +1062,10 @@ export class OrdersService {
         createdAt: true,
         deliveryFee: true,
         totalAmount: true,
+        isScheduled: true,
+        scheduledAt: true,
+        scheduledSlotEnd: true,
+        deliverySlot: true,
         items: { select: pickerOrderItemSelect },
       },
       orderBy: { createdAt: 'desc' },
@@ -929,6 +1073,32 @@ export class OrdersService {
     }).then((orders) =>
       orders.map((order) => ({
         ...order,
+        deliverySlotLabel: this.deliverySlotLabel(order.deliverySlot),
+        items: mapPickerOrderItems(order.items),
+      })),
+    );
+  }
+
+  listPickerScheduledQueue() {
+    return this.prisma.order.findMany({
+      where: { status: OrderStatus.PENDING_SCHEDULE, isScheduled: true },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        deliveryFee: true,
+        totalAmount: true,
+        scheduledAt: true,
+        scheduledSlotEnd: true,
+        deliverySlot: true,
+        items: { select: pickerOrderItemSelect },
+      },
+      orderBy: { scheduledAt: 'asc' },
+      take: 40,
+    }).then((orders) =>
+      orders.map((order) => ({
+        ...order,
+        deliverySlotLabel: this.deliverySlotLabel(order.deliverySlot),
         items: mapPickerOrderItems(order.items),
       })),
     );

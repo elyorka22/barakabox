@@ -7,8 +7,10 @@ import { formatMoneyUz } from '@/lib/format';
 import {
   ORDER_PROGRESS_STEPS,
   activeProgressStepIndex,
+  isScheduledPendingStatus,
   type PublicOrderTrackSnapshot,
 } from '@/lib/order-track';
+import { formatScheduledDeliveryMessage } from '@/lib/scheduled-delivery';
 
 type Props = {
   snapshot: PublicOrderTrackSnapshot | null;
@@ -40,6 +42,10 @@ export function OrderProgressTracker({ snapshot, loading, error, orderNumber }: 
     snapshot &&
     snapshot.cashbackEarnedTiyin > 0 &&
     snapshot.cashbackCredited;
+  const scheduledMessage =
+    snapshot?.isScheduled || isScheduledPendingStatus(status)
+      ? formatScheduledDeliveryMessage(snapshot?.deliverySlotLabel, snapshot?.scheduledAt)
+      : null;
 
   return (
     <div className="mt-6 rounded-[24px] bg-white p-5 shadow-[0_8px_32px_rgba(15,23,42,0.08)] ring-1 ring-slate-100">
@@ -61,6 +67,18 @@ export function OrderProgressTracker({ snapshot, loading, error, orderNumber }: 
 
       {error && !snapshot ? (
         <p className="mt-4 rounded-xl bg-rose-50 px-3 py-2 text-center text-sm text-rose-800">{error}</p>
+      ) : null}
+
+      {scheduledMessage ? (
+        <div className="mt-4 rounded-xl border border-violet-100 bg-violet-50 px-3 py-2.5 text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">Rejalashtirilgan yetkazish</p>
+          <p className="mt-1 text-sm font-semibold text-violet-950">{scheduledMessage}</p>
+          {isScheduledPendingStatus(status) ? (
+            <p className="mt-1 text-xs text-violet-800/90">
+              Tayyorlash vaqti yaqinlashganda buyurtma avtomatik faollashadi
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       {cancelled ? (

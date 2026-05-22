@@ -1,10 +1,13 @@
 export const CACHE_TTL = {
   productsHome: 120,
+  productsPromotions: 120,
   productsList: 90,
   productsSearch: 60,
   categories: 300,
   banners: 300,
   deliverySettings: 300,
+  schedulingSettings: 300,
+  deliverySlots: 60,
   publicSettings: 300,
   guestUser: 86400,
   orderTrack: 15,
@@ -13,6 +16,8 @@ export const CACHE_TTL = {
 
 export const cacheKeys = {
   productsHome: () => 'storefront:products:home:v1',
+  productsPromotions: (catalogVersion: number, page: number, limit: number, sort: string) =>
+    `storefront:products:promotions:v1:${catalogVersion}:${page}:${limit}:${sort}`,
   productsList: (
     page: number,
     limit: number,
@@ -27,6 +32,8 @@ export const cacheKeys = {
   categoriesPublic: (featured?: boolean) => `storefront:categories:v1:${featured ? 'featured' : 'all'}`,
   bannersActive: () => 'storefront:banners:active:v1',
   deliverySettings: () => 'settings:delivery:v1',
+  schedulingSettings: () => 'settings:scheduling:v1',
+  deliverySlots: (dateKey: string) => `settings:delivery-slots:v1:${dateKey}`,
   publicSettings: () => 'settings:public:v1',
   guestUserId: (guestId: string) => `guest:userId:v1:${guestId}`,
   orderTrack: (token: string) => `order:track:v1:${token}`,

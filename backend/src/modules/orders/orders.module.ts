@@ -9,10 +9,11 @@ import { EventEmitterService } from '../../infrastructure/events/event-emitter.s
 import { UsersModule } from '../users/users.module';
 import { CouponsModule } from '../coupons/coupons.module';
 import { SettingsModule } from '../settings/settings.module';
+import { ScheduledOrdersCron } from './scheduled-orders.cron';
 
 @Module({
   imports: [CartModule, UsersModule, CustomersModule, CouponsModule, SettingsModule],
-  providers: [OrdersService, CourierOrdersService, QueueService, EventEmitterService],
+  providers: [OrdersService, CourierOrdersService, QueueService, EventEmitterService, ScheduledOrdersCron],
   controllers: [OrdersController],
 })
 export class OrdersModule {}

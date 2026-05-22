@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '@/lib/api';
 import { SafeImage } from '@/components/safe-image';
 
@@ -19,16 +20,21 @@ export type HomeBanner = {
   sortOrder: number;
 };
 
-const AUTO_PLAY_INTERVAL_MS = 5000;
-const SWIPE_THRESHOLD_PX = 40;
+const AUTO_PLAY_MS = 5000;
+const SWIPE_THRESHOLD_PX = 48;
+const DRAG_COMMIT_RATIO = 0.18;
 
 export function HomeBannerCarousel() {
   const [banners, setBanners] = useState<HomeBanner[]>([]);
   const [index, setIndex] = useState(0);
   const [loaded, setLoaded] = useState(false);
-  const trackRef = useRef<HTMLDivElement | null>(null);
-  const touchStartXRef = useRef<number | null>(null);
+  const [dragOffsetPx, setDragOffsetPx] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const pointerStartX = useRef<number | null>(null);
+  const pointerStartY = useRef<number | null>(null);
   const isHoveringRef = useRef(false);
+  const isDraggingRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,6 +46,7 @@ export function HomeBannerCarousel() {
           .filter((banner) => banner.isActive !== false)
           .sort((a, b) => a.sortOrder - b.sortOrder);
         setBanners(ordered);
+        setIndex(0);
       } catch {
         if (!cancelled) setBanners([]);
       } finally {
@@ -52,53 +59,104 @@ export function HomeBannerCarousel() {
     };
   }, []);
 
+  const count = banners.length;
+  const activeIndex = count === 0 ? 0 : ((index % count) + count) % count;
+
+  const goTo = useCallback(
+    (next: number) => {
+      if (count === 0) return;
+      const normalized = ((next % count) + count) % count;
+      setIndex(normalized);
+    },
+    [count],
+  );
+
+  const goNext = useCallback(() => goTo(activeIndex + 1), [activeIndex, goTo]);
+  const goPrev = useCallback(() => goTo(activeIndex - 1), [activeIndex, goTo]);
+
   useEffect(() => {
-    if (banners.length <= 1) return;
+    if (count <= 1) return;
     const timer = window.setInterval(() => {
-      if (isHoveringRef.current) return;
-      setIndex((prev) => (prev + 1) % banners.length);
-    }, AUTO_PLAY_INTERVAL_MS);
+      if (isHoveringRef.current || isDraggingRef.current) return;
+      goNext();
+    }, AUTO_PLAY_MS);
     return () => window.clearInterval(timer);
-  }, [banners.length]);
+  }, [count, goNext]);
 
-  const activeIndex = useMemo(() => {
-    if (banners.length === 0) return 0;
-    return ((index % banners.length) + banners.length) % banners.length;
-  }, [index, banners.length]);
+  const finishDrag = useCallback(
+    (deltaX: number, width: number) => {
+      const threshold = Math.max(SWIPE_THRESHOLD_PX, width * DRAG_COMMIT_RATIO);
+      if (Math.abs(deltaX) >= threshold) {
+        goTo(deltaX < 0 ? activeIndex + 1 : activeIndex - 1);
+      }
+      setDragOffsetPx(0);
+      setIsDragging(false);
+      isDraggingRef.current = false;
+      pointerStartX.current = null;
+      pointerStartY.current = null;
+    },
+    [activeIndex, goTo],
+  );
 
-  const goTo = (next: number) => {
-    if (banners.length === 0) return;
-    const normalized = ((next % banners.length) + banners.length) % banners.length;
-    setIndex(normalized);
+  const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (count <= 1) return;
+    pointerStartX.current = event.clientX;
+    pointerStartY.current = event.clientY;
+    isDraggingRef.current = true;
+    setIsDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
-    touchStartXRef.current = event.touches[0]?.clientX ?? null;
+  const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current || pointerStartX.current === null) return;
+    const deltaX = event.clientX - pointerStartX.current;
+    const deltaY = event.clientY - (pointerStartY.current ?? event.clientY);
+    if (Math.abs(deltaY) > Math.abs(deltaX) * 1.2) return;
+    setDragOffsetPx(deltaX);
   };
 
-  const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
-    if (touchStartXRef.current === null) return;
-    const endX = event.changedTouches[0]?.clientX ?? touchStartXRef.current;
-    const delta = endX - touchStartXRef.current;
-    touchStartXRef.current = null;
-    if (Math.abs(delta) < SWIPE_THRESHOLD_PX) return;
-    goTo(delta < 0 ? activeIndex + 1 : activeIndex - 1);
+  const onPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current || pointerStartX.current === null) return;
+    const width = viewportRef.current?.clientWidth ?? 1;
+    const deltaX = event.clientX - pointerStartX.current;
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // ignore
+    }
+    finishDrag(deltaX, width);
+  };
+
+  const onTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (count <= 1 || pointerStartX.current === null) return;
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+    const width = viewportRef.current?.clientWidth ?? 1;
+    const deltaX = touch.clientX - pointerStartX.current;
+    finishDrag(deltaX, width);
   };
 
   if (!loaded) {
     return (
-      <div className="bb-skeleton mt-3 aspect-[16/8] w-full rounded-3xl" aria-hidden="true" />
+      <div className="bb-skeleton mt-3 aspect-[2/1] w-full rounded-3xl sm:aspect-[16/7]" aria-hidden="true" />
     );
   }
 
-  if (banners.length === 0) {
+  if (count === 0) {
     return null;
   }
+
+  const translatePercent = -activeIndex * 100;
+  const dragPercent =
+    viewportRef.current && viewportRef.current.clientWidth > 0
+      ? (dragOffsetPx / viewportRef.current.clientWidth) * 100
+      : 0;
 
   return (
     <section
       aria-label="Bosh sahifa bannerlari"
-      className="relative mt-3 overflow-hidden rounded-3xl shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
+      aria-roledescription="carousel"
+      className="relative mt-3"
       onMouseEnter={() => {
         isHoveringRef.current = true;
       }}
@@ -107,39 +165,63 @@ export function HomeBannerCarousel() {
       }}
     >
       <div
-        ref={trackRef}
-        className="relative w-full"
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
+        ref={viewportRef}
+        className="touch-pan-y overflow-hidden rounded-3xl shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onTouchStart={(e) => {
+          pointerStartX.current = e.touches[0]?.clientX ?? null;
+          pointerStartY.current = e.touches[0]?.clientY ?? null;
+        }}
+        onTouchEnd={onTouchEnd}
       >
         <div
-          className="flex w-full transition-transform duration-500 ease-out will-change-transform"
-          style={{ transform: `translate3d(${-activeIndex * 100}%, 0, 0)` }}
+          className={`flex ${isDragging ? '' : 'transition-transform duration-500 ease-out'} will-change-transform`}
+          style={{
+            transform: `translate3d(calc(${translatePercent}% + ${isDragging ? `${dragOffsetPx}px` : '0px'}), 0, 0)`,
+          }}
         >
           {banners.map((banner, idx) => (
-            <BannerSlide
-              key={banner.id}
-              banner={banner}
-              priority={idx === 0}
-            />
+            <BannerSlide key={banner.id} banner={banner} priority={idx === 0} />
           ))}
         </div>
       </div>
 
-      {banners.length > 1 ? (
-        <div className="pointer-events-none absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
-          {banners.map((banner, idx) => (
-            <button
-              key={banner.id}
-              type="button"
-              onClick={() => goTo(idx)}
-              aria-label={`Banner ${idx + 1}`}
-              className={`pointer-events-auto h-1.5 rounded-full transition-all duration-300 ${
-                idx === activeIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/55'
-              }`}
-            />
-          ))}
-        </div>
+      {count > 1 ? (
+        <>
+          <button
+            type="button"
+            aria-label="Oldingi banner"
+            onClick={goPrev}
+            className="absolute left-2 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur-sm transition active:scale-95"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            aria-label="Keyingi banner"
+            onClick={goNext}
+            className="absolute right-2 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/25 text-white backdrop-blur-sm transition active:scale-95"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          <div className="pointer-events-none absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
+            {banners.map((banner, idx) => (
+              <button
+                key={banner.id}
+                type="button"
+                onClick={() => goTo(idx)}
+                aria-label={`Banner ${idx + 1}`}
+                aria-current={idx === activeIndex ? 'true' : undefined}
+                className={`pointer-events-auto h-1.5 rounded-full transition-all duration-300 ${
+                  idx === activeIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/55'
+                }`}
+              />
+            ))}
+          </div>
+        </>
       ) : null}
     </section>
   );
@@ -155,14 +237,10 @@ function BannerSlide({ banner, priority }: { banner: HomeBanner; priority: boole
   const content = hasTextContent ? (
     <div className="absolute inset-0 flex w-full flex-col justify-end gap-2 p-4 sm:p-5" style={{ color: textColor }}>
       {banner.title ? (
-        <p className="max-w-[80%] text-lg font-bold leading-tight drop-shadow-sm sm:text-xl">
-          {banner.title}
-        </p>
+        <p className="max-w-[80%] text-lg font-bold leading-tight drop-shadow-sm sm:text-xl">{banner.title}</p>
       ) : null}
       {banner.subtitle ? (
-        <p className="max-w-[82%] text-[13px] leading-snug opacity-95">
-          {banner.subtitle}
-        </p>
+        <p className="max-w-[82%] text-[13px] leading-snug opacity-95">{banner.subtitle}</p>
       ) : null}
       {banner.buttonText ? (
         <span className="mt-1 inline-block w-fit rounded-2xl bg-white px-3.5 py-1.5 text-xs font-semibold text-[#111111] shadow-sm">
@@ -173,10 +251,7 @@ function BannerSlide({ banner, priority }: { banner: HomeBanner; priority: boole
   ) : null;
 
   const slideInner = (
-    <div
-      className="relative h-full w-full"
-      style={{ backgroundColor }}
-    >
+    <div className="relative aspect-[2/1] w-full sm:aspect-[16/7]" style={{ backgroundColor }}>
       <SafeImage
         src={banner.imageUrl ?? undefined}
         alt={altText}
@@ -188,22 +263,20 @@ function BannerSlide({ banner, priority }: { banner: HomeBanner; priority: boole
         fallbackClassName="absolute inset-0 h-full w-full"
         fallback={<span aria-hidden="true" />}
       />
-      {overlay > 0 ? (
-        <div className="absolute inset-0 bg-black" style={{ opacity: overlay / 100 }} />
-      ) : null}
+      {overlay > 0 ? <div className="absolute inset-0 bg-black" style={{ opacity: overlay / 100 }} /> : null}
       {content}
     </div>
   );
 
   return (
-    <div className="aspect-[16/8] w-full shrink-0">
+    <article className="min-w-full flex-[0_0_100%] select-none">
       {banner.buttonLink ? (
-        <Link href={banner.buttonLink} className="block h-full w-full" aria-label={altText}>
+        <Link href={banner.buttonLink} className="block w-full" aria-label={altText} draggable={false}>
           {slideInner}
         </Link>
       ) : (
         slideInner
       )}
-    </div>
+    </article>
   );
 }

@@ -21,6 +21,12 @@ export type PublicOrderTrackSnapshot = {
   cashbackEarnedTiyin: number;
   cashbackCredited: boolean;
   courierName?: string | null;
+  deliveryType?: 'INSTANT' | 'SCHEDULED';
+  isScheduled?: boolean;
+  scheduledAt?: string | null;
+  scheduledSlotEnd?: string | null;
+  deliverySlot?: string | null;
+  deliverySlotLabel?: string | null;
 };
 
 /** @deprecated Use PublicOrderTrackSnapshot */
@@ -48,6 +54,10 @@ export function isActiveGuestOrderStatus(status: OrderStatusLite): boolean {
   return isActiveCustomerOrder(status);
 }
 
+export function isScheduledPendingStatus(status: OrderStatusLite): boolean {
+  return status === 'PENDING_SCHEDULE';
+}
+
 export function isCompletedGuestOrderStatus(status: OrderStatusLite): boolean {
   return status === 'DELIVERED' || status === 'CANCELLED';
 }
@@ -60,6 +70,7 @@ export function isTrackableOrderStatus(status: OrderStatusLite): boolean {
 export function parsePublicTrackStatus(value: string): OrderStatusLite {
   const s = value.toUpperCase();
   if (
+    s === 'PENDING_SCHEDULE' ||
     s === 'NEW' ||
     s === 'PICKING' ||
     s === 'READY' ||

@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -70,4 +71,14 @@ export class CreateOrderDto {
   @IsString()
   @MaxLength(32)
   couponCode?: string;
+
+  @IsOptional()
+  @IsIn(['INSTANT', 'SCHEDULED'])
+  deliveryType?: 'INSTANT' | 'SCHEDULED';
+
+  /** Slot key from GET /settings/delivery-slots (required when deliveryType=SCHEDULED). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  deliverySlot?: string;
 }

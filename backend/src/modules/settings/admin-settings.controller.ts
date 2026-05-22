@@ -6,6 +6,7 @@ import { SettingsService } from './settings.service';
 import { UpdateSupportSettingsDto } from './dto/update-support-settings.dto';
 import { UpdateHomepageBannerDto } from './dto/update-homepage-banner.dto';
 import { UpdateDeliverySettingsDto } from './dto/update-delivery-settings.dto';
+import { UpdateSchedulingSettingsDto } from './dto/update-scheduling-settings.dto';
 
 @Controller('admin/settings')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -29,5 +30,18 @@ export class AdminSettingsController {
   @Patch('delivery')
   updateDelivery(@Body() body: UpdateDeliverySettingsDto) {
     return this.settingsService.updateDeliverySettings(body);
+  }
+
+  @Patch('scheduling')
+  updateScheduling(@Body() body: UpdateSchedulingSettingsDto) {
+    return this.settingsService.updateSchedulingSettings({
+      scheduledOrdersEnabled: body.scheduledOrdersEnabled,
+      slotMinutes: body.scheduleSlotMinutes,
+      workStartHour: body.scheduleWorkStartHour,
+      workEndHour: body.scheduleWorkEndHour,
+      minDelayMinutes: body.scheduleMinDelayMinutes,
+      maxOrdersPerSlot: body.scheduleMaxOrdersPerSlot,
+      prepLeadMinutes: body.schedulePrepLeadMinutes,
+    });
   }
 }
