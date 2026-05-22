@@ -1,7 +1,6 @@
 'use client';
 
 import { memo } from 'react';
-import { CashbackBadge } from '@/components/cashback-badge';
 import { ProductCardPriceRow } from '@/components/product-card/product-card-price-row';
 
 type Props = {
@@ -9,28 +8,18 @@ type Props = {
   metaLine: string;
   basePrice: number;
   salePrice: number | null;
-  cashbackType?: string | null;
-  cashbackValue?: number | null;
 };
 
-function ProductCardInfoBase({
-  name,
-  metaLine,
-  basePrice,
-  salePrice,
-  cashbackType,
-  cashbackValue,
-}: Props) {
+function ProductCardInfoBase({ name, metaLine, basePrice, salePrice }: Props) {
   return (
-    <div className="flex flex-[2] flex-col justify-start gap-0.5 px-2.5 pb-2 pt-1.5">
-      <ProductCardPriceRow basePrice={basePrice} salePrice={salePrice} />
-      <h3 className="line-clamp-2 text-[11px] font-medium leading-[1.25] text-[#374151]">{name}</h3>
-      {metaLine ? (
-        <p className="line-clamp-1 text-[10px] leading-tight text-[#9ca3af]">{metaLine}</p>
-      ) : null}
-      <div className="min-h-[14px] pt-px">
-        <CashbackBadge cashbackType={cashbackType} cashbackValue={cashbackValue} variant="promo" />
+    <div className="flex h-[52px] shrink-0 flex-col justify-start gap-px px-2 pb-1.5 pt-1">
+      <div className="h-[30px] shrink-0 overflow-hidden">
+        <ProductCardPriceRow basePrice={basePrice} salePrice={salePrice} />
       </div>
+      <h3 className="line-clamp-2 h-[26px] shrink-0 text-[11px] font-medium leading-[13px] text-[#374151]">
+        {name}
+      </h3>
+      <p className="h-3 shrink-0 truncate text-[10px] leading-3 text-[#9ca3af]">{metaLine || '\u00A0'}</p>
     </div>
   );
 }

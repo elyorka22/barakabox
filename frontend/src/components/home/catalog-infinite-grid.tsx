@@ -44,7 +44,7 @@ const CatalogGridItem = memo(function CatalogGridItem({
 
   return (
     <div
-      className="catalog-grid-item min-h-[220px] cursor-pointer [content-visibility:auto] [contain-intrinsic-size:220px_200px]"
+      className="catalog-grid-item min-h-[168px] cursor-pointer [content-visibility:auto] [contain-intrinsic-size:168px_156px]"
       onClick={() => openProduct(product)}
       role="presentation"
     >
@@ -59,12 +59,12 @@ function CatalogSkeletonRow() {
       {Array.from({ length: 2 }).map((_, idx) => (
         <div
           key={`catalog-skeleton-${idx}`}
-          className="min-h-[220px] rounded-[20px] bg-white p-2.5 shadow-[0_1px_4px_rgba(15,23,42,0.06)]"
+          className="min-h-[168px] rounded-[20px] bg-white shadow-[0_1px_3px_rgba(15,23,42,0.07)]"
           aria-hidden
         >
-          <div className="bb-skeleton h-[108px] w-full rounded-[16px]" />
-          <div className="bb-skeleton mt-2 h-3.5 w-2/3 rounded" />
-          <div className="bb-skeleton mt-1.5 h-3 w-1/2 rounded" />
+          <div className="bb-skeleton h-[84px] w-full rounded-t-[20px]" />
+          <div className="bb-skeleton mx-2 mt-2 h-3.5 w-2/3 rounded" />
+          <div className="bb-skeleton mx-2 mt-1 h-3 w-1/2 rounded" />
         </div>
       ))}
     </>
@@ -158,7 +158,7 @@ export function CatalogInfiniteGrid({
         ) : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-x-2 gap-y-2.5">
+      <div className="grid grid-cols-2 gap-x-1.5 gap-y-2">
         {items.map((product, index) => (
           <CatalogGridItem key={product.id} product={product} priorityImage={index < 4} />
         ))}

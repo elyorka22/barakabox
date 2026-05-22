@@ -1,25 +1,15 @@
 'use client';
 
 import { memo, type ReactNode } from 'react';
-import { useCartQuantity } from '@/lib/use-cart-store';
 
 type Props = {
-  variantId: string;
   children: ReactNode;
 };
 
-function ProductCardInCartRingBase({ variantId, children }: Props) {
-  const quantity = useCartQuantity(variantId);
-  const inCart = quantity > 0;
-
+/** Stable card chrome — same shadow in/out of cart so the grid does not jump. */
+function ProductCardInCartRingBase({ children }: Props) {
   return (
-    <div
-      className={`group flex h-full flex-col overflow-visible rounded-[20px] bg-white transition-shadow duration-200 ${
-        inCart
-          ? 'shadow-[0_2px_12px_rgba(34,197,94,0.14)]'
-          : 'shadow-[0_1px_4px_rgba(15,23,42,0.06)] hover:shadow-[0_2px_10px_rgba(15,23,42,0.08)]'
-      }`}
-    >
+    <div className="group flex h-full flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_1px_3px_rgba(15,23,42,0.07)] transition-shadow duration-150 hover:shadow-[0_2px_8px_rgba(15,23,42,0.09)]">
       {children}
     </div>
   );

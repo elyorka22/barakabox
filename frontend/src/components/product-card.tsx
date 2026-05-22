@@ -8,10 +8,10 @@ import {
   normalizeIncomingProductUnit,
   resolveSellingMode,
 } from '@onlinebozor/product-units';
+import { CashbackBadge } from '@/components/cashback-badge';
 import { SafeImage } from '@/components/safe-image';
 import {
   PRODUCT_IMAGE_FALLBACK_CLASS,
-  PRODUCT_IMAGE_SURFACE_CLASS,
   resolveVariantImageUrl,
 } from '@/lib/product-image';
 import { buildProductCardMetaLine } from '@/lib/product-card-meta';
@@ -20,6 +20,9 @@ import { ProductCardCartControl } from '@/components/product-card/product-card-c
 import { ProductCardInfo } from '@/components/product-card/product-card-info';
 import { ProductCardInCartRing } from '@/components/product-card/product-card-in-cart-ring';
 import type { StorefrontProduct } from '@/types/storefront-product';
+
+/** Fixed image strip — keeps every card aligned in the grid. */
+const CARD_IMAGE_HEIGHT_PX = 84;
 
 type Variant = {
   id: string;
@@ -53,7 +56,6 @@ export type ProductCardProps = {
   promotionEnabled?: boolean;
   promotionStartAt?: string | null;
   promotionEndAt?: string | null;
-  /** First visible row — eager image load for LCP */
   imagePriority?: boolean;
 };
 
@@ -153,6 +155,8 @@ function ProductCardBase({
     stepAmount,
   });
 
+  const hasCashback = Boolean(cashbackType && cashbackType !== 'NONE' && (cashbackValue ?? 0) > 0);
+
   const storefrontProduct: StorefrontProduct = {
     id,
     name,
@@ -187,15 +191,16 @@ function ProductCardBase({
 
   return (
     <article className="product-card flex h-full flex-col">
-      <ProductCardInCartRing variantId={activeVariantId}>
+      <ProductCardInCartRing>
         <button
           type="button"
           onClick={openSheet}
-          className="product-card-surface flex h-full min-h-[210px] flex-col text-left transition-transform duration-150 ease-out active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100"
+          className="product-card-surface flex h-full flex-col text-left transition-transform duration-150 ease-out active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100"
         >
           {activeVariant ? (
             <div
-              className={`relative flex-[3] min-h-[108px] w-full shrink-0 overflow-visible ${PRODUCT_IMAGE_SURFACE_CLASS}`}
+              className="relative w-full shrink-0 overflow-hidden rounded-t-[20px] bg-[#f7f8fa]"
+              style={{ height: CARD_IMAGE_HEIGHT_PX }}
               onTouchStart={(e) => {
                 e.stopPropagation();
                 setTouchStartX(e.changedTouches[0]?.clientX ?? null);
@@ -205,52 +210,54 @@ function ProductCardBase({
                 handleTouchEnd(e.changedTouches[0]?.clientX ?? 0);
               }}
             >
-              <div className="relative h-full w-full overflow-hidden rounded-t-[20px] bg-[#f8f9fb]">
-                {!imageLoaded ? (
-                  <div className="absolute inset-0 animate-pulse bg-[#f3f4f6]" />
-                ) : null}
-                <div
-                  className="flex h-full w-full transition-transform duration-300 ease-out"
-                  style={{ transform: `translateX(-${activeVariantIndex * 100}%)` }}
-                >
-                  {effectiveVariants.map((variant) => {
-                    const src = resolveVariantImageUrl(variant, productImages);
-                    return (
-                      <div
-                        key={variant.id}
-                        className="flex h-full min-w-full items-center justify-center px-1.5 py-1"
-                      >
-                        <SafeImage
-                          src={src || undefined}
-                          alt={variant.flavor || name}
-                          loading={imagePriority ? 'eager' : 'lazy'}
-                          sizes="(max-width: 768px) 50vw, 200px"
-                          decoding="async"
-                          className={`max-h-[92%] max-w-[92%] object-contain transition-opacity duration-300 ${
-                            imageLoaded ? 'opacity-100' : 'opacity-0'
-                          }`}
-                          fallbackClassName={PRODUCT_IMAGE_FALLBACK_CLASS}
-                          onReady={() => setImageLoaded(true)}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {effectiveDiscountPrice ? (
-                  <span className="pointer-events-none absolute left-2 top-2 z-[1] rounded-lg bg-[#ef4444] px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">
-                    -{Math.max(1, Math.round(((activeBasePrice - effectiveDiscountPrice) / activeBasePrice) * 100))}%
-                  </span>
-                ) : null}
-                {promotionBadge && inPromoWindow ? (
-                  <span className="pointer-events-none absolute right-2 top-2 z-[1] rounded-lg bg-[#111827] px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">
-                    {promotionBadge}
-                  </span>
-                ) : null}
+              {!imageLoaded ? <div className="absolute inset-0 animate-pulse bg-[#f0f1f3]" /> : null}
+              <div
+                className="flex h-full w-full transition-transform duration-300 ease-out"
+                style={{ transform: `translateX(-${activeVariantIndex * 100}%)` }}
+              >
+                {effectiveVariants.map((variant) => {
+                  const src = resolveVariantImageUrl(variant, productImages);
+                  return (
+                    <div key={variant.id} className="flex h-full min-w-full items-center justify-center">
+                      <SafeImage
+                        src={src || undefined}
+                        alt={variant.flavor || name}
+                        loading={imagePriority ? 'eager' : 'lazy'}
+                        sizes="(max-width: 768px) 50vw, 180px"
+                        decoding="async"
+                        className={`h-full w-full object-contain p-0.5 transition-opacity duration-300 ${
+                          imageLoaded ? 'opacity-100' : 'opacity-0'
+                        }`}
+                        fallbackClassName={PRODUCT_IMAGE_FALLBACK_CLASS}
+                        onReady={() => setImageLoaded(true)}
+                      />
+                    </div>
+                  );
+                })}
               </div>
 
+              {effectiveDiscountPrice ? (
+                <span className="pointer-events-none absolute left-1.5 top-1.5 z-[1] rounded-md bg-[#ef4444] px-1 py-0.5 text-[8px] font-bold leading-none text-white">
+                  -{Math.max(1, Math.round(((activeBasePrice - effectiveDiscountPrice) / activeBasePrice) * 100))}%
+                </span>
+              ) : null}
+              {promotionBadge && inPromoWindow ? (
+                <span
+                  className={`pointer-events-none absolute left-1.5 z-[1] rounded-md bg-[#111827] px-1 py-0.5 text-[8px] font-bold leading-none text-white ${
+                    effectiveDiscountPrice ? 'top-6' : 'top-1.5'
+                  }`}
+                >
+                  {promotionBadge}
+                </span>
+              ) : null}
+              {hasCashback ? (
+                <div className="pointer-events-none absolute left-1.5 bottom-1 z-[1] max-w-[55%]">
+                  <CashbackBadge cashbackType={cashbackType} cashbackValue={cashbackValue} variant="promo" />
+                </div>
+              ) : null}
+
               <div
-                className="absolute -bottom-2.5 -right-2 z-10"
+                className="absolute bottom-1 right-1 z-10"
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => e.stopPropagation()}
               >
@@ -264,7 +271,10 @@ function ProductCardBase({
               </div>
             </div>
           ) : (
-            <div className={`flex-[3] min-h-[108px] shrink-0 rounded-t-[20px] ${PRODUCT_IMAGE_SURFACE_CLASS}`} />
+            <div
+              className="w-full shrink-0 rounded-t-[20px] bg-[#f7f8fa]"
+              style={{ height: CARD_IMAGE_HEIGHT_PX }}
+            />
           )}
 
           <ProductCardInfo
@@ -272,8 +282,6 @@ function ProductCardBase({
             metaLine={metaLine}
             basePrice={activeBasePrice}
             salePrice={effectiveDiscountPrice}
-            cashbackType={cashbackType}
-            cashbackValue={cashbackValue}
           />
         </button>
       </ProductCardInCartRing>
