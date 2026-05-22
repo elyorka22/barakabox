@@ -75,6 +75,7 @@ export class OrdersController {
       cashbackRedeemTiyin: body?.cashbackRedeemTiyin,
       couponCode: body?.couponCode,
       deliveryType: body?.deliveryType,
+      scheduledAt: body?.scheduledAt,
       deliverySlot: body?.deliverySlot,
     });
   }

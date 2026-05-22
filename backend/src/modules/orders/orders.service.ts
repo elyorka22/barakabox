@@ -31,9 +31,12 @@ import { SettingsService } from '../settings/settings.service';
 import { CacheService } from '../../infrastructure/cache/cache.service';
 import { CACHE_TTL, cacheKeys } from '../../common/cache/cache-keys';
 import {
+  formatExactScheduleLabel,
   formatSlotLabel,
+  getTashkentDateTimeParts,
   getTashkentParts,
   parseDateKey,
+  parseDateTimeSlotKey,
   parseSlotKey,
   tashkentLocalToUtc,
 } from '../../common/delivery/scheduled-delivery.util';
@@ -121,6 +124,7 @@ export class OrdersService {
       cashbackRedeemTiyin?: number;
       couponCode?: string;
       deliveryType?: 'INSTANT' | 'SCHEDULED';
+      scheduledAt?: string;
       deliverySlot?: string;
     },
   ) {
@@ -276,11 +280,13 @@ export class OrdersService {
       if (!scheduling.scheduledOrdersEnabled) {
         throw new BadRequestException('Rejalashtirilgan yetkazish vaqtincha o‘chirilgan');
       }
-      const slotKey = deliveryInfo?.deliverySlot?.trim();
-      if (!slotKey) {
+      if (!deliveryInfo?.scheduledAt?.trim() && !deliveryInfo?.deliverySlot?.trim()) {
         throw new BadRequestException('Rejalashtirilgan yetkazish vaqti tanlanmagan');
       }
-      scheduleMeta = await this.settingsService.resolveSlotForOrder(slotKey);
+      scheduleMeta = await this.settingsService.resolveScheduledForOrder({
+        scheduledAt: deliveryInfo?.scheduledAt,
+        deliverySlot: deliveryInfo?.deliverySlot,
+      });
     }
 
     const order = await this.prisma.$transaction(async (tx) => {
@@ -524,7 +530,7 @@ export class OrdersService {
     }
 
     const courierName = order.assignedCourier?.fullName?.trim() || null;
-    return this.toPublicTrackPayload(order, courierName, this.deliverySlotLabel(order.deliverySlot));
+    return this.toPublicTrackPayload(order, courierName, this.deliverySlotLabel(order.deliverySlot, order.scheduledAt));
   }
 
   async getTrackByToken(tokenRaw: string) {
@@ -565,7 +571,7 @@ export class OrdersService {
         const track = this.toPublicTrackPayload(
           order,
           courierName,
-          this.deliverySlotLabel(order.deliverySlot),
+          this.deliverySlotLabel(order.deliverySlot, order.scheduledAt),
         );
         return { ...track, version: order.updatedAt.toISOString() };
       },
@@ -577,8 +583,19 @@ export class OrdersService {
     return payload;
   }
 
-  private deliverySlotLabel(deliverySlot: string | null | undefined): string | null {
+  private deliverySlotLabel(
+    deliverySlot: string | null | undefined,
+    scheduledAt?: Date | null,
+  ): string | null {
+    if (scheduledAt) {
+      const parts = getTashkentDateTimeParts(scheduledAt);
+      return formatExactScheduleLabel(parts.dateKey, parts.hour, parts.minute);
+    }
     if (!deliverySlot) return null;
+    const exact = parseDateTimeSlotKey(deliverySlot);
+    if (exact) {
+      return formatExactScheduleLabel(exact.dateKey, exact.hour, exact.minute);
+    }
     const parsed = parseSlotKey(deliverySlot);
     if (!parsed) return null;
     return formatSlotLabel(parsed.dateKey, parsed.startHm, parsed.endHm);
@@ -891,7 +908,7 @@ export class OrdersService {
     }).then((rows) =>
       rows.map((row) => ({
         ...row,
-        deliverySlotLabel: this.deliverySlotLabel(row.deliverySlot),
+        deliverySlotLabel: this.deliverySlotLabel(row.deliverySlot, row.scheduledAt),
       })),
     );
   }
@@ -999,7 +1016,7 @@ export class OrdersService {
     return {
       items: items.map((order) => ({
         ...order,
-        deliverySlotLabel: this.deliverySlotLabel(order.deliverySlot),
+        deliverySlotLabel: this.deliverySlotLabel(order.deliverySlot, order.scheduledAt),
       })),
       page,
       limit,
@@ -1042,7 +1059,7 @@ export class OrdersService {
     return {
       items: items.map((order) => ({
         ...order,
-        deliverySlotLabel: this.deliverySlotLabel(order.deliverySlot),
+        deliverySlotLabel: this.deliverySlotLabel(order.deliverySlot, order.scheduledAt),
       })),
       page,
       limit,
@@ -1073,7 +1090,7 @@ export class OrdersService {
     }).then((orders) =>
       orders.map((order) => ({
         ...order,
-        deliverySlotLabel: this.deliverySlotLabel(order.deliverySlot),
+        deliverySlotLabel: this.deliverySlotLabel(order.deliverySlot, order.scheduledAt),
         items: mapPickerOrderItems(order.items),
       })),
     );
@@ -1098,7 +1115,7 @@ export class OrdersService {
     }).then((orders) =>
       orders.map((order) => ({
         ...order,
-        deliverySlotLabel: this.deliverySlotLabel(order.deliverySlot),
+        deliverySlotLabel: this.deliverySlotLabel(order.deliverySlot, order.scheduledAt),
         items: mapPickerOrderItems(order.items),
       })),
     );

@@ -10,13 +10,17 @@ import {
 } from '../../common/delivery/delivery-quote.util';
 import {
   generateSlotsForDate,
+  getSchedulingRulesDto,
   getTashkentParts,
   listDatesForPicker,
   mapSchedulingSettings,
   parseDateKey,
+  parseDateTimeSlotKey,
   parseSlotKey,
+  resolveScheduledDateTimeIso,
   resolveScheduledSlot,
   tashkentLocalToUtc,
+  validateScheduledDateTime,
   type DeliverySlotDto,
   type SchedulingSettings,
 } from '../../common/delivery/scheduled-delivery.util';
@@ -306,19 +310,61 @@ export class SettingsService {
     return mapSchedulingSettings(row);
   }
 
-  async resolveSlotForOrder(slotKey: string) {
+  async getSchedulingRulesForStorefront() {
     const settings = await this.getSchedulingSettings();
-    const parsed = parseSlotKey(slotKey);
-    if (!parsed) {
-      throw new BadRequestException('Yetkazish vaqti noto‘g‘ri');
+    return getSchedulingRulesDto(settings);
+  }
+
+  async resolveScheduledForOrder(input: { scheduledAt?: string; deliverySlot?: string }) {
+    const settings = await this.getSchedulingSettings();
+    if (!settings.scheduledOrdersEnabled) {
+      throw new BadRequestException('Rejalashtirilgan yetkazish vaqtincha o‘chirilgan');
     }
-    const booked = await this.countBookedSlotsForDate(parsed.dateKey);
-    try {
-      return resolveScheduledSlot(slotKey, settings, booked);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Yetkazish vaqti mavjud emas';
-      throw new BadRequestException(message);
+
+    if (input.scheduledAt?.trim()) {
+      try {
+        return resolveScheduledDateTimeIso(input.scheduledAt.trim(), settings);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Yetkazish vaqti noto‘g‘ri';
+        throw new BadRequestException(message);
+      }
     }
+
+    const slotKey = input.deliverySlot?.trim();
+    if (slotKey) {
+      const exact = parseDateTimeSlotKey(slotKey);
+      if (exact) {
+        try {
+          return validateScheduledDateTime(
+            exact.dateKey,
+            exact.hour,
+            exact.minute,
+            settings,
+          );
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Yetkazish vaqti noto‘g‘ri';
+          throw new BadRequestException(message);
+        }
+      }
+      const parsed = parseSlotKey(slotKey);
+      if (!parsed) {
+        throw new BadRequestException('Yetkazish vaqti noto‘g‘ri');
+      }
+      const booked = await this.countBookedSlotsForDate(parsed.dateKey);
+      try {
+        return resolveScheduledSlot(slotKey, settings, booked);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Yetkazish vaqti mavjud emas';
+        throw new BadRequestException(message);
+      }
+    }
+
+    throw new BadRequestException('Yetkazish vaqti tanlanmagan');
+  }
+
+  /** @deprecated Use resolveScheduledForOrder */
+  async resolveSlotForOrder(slotKey: string) {
+    return this.resolveScheduledForOrder({ deliverySlot: slotKey });
   }
 
   async getAvailableDeliverySlots(dateKey: string): Promise<{

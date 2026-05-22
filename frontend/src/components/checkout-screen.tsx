@@ -29,6 +29,7 @@ import { GuestOrderCompletionBanner } from '@/components/order/guest-order-compl
 import {
   DeliveryTimeSelector,
   type DeliveryTimeMode,
+  type SchedulePickerValue,
 } from '@/components/checkout/delivery-time-selector';
 import { fetchPublicSettings } from '@/lib/public-settings';
 import {
@@ -84,8 +85,11 @@ export function CheckoutScreen() {
   const [saveAddressLabel, setSaveAddressLabel] = useState('Uy');
   const [schedulingEnabled, setSchedulingEnabled] = useState(false);
   const [deliveryMode, setDeliveryMode] = useState<DeliveryTimeMode>('now');
-  const [deliverySlotKey, setDeliverySlotKey] = useState<string | null>(null);
-  const [deliverySlotLabel, setDeliverySlotLabel] = useState<string | null>(null);
+  const [schedulePicker, setSchedulePicker] = useState<SchedulePickerValue>({
+    dateKey: '',
+    timeHm: '',
+    selection: { valid: false },
+  });
   const token = authStorage.getAccessToken();
   const apiPhone = phoneDigitsForApi(phone);
 
@@ -430,24 +434,22 @@ export function CheckoutScreen() {
   const manualAddressOk = locationMode === 'MANUAL' && isManualAddressValid(address);
   const autoLocationOk = locationMode === 'AUTO' && geoCoords !== null && geoState === 'ok';
   const addressReady = manualAddressOk || autoLocationOk;
-  const scheduleNeedsSlot = schedulingEnabled && deliveryMode === 'schedule';
-  const scheduleReady = !scheduleNeedsSlot || Boolean(deliverySlotKey);
+  const scheduleNeedsTime = schedulingEnabled && deliveryMode === 'schedule';
+  const scheduleReady = !scheduleNeedsTime || schedulePicker.selection.valid;
   const canSubmit =
     !loading && cartItems.length > 0 && phoneOk && addressReady && scheduleReady;
   const scheduleValidationMessage =
-    scheduleNeedsSlot && addressReady && phoneOk && !deliverySlotKey
-      ? 'Yetkazish vaqtini tanlang'
+    scheduleNeedsTime && addressReady && phoneOk && !schedulePicker.selection.valid
+      ? schedulePicker.selection.error || 'Yetkazish vaqtini tanlang'
       : '';
-  const scheduleSummaryText = formatScheduleOrderSummary(deliverySlotLabel);
+  const scheduleSummaryText = formatScheduleOrderSummary(
+    schedulePicker.selection.summaryLabel ?? null,
+  );
 
   const handleDeliveryModeChange = (mode: DeliveryTimeMode) => {
     setDeliveryMode(mode);
     if (mode === 'now') {
-      setDeliverySlotKey(null);
-      setDeliverySlotLabel(null);
-    } else {
-      setDeliverySlotKey(null);
-      setDeliverySlotLabel(null);
+      setSchedulePicker({ dateKey: '', timeHm: '', selection: { valid: false } });
     }
   };
 
@@ -494,9 +496,9 @@ export function CheckoutScreen() {
       if (locationMode === 'MANUAL' && !geoCoords) {
         body.manualAddress = streetLine;
       }
-      if (schedulingEnabled && deliveryMode === 'schedule' && deliverySlotKey) {
+      if (schedulingEnabled && deliveryMode === 'schedule' && schedulePicker.selection.scheduledAtIso) {
         body.deliveryType = 'SCHEDULED';
-        body.deliverySlot = deliverySlotKey;
+        body.scheduledAt = schedulePicker.selection.scheduledAtIso;
       } else {
         body.deliveryType = 'INSTANT';
       }
@@ -915,11 +917,8 @@ export function CheckoutScreen() {
                     enabled={schedulingEnabled}
                     mode={deliveryMode}
                     onModeChange={handleDeliveryModeChange}
-                    selectedSlotKey={deliverySlotKey}
-                    onSlotChange={(key, label) => {
-                      setDeliverySlotKey(key);
-                      setDeliverySlotLabel(label);
-                    }}
+                    value={schedulePicker}
+                    onChange={setSchedulePicker}
                   />
 
                   <div className="rounded-2xl bg-white p-3 shadow-[0_4px_20px_rgba(15,23,42,0.05)] ring-1 ring-slate-100/90">

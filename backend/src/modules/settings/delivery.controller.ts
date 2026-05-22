@@ -7,9 +7,15 @@ import { SettingsService } from './settings.service';
 export class DeliveryController {
   constructor(private readonly settingsService: SettingsService) {}
 
+  /** @deprecated Use GET /delivery/scheduling-rules + client-side datetime pickers */
   @Get('slots')
   getSlots(@Query('date') date?: string) {
     const dateKey = date?.trim() || getTashkentParts().dateKey;
     return this.settingsService.getAvailableDeliverySlots(dateKey);
+  }
+
+  @Get('scheduling-rules')
+  getSchedulingRules() {
+    return this.settingsService.getSchedulingRulesForStorefront();
   }
 }

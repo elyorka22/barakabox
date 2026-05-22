@@ -76,7 +76,13 @@ export class CreateOrderDto {
   @IsIn(['INSTANT', 'SCHEDULED'])
   deliveryType?: 'INSTANT' | 'SCHEDULED';
 
-  /** Slot key from GET /settings/delivery-slots (required when deliveryType=SCHEDULED). */
+  /** ISO-8601 delivery moment in Asia/Tashkent wall time (required when deliveryType=SCHEDULED). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  scheduledAt?: string;
+
+  /** @deprecated Legacy slot key — prefer scheduledAt */
   @IsOptional()
   @IsString()
   @MaxLength(64)
