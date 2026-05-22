@@ -5,7 +5,7 @@ import {
   formatOrderNumberLabel,
   normalizeOrderNumber,
   displayOrderNumber,
-} from '../../../../shared/order-number';
+} from './order-number';
 import type { PrismaService } from '../../infrastructure/database/prisma.service';
 
 export { formatOrderNumberLabel, normalizeOrderNumber, displayOrderNumber };

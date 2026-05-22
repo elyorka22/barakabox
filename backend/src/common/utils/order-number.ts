@@ -1,26 +1,11 @@
 /**
- * Shared order number helpers (frontend / tooling).
- * Backend copy: backend/src/common/utils/order-number.ts (Docker build uses backend/ only).
+ * Order number helpers for backend (keep in sync with shared/order-number.ts).
+ * Copied here because Docker backend build context is backend/ only.
  */
 
 /** Readable order codes — excludes O/0 and I/1 for phone-friendly pronunciation. */
 export const ORDER_NUMBER_CHARSET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 export const ORDER_NUMBER_LENGTH = 8;
-
-export function generateOrderNumber(): string {
-  const len = ORDER_NUMBER_CHARSET.length;
-  let out = '';
-  const bytes = new Uint8Array(ORDER_NUMBER_LENGTH);
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    crypto.getRandomValues(bytes);
-  } else {
-    for (let i = 0; i < ORDER_NUMBER_LENGTH; i += 1) bytes[i] = Math.floor(Math.random() * 256);
-  }
-  for (let i = 0; i < ORDER_NUMBER_LENGTH; i += 1) {
-    out += ORDER_NUMBER_CHARSET[bytes[i]! % len]!;
-  }
-  return out;
-}
 
 export function normalizeOrderNumber(raw: string | null | undefined): string {
   if (!raw?.trim()) return '';
