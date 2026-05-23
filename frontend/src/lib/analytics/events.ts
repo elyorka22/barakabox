@@ -12,6 +12,7 @@ export const ANALYTICS_EVENTS = {
   SCHEDULED_ORDER_SELECTED: 'scheduled_order_selected',
   ADDRESS_SELECTED: 'address_selected',
   SEARCH_USED: 'search_used',
+  STORE_VIEWED: 'store_viewed',
   API_ERROR: 'api_error',
   CART_ACTION_FAILED: 'cart_action_failed',
   FRONTEND_ERROR: 'frontend_error',

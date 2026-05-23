@@ -113,6 +113,15 @@ export function ProductSheetContent({ product }: Props) {
         </div>
       ) : null}
 
+      {product.storeName ? (
+        <p className="mt-2 text-xs font-medium text-emerald-700">
+          {product.storeName}
+          {product.storeSlug ? (
+            <span className="text-slate-400"> · /stores/{product.storeSlug}</span>
+          ) : null}
+        </p>
+      ) : null}
+
       <h2 className="mt-2.5 text-[17px] font-bold leading-snug text-[#111827]">{product.name}</h2>
       {subtitle ? (
         <p className="mt-0.5 line-clamp-2 text-[12px] text-[#9ca3af]">{subtitle}</p>

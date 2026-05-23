@@ -11,6 +11,10 @@ import {
   type StaffRoleName,
 } from '@/lib/staff-roles';
 
+function roleNeedsStoreScope(role: string): boolean {
+  return role.toUpperCase() === 'PICKER';
+}
+
 type AdminUserRow = {
   id: string;
   email: string;
@@ -21,11 +25,14 @@ type AdminUserRow = {
   isActive: boolean;
   lastLoginAt: string | null;
   businessScopeId: string | null;
+  storeScopeId: string | null;
   createdAt?: string;
   businessScope?: { id: string; displayName: string } | null;
+  storeScope?: { id: string; name: string } | null;
 };
 
 type BusinessOption = { id: string; displayName: string };
+type StoreOption = { id: string; name: string };
 
 type EmployeesResponse = {
   items: AdminUserRow[];
@@ -54,6 +61,7 @@ export function AdminUsersEmployees() {
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [total, setTotal] = useState(0);
   const [businesses, setBusinesses] = useState<BusinessOption[]>([]);
+  const [stores, setStores] = useState<StoreOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [panel, setPanel] = useState<'create' | 'edit' | 'reset' | null>(null);
@@ -65,6 +73,7 @@ export function AdminUsersEmployees() {
   const [formPassword, setFormPassword] = useState('');
   const [formRole, setFormRole] = useState<StaffRoleName>('COURIER');
   const [formBusinessScopeId, setFormBusinessScopeId] = useState('');
+  const [formStoreScopeId, setFormStoreScopeId] = useState('');
   const [formBusy, setFormBusy] = useState(false);
   const [resetPassword, setResetPassword] = useState('');
 
@@ -113,9 +122,20 @@ export function AdminUsersEmployees() {
     }
   }, [token]);
 
+  const loadStores = useCallback(async () => {
+    if (!token) return;
+    try {
+      const raw = await api.get<StoreOption[]>('/admin/marketplace/stores', token);
+      setStores(raw);
+    } catch {
+      setStores([]);
+    }
+  }, [token]);
+
   useEffect(() => {
     void loadBusinesses();
-  }, [loadBusinesses]);
+    void loadStores();
+  }, [loadBusinesses, loadStores]);
 
   useEffect(() => {
     void loadUsers();
@@ -133,6 +153,7 @@ export function AdminUsersEmployees() {
     setFormPassword('');
     setFormRole(creatableRoles[0] ?? 'COURIER');
     setFormBusinessScopeId('');
+    setFormStoreScopeId('');
     setPanel('create');
   };
 
@@ -143,6 +164,7 @@ export function AdminUsersEmployees() {
     setFormLogin(u.staffLogin ?? '');
     setFormRole(u.role);
     setFormBusinessScopeId(u.businessScopeId ?? '');
+    setFormStoreScopeId(u.storeScopeId ?? '');
     setPanel('edit');
   };
 
@@ -171,6 +193,7 @@ export function AdminUsersEmployees() {
           password: formPassword,
           role: formRole,
           businessScopeId: formBusinessScopeId || undefined,
+          storeScopeId: formStoreScopeId || undefined,
         },
         token,
       );
@@ -196,6 +219,7 @@ export function AdminUsersEmployees() {
           staffLogin: formLogin.trim().toLowerCase() || null,
           role: formRole,
           businessScopeId: formBusinessScopeId || null,
+          storeScopeId: formStoreScopeId || null,
         },
         token,
       );
@@ -554,12 +578,26 @@ export function AdminUsersEmployees() {
                       ),
                     )}
                   </select>
+                  {roleNeedsStoreScope(formRole) ? (
+                    <select
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+                      value={formStoreScopeId}
+                      onChange={(e) => setFormStoreScopeId(e.target.value)}
+                    >
+                      <option value="">Do‘kon (yig‘uvchi uchun) —</option>
+                      {stores.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
                   <select
                     className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
                     value={formBusinessScopeId}
                     onChange={(e) => setFormBusinessScopeId(e.target.value)}
                   >
-                    <option value="">Biznes —</option>
+                    <option value="">Biznes (legacy) —</option>
                     {businesses.map((b) => (
                       <option key={b.id} value={b.id}>
                         {b.displayName}

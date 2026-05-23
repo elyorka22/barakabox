@@ -5,7 +5,14 @@ import { Role } from '@prisma/client';
  * Duplicated here because Docker build context is backend/ only.
  */
 
-export const STAFF_ROLE_ORDER = ['ADMIN', 'MANAGER', 'BUSINESS', 'PICKER', 'COURIER'] as const;
+export const STAFF_ROLE_ORDER = [
+  'ADMIN',
+  'MANAGER',
+  'STORE_OWNER',
+  'BUSINESS',
+  'PICKER',
+  'COURIER',
+] as const;
 
 export const ALL_STAFF_ROLES = ['SUPER_ADMIN', ...STAFF_ROLE_ORDER] as const;
 
@@ -13,6 +20,11 @@ export type StaffRoleName = (typeof ALL_STAFF_ROLES)[number];
 
 export function normalizeRole(role?: string | null): string {
   return (role ?? '').trim().toUpperCase();
+}
+
+export function isStoreOperatorRole(role?: string | null): boolean {
+  const r = normalizeRole(role);
+  return r === 'BUSINESS' || r === 'STORE_OWNER';
 }
 
 export function isAdminPanelRole(role?: string | null): boolean {
@@ -36,6 +48,9 @@ export function roleMatchesRequired(userRole: string, required: string): boolean
   if (req === 'SYSTEM_ADMIN') {
     return u === 'SUPER_ADMIN' || u === 'ADMIN';
   }
+  if (req === 'BUSINESS') {
+    return isStoreOperatorRole(u);
+  }
   return false;
 }
 
@@ -47,8 +62,13 @@ function sortStaffRoles(roles: StaffRoleName[]): StaffRoleName[] {
 export function staffRolesAssignableBy(actorRole?: string | null): StaffRoleName[] {
   const r = normalizeRole(actorRole);
   if (r === 'SUPER_ADMIN') return sortStaffRoles([...ALL_STAFF_ROLES]);
-  if (r === 'ADMIN') return sortStaffRoles(['MANAGER', 'BUSINESS', 'PICKER', 'COURIER']);
-  if (r === 'MANAGER') return sortStaffRoles(['BUSINESS', 'PICKER', 'COURIER']);
+  if (r === 'ADMIN') {
+    return sortStaffRoles(['MANAGER', 'STORE_OWNER', 'BUSINESS', 'PICKER', 'COURIER']);
+  }
+  if (r === 'MANAGER') {
+    return sortStaffRoles(['STORE_OWNER', 'BUSINESS', 'PICKER', 'COURIER']);
+  }
+  if (r === 'STORE_OWNER') return sortStaffRoles(['PICKER', 'COURIER']);
   return [];
 }
 
@@ -70,16 +90,23 @@ export function canManageStaffUser(
   if (ar === 'ADMIN' || ar === 'MANAGER') {
     return tr !== 'SUPER_ADMIN' && tr !== 'ADMIN';
   }
+  if (ar === 'STORE_OWNER') {
+    return tr === 'PICKER' || tr === 'COURIER';
+  }
   return false;
 }
 
 export function staffDashboardPath(role?: string | null): string | null {
   const r = normalizeRole(role);
   if (r === 'SUPER_ADMIN' || r === 'ADMIN' || r === 'MANAGER') return '/admin';
-  if (r === 'BUSINESS') return '/business';
+  if (isStoreOperatorRole(r)) return '/store';
   if (r === 'COURIER') return '/courier';
   if (r === 'PICKER') return '/picker';
   return null;
+}
+
+export function staffRoleRequiresStoreScope(role?: string | null): boolean {
+  return normalizeRole(role) === 'PICKER';
 }
 
 /** Prisma staff roles (excludes CLIENT). */
@@ -87,6 +114,7 @@ export const PRISMA_STAFF_ROLES: Role[] = [
   Role.SUPER_ADMIN,
   Role.ADMIN,
   Role.MANAGER,
+  Role.STORE_OWNER,
   Role.BUSINESS,
   Role.COURIER,
   Role.PICKER,

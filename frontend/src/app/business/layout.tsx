@@ -12,7 +12,8 @@ export default function BusinessLayout({ children }: { children: React.ReactNode
     const validate = async () => {
       await authStorage.restoreSession();
       const user = authStorage.getUser();
-      if ((user?.role ?? '').toUpperCase() !== 'BUSINESS') {
+      const role = (user?.role ?? '').toUpperCase();
+      if (role !== 'BUSINESS' && role !== 'STORE_OWNER') {
         router.replace('/profile');
         return;
       }

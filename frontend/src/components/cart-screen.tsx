@@ -18,6 +18,7 @@ import { cartCashbackEarnEstimate, cartSubtotal, countCashbackOfferLines } from 
 import { useGuestOrderTracking } from '@/hooks/use-guest-order-tracking';
 import { GuestOrderCompletionBanner } from '@/components/order/guest-order-completion-banner';
 import { GuestOrderTrackingPanel } from '@/components/order/guest-order-tracking-panel';
+import { ActiveStoreBanner } from '@/components/cart/active-store-banner';
 
 const NAV_BOTTOM = 'calc(var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))';
 /** Space for collapsed sheet (~138px) + small gap above nav */
@@ -101,6 +102,10 @@ export function CartScreen() {
           <h1 className="text-[26px] font-extrabold tracking-tight text-[#121212]">Savatcha</h1>
           <p className="mt-1 text-[14px] font-medium text-slate-500">Mahsulotlarni tekshiring, keyin buyurtma bering.</p>
         </header>
+
+        <div className="mt-3">
+          <ActiveStoreBanner />
+        </div>
 
         {error ? (
           <div

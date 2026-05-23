@@ -36,6 +36,8 @@ import {
   formatScheduleOrderSummary,
   formatScheduledDeliveryMessage,
 } from '@/lib/scheduled-delivery';
+import { ActiveStoreBanner } from '@/components/cart/active-store-banner';
+import { clearActiveStore, getActiveStore } from '@/lib/cart-store-context';
 
 const STICKY_BOTTOM = 'calc(var(--bb-mobile-nav-height) + env(safe-area-inset-bottom))';
 
@@ -506,6 +508,10 @@ export function CheckoutScreen() {
       } else {
         body.deliveryType = 'INSTANT';
       }
+      const activeStore = getActiveStore();
+      if (activeStore?.storeId) {
+        body.storeId = activeStore.storeId;
+      }
       const order = await api.post<PublicOrderTrackSnapshot & { id?: string }>('/orders', body, token);
       saveLastOrderSnapshot(
         {
@@ -517,12 +523,15 @@ export function CheckoutScreen() {
         enrich,
       );
       guestTracking.registerNewOrder(order);
+      clearActiveStore();
       void import('@/lib/analytics/client').then((m) => {
         m.trackAnalytics('order_created', {
           orderId: order.id,
           orderNumber: order.orderNumber,
           isScheduled: order.isScheduled,
           deliveryType: order.deliveryType,
+          storeId: activeStore?.storeId,
+          storeSlug: activeStore?.storeSlug,
         });
         m.trackAnalytics('payment_success', { orderId: order.id, orderNumber: order.orderNumber });
       });
@@ -583,6 +592,10 @@ export function CheckoutScreen() {
               <h1 className="text-[22px] font-extrabold tracking-tight text-[#121212]">Buyurtma</h1>
             </div>
             <p className="mt-1 pl-1 text-[13px] font-medium text-slate-500">Yetkazib berish ma&apos;lumotlari va to&apos;lov</p>
+
+            <div className="mt-3">
+              <ActiveStoreBanner />
+            </div>
 
             {showCompletedFlash && guestTracking.completedFlash ? (
               <div className="mt-4">

@@ -33,6 +33,11 @@ type Variant = {
 
 export type ProductCardProps = {
   id: string;
+  listingId?: string;
+  storeId?: string;
+  storeName?: string;
+  storeSlug?: string;
+  purchasable?: boolean;
   name: string;
   price: string;
   unit?: ProductUnitCode | string | null;
@@ -60,6 +65,11 @@ export type ProductCardProps = {
 
 function ProductCardBase({
   id,
+  listingId,
+  storeId,
+  storeName,
+  storeSlug,
+  purchasable = true,
   name,
   price,
   unit: unitProp,
@@ -146,6 +156,7 @@ function ProductCardBase({
   };
 
   const outOfStock = activeVariant ? (activeVariant.stock ?? 0) <= 0 : true;
+  const cartDisabled = outOfStock || purchasable === false;
 
   const metaLine = buildProductCardMetaLine({
     flavor: activeVariant?.flavor,
@@ -184,6 +195,11 @@ function ProductCardBase({
       stock: v.stock ?? 0,
       imageUrl: v.imageUrl,
     })),
+    listingId,
+    storeId,
+    storeName,
+    storeSlug,
+    purchasable,
   };
 
   const openSheet = () => openProduct(storefrontProduct);
@@ -269,7 +285,11 @@ function ProductCardBase({
                   productId={id}
                   sellingMode={sellingMode}
                   unit={unitType}
-                  disabled={outOfStock}
+                  disabled={cartDisabled}
+                  storeId={storeId}
+                  storeName={storeName}
+                  storeSlug={storeSlug}
+                  listingId={listingId}
                 />
               </div>
             </div>

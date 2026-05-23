@@ -87,4 +87,10 @@ export class CreateOrderDto {
   @IsString()
   @MaxLength(64)
   deliverySlot?: string;
+
+  /** Marketplace store when cart was store-scoped (Stage 13). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  storeId?: string;
 }

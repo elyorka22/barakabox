@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CourierOrdersService } from './courier-orders.service';
+import { OrderScopeService } from './order-scope.service';
 import { OrdersController } from './orders.controller';
 import { CartModule } from '../cart/cart.module';
 import { CustomersModule } from '../customers/customers.module';
@@ -14,7 +15,15 @@ import { AnalyticsModule } from '../analytics/analytics.module';
 
 @Module({
   imports: [CartModule, UsersModule, CustomersModule, CouponsModule, SettingsModule, AnalyticsModule],
-  providers: [OrdersService, CourierOrdersService, QueueService, EventEmitterService, ScheduledOrdersCron],
+  providers: [
+    OrdersService,
+    CourierOrdersService,
+    OrderScopeService,
+    QueueService,
+    EventEmitterService,
+    ScheduledOrdersCron,
+  ],
   controllers: [OrdersController],
+  exports: [OrdersService, OrderScopeService],
 })
 export class OrdersModule {}

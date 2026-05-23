@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion, type PanInfo } from 'framer-motion';
 import { X } from 'lucide-react';
 import { ProductSheetContent } from '@/components/product/product-sheet-content';
+import { ProductSheetCartFooter } from '@/components/product/product-sheet-cart-footer';
 import { useProductSheet } from '@/lib/product-sheet-context';
 
 const CLOSE_DRAG_PX = 72;
@@ -79,6 +80,7 @@ export function ProductBottomSheet() {
               <X className="h-4 w-4" strokeWidth={2.25} />
             </button>
             <ProductSheetContent product={product} />
+            <ProductSheetCartFooter product={product} />
           </motion.div>
         </motion.div>
       ) : null}

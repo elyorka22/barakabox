@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { hydrateStorefrontProduct } from '@/lib/marketplace-product';
 import type { StorefrontProduct } from '@/types/storefront-product';
 
 type ProductSheetContextValue = {
@@ -33,11 +34,30 @@ export function ProductSheetProvider({ children }: { children: ReactNode }) {
   const openProduct = useCallback((p: StorefrontProduct) => {
     setProduct(p);
     setIsOpen(true);
+
+    if (p.listingId && p.purchasable !== false) {
+      void hydrateStorefrontProduct(p)
+        .then((full) => {
+          setProduct(full);
+          setCatalog((prev) => {
+            const idx = prev.findIndex((x) => x.listingId === full.listingId || x.id === full.id);
+            if (idx < 0) return [...prev, full];
+            const next = [...prev];
+            next[idx] = full;
+            return next;
+          });
+        })
+        .catch(() => undefined);
+    }
+
     void import('@/lib/analytics/client').then((m) =>
       m.trackAnalytics('product_viewed', {
         productId: p.id,
         productName: p.name,
         variantId: p.variants?.[0]?.id,
+        listingId: p.listingId,
+        storeId: p.storeId,
+        storeSlug: p.storeSlug,
       }),
     );
   }, []);

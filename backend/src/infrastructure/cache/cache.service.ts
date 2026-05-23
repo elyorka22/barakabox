@@ -1,6 +1,7 @@
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { Cache } from 'cache-manager';
+import { cacheKeys } from '../../common/cache/cache-keys';
 
 @Injectable()
 export class CacheService {
@@ -58,7 +59,22 @@ export class CacheService {
     return next;
   }
 
-  async invalidateStorefrontCatalog(): Promise<void> {
+  async invalidateMarketplaceStorefront(storeSlug?: string): Promise<void> {
+    const keys = [
+      cacheKeys.marketplaceHome(),
+      cacheKeys.marketplaceStores(false),
+      cacheKeys.marketplaceStores(true),
+    ];
+    for (const limit of [12, 15, 20, 24]) {
+      keys.push(cacheKeys.productsTop(limit));
+    }
+    if (storeSlug?.trim()) {
+      keys.push(cacheKeys.marketplaceStore(storeSlug.trim()));
+    }
+    await Promise.all(keys.map((k) => this.del(k)));
+  }
+
+  async invalidateStorefrontCatalog(storeSlug?: string): Promise<void> {
     await this.bumpCatalogVersion();
     const keys = [
       'storefront:products:home:v1',
@@ -68,5 +84,6 @@ export class CacheService {
       'storefront:categories:v1:all',
     ];
     await Promise.all(keys.map((k) => this.del(k)));
+    await this.invalidateMarketplaceStorefront(storeSlug);
   }
 }

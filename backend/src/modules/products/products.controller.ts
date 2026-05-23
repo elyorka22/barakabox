@@ -5,6 +5,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthUser } from '../../common/decorators/current-user.decorator';
+import { isStoreOperatorRole } from '../../common/roles';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { UpdateTopProductsDto } from './dto/update-top-products.dto';
@@ -58,8 +59,7 @@ export class ProductsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'BUSINESS')
   create(@CurrentUser() user: AuthUser, @Body() body: CreateProductDto) {
-    const r = (user.role ?? '').toUpperCase();
-    if (r === 'BUSINESS') {
+    if (isStoreOperatorRole(user.role)) {
       return this.productsService.createByBusinessOwner(user.sub, body);
     }
     if (!body.businessId) {
@@ -124,8 +124,7 @@ export class ProductsController {
     @Param('id') id: string,
     @Body() body: UpdateProductDto,
   ) {
-    const r = (user.role ?? '').toUpperCase();
-    if (r === 'BUSINESS') {
+    if (isStoreOperatorRole(user.role)) {
       return this.productsService.updateByBusinessOwner(id, user.sub, body);
     }
     return this.productsService.updateByAdmin(id, body);
@@ -135,8 +134,7 @@ export class ProductsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'BUSINESS')
   remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    const r = (user.role ?? '').toUpperCase();
-    if (r === 'BUSINESS') {
+    if (isStoreOperatorRole(user.role)) {
       return this.productsService.removeByBusinessOwner(id, user.sub);
     }
     return this.productsService.removeByAdmin(id);

@@ -34,6 +34,36 @@ async function main() {
     create: { userId: businessUser.id, displayName: 'Baraka Fresh Store', status: 'APPROVED' },
   });
 
+  const storeOwner = await createUser('storeowner@barakabox.local', 'Store Owner', Role.STORE_OWNER, {
+    staffLogin: 'storeowner',
+  });
+
+  const marketplaceStore = await prisma.store.upsert({
+    where: { slug: 'baraka-fresh' },
+    update: {
+      name: 'Baraka Fresh Store',
+      ownerUserId: storeOwner.id,
+      businessProfileId: businessProfile.id,
+      isActive: true,
+      isFeatured: true,
+      sortOrder: 0,
+    },
+    create: {
+      name: 'Baraka Fresh Store',
+      slug: 'baraka-fresh',
+      ownerUserId: storeOwner.id,
+      businessProfileId: businessProfile.id,
+      isActive: true,
+      isFeatured: true,
+      sortOrder: 0,
+    },
+  });
+
+  await prisma.user.update({
+    where: { id: picker.id },
+    data: { storeScopeId: marketplaceStore.id, businessScopeId: null },
+  });
+
   const categories = [
     { name: 'All', slug: 'all', imageUrl: '/categories/all.svg' },
     { name: 'Fruits', slug: 'fruits', imageUrl: '/categories/fruits.svg' },
@@ -56,6 +86,74 @@ async function main() {
     dairy: (await prisma.category.findUniqueOrThrow({ where: { slug: 'dairy' } })).id,
     bakery: (await prisma.category.findUniqueOrThrow({ where: { slug: 'bakery' } })).id,
   };
+
+  const cola = await prisma.globalProduct.upsert({
+    where: { slug: 'coca-cola' },
+    update: {
+      name: 'Coca Cola',
+      brand: 'Coca-Cola',
+      isActive: true,
+      categoryId: categoryMap.dairy,
+    },
+    create: {
+      name: 'Coca Cola',
+      slug: 'coca-cola',
+      brand: 'Coca-Cola',
+      isActive: true,
+      categoryId: categoryMap.dairy,
+    },
+  });
+
+  for (const variant of [
+    { type: 'volume', value: '0.5L', sortOrder: 0 },
+    { type: 'volume', value: '1L', sortOrder: 1 },
+    { type: 'volume', value: '1.5L', sortOrder: 2 },
+  ]) {
+    const existingVariant = await prisma.globalVariant.findFirst({
+      where: { globalProductId: cola.id, type: variant.type, value: variant.value },
+    });
+    if (!existingVariant) {
+      await prisma.globalVariant.create({
+        data: { globalProductId: cola.id, ...variant },
+      });
+    }
+  }
+
+  await prisma.globalProduct.upsert({
+    where: { slug: 'apple-global' },
+    update: { name: 'Apple', isActive: true, categoryId: categoryMap.fruits },
+    create: {
+      name: 'Apple',
+      slug: 'apple-global',
+      isActive: true,
+      categoryId: categoryMap.fruits,
+    },
+  });
+
+  const colaHalfLiter = await prisma.globalVariant.findFirst({
+    where: { globalProductId: cola.id, value: '0.5L' },
+  });
+  if (colaHalfLiter) {
+    const existingListing = await prisma.storeProduct.findFirst({
+      where: {
+        storeId: marketplaceStore.id,
+        globalProductId: cola.id,
+        globalVariantId: colaHalfLiter.id,
+      },
+    });
+    if (!existingListing) {
+      await prisma.storeProduct.create({
+        data: {
+          storeId: marketplaceStore.id,
+          globalProductId: cola.id,
+          globalVariantId: colaHalfLiter.id,
+          price: 8000,
+          stock: 48,
+          isVisible: true,
+        },
+      });
+    }
+  }
 
   const products = [
     { name: 'Apple', price: 12000, stockQuantity: 100, categoryId: categoryMap.fruits, unit: 'dona' as const },
@@ -184,6 +282,9 @@ async function main() {
     admin: admin.email,
     adminLogin: admin.staffLogin,
     business: businessUser.email,
+    storeOwner: storeOwner.email,
+    storeOwnerLogin: storeOwner.staffLogin,
+    storeSlug: marketplaceStore.slug,
     courier: courier.email,
     courierLogin: courier.staffLogin,
     picker: picker.email,

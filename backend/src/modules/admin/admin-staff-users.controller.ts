@@ -1,4 +1,18 @@
-import { Body, Controller, Delete, ConflictException, ForbiddenException, Get, NotFoundException, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  ConflictException,
+  ForbiddenException,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { Role, User } from '@prisma/client';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -6,7 +20,12 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthUser } from '../../common/decorators/current-user.decorator';
-import { canManageStaffUser, PRISMA_STAFF_ROLES, staffRolesAssignableBy } from '../../common/roles';
+import {
+  canManageStaffUser,
+  PRISMA_STAFF_ROLES,
+  staffRolesAssignableBy,
+  staffRoleRequiresStoreScope,
+} from '../../common/roles';
 import { throwMappedPrismaError } from '../../common/utils/prisma-errors';
 import { parseStaffRoleQuery } from '../../common/utils/role-parse.util';
 import { UsersService, staffEmailFromLogin } from '../users/users.service';
@@ -36,6 +55,31 @@ export class AdminStaffUsersController {
     }
     if (!PRISMA_STAFF_ROLES.includes(targetRole)) {
       throw new ForbiddenException('Noto‘g‘ri rol');
+    }
+  }
+
+  private async assertStaffScope(
+    role: Role,
+    scope: { businessScopeId?: string | null; storeScopeId?: string | null },
+  ) {
+    const storeId = scope.storeScopeId?.trim() || null;
+    const bizId = scope.businessScopeId?.trim() || null;
+
+    if (staffRoleRequiresStoreScope(role)) {
+      if (!storeId && !bizId) {
+        throw new BadRequestException(
+          'Yig‘uvchi uchun do‘kon (storeScopeId) yoki biznes (businessScopeId) tanlang',
+        );
+      }
+    }
+
+    if (storeId) {
+      const store = await this.prisma.store.findUnique({ where: { id: storeId } });
+      if (!store) throw new ForbiddenException('Do‘kon topilmadi');
+    }
+    if (bizId) {
+      const bp = await this.prisma.businessProfile.findUnique({ where: { id: bizId } });
+      if (!bp) throw new ForbiddenException('Biznes topilmadi');
     }
   }
 
@@ -74,16 +118,13 @@ export class AdminStaffUsersController {
   async create(@CurrentUser() actor: AuthUser, @Body() dto: AdminCreateStaffUserDto) {
     try {
       this.assertCanAssignRole(actor, dto.role);
+      await this.assertStaffScope(dto.role, dto);
       const login = dto.staffLogin.trim().toLowerCase();
       const email = staffEmailFromLogin(login);
       const existingEmail = await this.usersService.findByEmail(email);
       const existingLogin = await this.usersService.findByStaffLogin(login);
       if (existingEmail || existingLogin) {
         throw new ConflictException('Bu login allaqachon band');
-      }
-      if (dto.businessScopeId) {
-        const bp = await this.prisma.businessProfile.findUnique({ where: { id: dto.businessScopeId } });
-        if (!bp) throw new ForbiddenException('Biznes topilmadi');
       }
       await this.usersService.assertStaffPhoneAvailable(dto.phone);
       const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -95,11 +136,16 @@ export class AdminStaffUsersController {
         staffLogin: login,
         phone: dto.phone ?? null,
         businessScopeId: dto.businessScopeId ?? null,
+        storeScopeId: dto.storeScopeId ?? null,
         isActive: true,
       });
       return this.sanitize(user);
     } catch (error) {
-      if (error instanceof ConflictException || error instanceof ForbiddenException) {
+      if (
+        error instanceof ConflictException ||
+        error instanceof ForbiddenException ||
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throwMappedPrismaError(error, 'adminCreateStaffUser');
@@ -111,12 +157,19 @@ export class AdminStaffUsersController {
     const existing = await this.usersService.findById(id);
     if (!existing) throw new NotFoundException('Foydalanuvchi topilmadi');
     this.assertActorMayMutateStaff(actor, existing, 'edit-profile');
+    const nextRole = dto.role ?? existing.role;
     if (dto.role) this.assertCanAssignRole(actor, dto.role);
+    await this.assertStaffScope(nextRole, {
+      businessScopeId:
+        dto.businessScopeId !== undefined ? dto.businessScopeId : existing.businessScopeId,
+      storeScopeId: dto.storeScopeId !== undefined ? dto.storeScopeId : existing.storeScopeId,
+    });
     const updated = await this.usersService.updateStaffProfile(id, {
       fullName: dto.fullName,
       phone: dto.phone,
       role: dto.role,
       businessScopeId: dto.businessScopeId,
+      storeScopeId: dto.storeScopeId,
       staffLogin: dto.staffLogin,
     });
     return this.sanitize(updated);
@@ -173,6 +226,7 @@ export class AdminStaffUsersController {
     isActive: boolean;
     lastLoginAt: Date | null;
     businessScopeId: string | null;
+    storeScopeId: string | null;
   }) {
     return {
       id: user.id,
@@ -184,6 +238,7 @@ export class AdminStaffUsersController {
       isActive: user.isActive,
       lastLoginAt: user.lastLoginAt,
       businessScopeId: user.businessScopeId,
+      storeScopeId: user.storeScopeId,
     };
   }
 }

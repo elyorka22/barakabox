@@ -148,6 +148,7 @@ export class AuthService {
       staffLogin: user.staffLogin ?? null,
       phone: user.phone ?? null,
       businessScopeId: user.businessScopeId ?? null,
+      storeScopeId: user.storeScopeId ?? null,
       isActive: user.isActive,
     };
   }

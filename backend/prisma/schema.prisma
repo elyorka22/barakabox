@@ -12,6 +12,7 @@ enum Role {
   SUPER_ADMIN
   ADMIN
   MANAGER
+  STORE_OWNER
   BUSINESS
   COURIER
   PICKER
@@ -137,13 +138,17 @@ model User {
   staffLogin      String?          @unique
   phone           String?
   isActive        Boolean          @default(true)
-  /// Optional scope: courier/picker tied to one business (BusinessProfile id).
+  /// Legacy scope: courier/picker tied to BusinessProfile (prefer storeScopeId for pickers).
   businessScopeId String?
+  /// Store scope for pickers — required for new PICKER accounts.
+  storeScopeId    String?
   lastLoginAt     DateTime?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   businessProfile BusinessProfile?
   businessScope   BusinessProfile? @relation("BusinessStaffScope", fields: [businessScopeId], references: [id], onDelete: SetNull)
+  storeScope      Store?           @relation("StoreStaffScope", fields: [storeScopeId], references: [id], onDelete: SetNull)
+  ownedStores     Store[]          @relation("StoreOwner")
   cart            Cart?
   orders          Order[]
   pickerOrders    Order[]          @relation("PickerAssignments")
@@ -155,6 +160,7 @@ model User {
 
   @@index([role])
   @@index([businessScopeId])
+  @@index([storeScopeId])
 }
 
 model CourierOrderReject {
@@ -268,6 +274,8 @@ model BusinessProfile {
   user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   products    Product[]
   scopedStaff User[]         @relation("BusinessStaffScope")
+  /// Populated when legacy business is linked to a marketplace Store (Stage 4 migration).
+  store       Store?
 
   @@index([status])
 }
@@ -384,16 +392,17 @@ model FailedUploadJob {
 }
 
 model Category {
-  id         String    @id @default(cuid())
-  name       String
-  slug       String    @unique
-  imageUrl   String?
-  sortOrder  Int       @default(0)
-  isFeatured Boolean   @default(true)
-  isActive   Boolean   @default(true)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  products   Product[]
+  id              String          @id @default(cuid())
+  name            String
+  slug            String          @unique
+  imageUrl        String?
+  sortOrder       Int             @default(0)
+  isFeatured      Boolean         @default(true)
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  products        Product[]
+  globalProducts  GlobalProduct[]
 
   @@index([isActive])
   @@index([sortOrder])
@@ -476,6 +485,8 @@ model Order {
   id            String      @id @default(cuid())
   orderNumber   String?     @unique
   trackingToken String?   @unique
+  /// Marketplace storefront that originated the cart (Stage 13).
+  storeId       String?
   userId        String?
   customerId    String?
   assignedPickerId String?
@@ -522,8 +533,10 @@ model Order {
   courierRejects CourierOrderReject[]
   coupon         Coupon?  @relation(fields: [couponId], references: [id], onDelete: SetNull)
   couponRedemption CouponRedemption?
+  store          Store?   @relation(fields: [storeId], references: [id], onDelete: SetNull)
 
   @@index([userId, status])
+  @@index([storeId, createdAt])
   @@index([couponId])
   @@index([customerId])
   @@index([idempotencyKey, createdAt])
@@ -674,4 +687,118 @@ model AnalyticsDailyMetric {
 
   @@unique([dateKey, metric, dimension])
   @@index([dateKey, metric])
+}
+
+// ---------------------------------------------------------------------------
+// Multi-store marketplace (additive; legacy Product / BusinessProfile unchanged)
+// ---------------------------------------------------------------------------
+
+/// Platform-wide catalog: name, images, category, brand live here only.
+model GlobalProduct {
+  id            String          @id @default(cuid())
+  name          String
+  slug          String          @unique
+  description   String?
+  categoryId    String?
+  brand         String?
+  imageUrl      String?
+  imageKey      String?
+  imageCardUrl  String?
+  imageCardKey  String?
+  imageThumbUrl String?
+  imageThumbKey String?
+  /// Extra gallery entries: [{ url, cardUrl, thumbUrl, sortOrder }]
+  imagesJson    Json            @default("[]")
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  /// Set during Stage 4 migration from legacy Product.id.
+  legacyProductId String?       @unique
+  category      Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  variants      GlobalVariant[]
+  storeListings StoreProduct[]
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@index([name])
+}
+
+/// Catalog variant (e.g. type=volume, value=1L). Stores set price/stock on StoreProduct.
+model GlobalVariant {
+  id              String         @id @default(cuid())
+  globalProductId String
+  type            String
+  value           String
+  imageUrl        String?
+  sku             String?
+  sortOrder       Int            @default(0)
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  /// Set during Stage 4 migration from legacy ProductVariant.id.
+  legacyVariantId String?        @unique
+  globalProduct   GlobalProduct  @relation(fields: [globalProductId], references: [id], onDelete: Cascade)
+  storeListings   StoreProduct[]
+
+  @@unique([globalProductId, type, value])
+  @@index([globalProductId, isActive])
+  @@index([sku])
+}
+
+/// Marketplace store (maps from BusinessProfile during migration).
+model Store {
+  id                String           @id @default(cuid())
+  name              String
+  slug              String           @unique
+  logoUrl           String?
+  bannerUrl         String?
+  address           String?
+  phone             String?
+  latitude          Decimal?         @db.Decimal(10, 7)
+  longitude         Decimal?         @db.Decimal(10, 7)
+  deliveryPrice     Int              @default(0)
+  minOrderPrice     Int              @default(0)
+  isActive          Boolean          @default(true)
+  isFeatured        Boolean          @default(false)
+  sortOrder         Int              @default(0)
+  ownerUserId       String?
+  businessProfileId String?          @unique
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  owner             User?            @relation("StoreOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  businessProfile   BusinessProfile? @relation(fields: [businessProfileId], references: [id], onDelete: SetNull)
+  scopedStaff       User[]           @relation("StoreStaffScope")
+  storeProducts     StoreProduct[]
+  orders            Order[]
+
+  @@index([isActive])
+  @@index([ownerUserId])
+}
+
+/// Per-store listing: price, stock, cashback, visibility (no duplicate catalog text).
+model StoreProduct {
+  id               String         @id @default(cuid())
+  storeId          String
+  globalProductId  String
+  globalVariantId  String?
+  price            Int
+  oldPrice         Int?
+  stock            Int            @default(0)
+  cashbackType     CashbackType   @default(NONE)
+  cashbackValue    Int            @default(0)
+  isVisible        Boolean        @default(true)
+  isTop            Boolean        @default(false)
+  topOrder         Int            @default(0)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  /// Set during Stage 4 migration from legacy Product.id.
+  legacyProductId  String?        @unique
+  store            Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  globalProduct    GlobalProduct  @relation(fields: [globalProductId], references: [id], onDelete: Cascade)
+  globalVariant    GlobalVariant? @relation(fields: [globalVariantId], references: [id], onDelete: SetNull)
+
+  @@index([storeId, isVisible])
+  @@index([storeId, isTop, topOrder])
+  @@index([globalProductId])
+  @@index([globalVariantId])
 }

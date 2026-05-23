@@ -7,6 +7,6 @@
     "sourceMap": false,
     "incremental": false
   },
-  "include": ["prisma/seed.ts"],
+  "include": ["prisma/seed.ts", "prisma/marketplace-migrate.ts"],
   "exclude": ["node_modules", "dist", "test"]
 }

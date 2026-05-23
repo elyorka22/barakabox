@@ -4,6 +4,11 @@ import type { StorefrontProduct } from '@/types/storefront-product';
 export function mapStorefrontProductToCardProps(product: StorefrontProduct): ProductCardProps {
   return {
     id: product.id,
+    listingId: product.listingId,
+    storeId: product.storeId,
+    storeName: product.storeName,
+    storeSlug: product.storeSlug,
+    purchasable: product.purchasable,
     name: product.name,
     price: product.price,
     unit: product.unit ?? undefined,

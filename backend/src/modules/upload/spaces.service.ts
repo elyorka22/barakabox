@@ -11,7 +11,14 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 /** Allowed top-level object prefixes — single bucket, folder-based layout. */
-export const SPACES_OBJECT_PREFIXES = ['products', 'categories', 'banners', 'users', 'debug'] as const;
+export const SPACES_OBJECT_PREFIXES = [
+  'products',
+  'categories',
+  'banners',
+  'users',
+  'stores',
+  'debug',
+] as const;
 export type SpacesObjectPrefix = (typeof SPACES_OBJECT_PREFIXES)[number];
 
 @Injectable()

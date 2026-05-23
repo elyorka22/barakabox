@@ -47,4 +47,10 @@ describe('RolesGuard', () => {
     const guard = new RolesGuard(reflector);
     expect(() => guard.canActivate(makeContext('MANAGER'))).toThrow(ForbiddenException);
   });
+
+  it('allows STORE_OWNER for BUSINESS routes', () => {
+    const reflector = { getAllAndOverride: jest.fn().mockReturnValue(['BUSINESS']) } as unknown as Reflector;
+    const guard = new RolesGuard(reflector);
+    expect(guard.canActivate(makeContext('STORE_OWNER'))).toBe(true);
+  });
 });

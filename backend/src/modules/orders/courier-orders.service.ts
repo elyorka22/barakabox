@@ -1,6 +1,7 @@
 import { BadRequestException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { OrderStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { OrderScopeService } from './order-scope.service';
 
 const REJECT_COOLDOWN_MS = 45_000;
 const REJECT_HIDE_MS = 30 * 60_000;
@@ -17,7 +18,10 @@ type PeriodBucket = {
 
 @Injectable()
 export class CourierOrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly orderScope: OrderScopeService,
+  ) {}
 
   private orderInclude() {
     return {
@@ -37,10 +41,14 @@ export class CourierOrdersService {
     });
     const hiddenSet = new Set(rejectedIds.map((r) => r.orderId));
 
+    const scope = await this.orderScope.resolveStaffOrderScope(courierUserId);
+    const queueWhere: Prisma.OrderWhereInput = {
+      OR: [{ status: 'READY' }, { status: 'DELIVERING', assignedCourierId: courierUserId }],
+    };
+    const where = scope ? { AND: [queueWhere, scope] } : queueWhere;
+
     const orders = await this.prisma.order.findMany({
-      where: {
-        OR: [{ status: 'READY' }, { status: 'DELIVERING', assignedCourierId: courierUserId }],
-      },
+      where,
       include: this.orderInclude(),
       orderBy: { createdAt: 'asc' },
     });

@@ -12,8 +12,11 @@ import { HomeInstallCard } from '@/components/pwa/HomeInstallCard';
 import { SafeImage } from '@/components/safe-image';
 import { HomeDeliveryBanner } from '@/components/home/home-delivery-banner';
 import { formatMoneyUz } from '@/lib/format';
-import { fetchPromotionsPage, fetchTopProducts, type PaginatedProducts } from '@/lib/storefront-api';
+import { fetchPromotionsPage, type PaginatedProducts } from '@/lib/storefront-api';
+import { fetchMarketplaceHome } from '@/lib/marketplace-home';
 import { TopProductsCarousel } from '@/components/home/top-products-carousel';
+import { FeaturedStoresCarousel } from '@/components/home/featured-stores-carousel';
+import { StoreSections } from '@/components/home/store-sections';
 import { useProductSheet } from '@/lib/product-sheet-context';
 import type { StorefrontProduct } from '@/types/storefront-product';
 import { hasVisibleDiscount, resolveProductSalePricing } from '@/lib/promotion-product';
@@ -52,6 +55,13 @@ export function HomePageClient({ initialCatalog }: Props) {
   const [loadingPromos, setLoadingPromos] = useState(true);
   const [topProducts, setTopProducts] = useState<StorefrontProduct[]>([]);
   const [loadingTop, setLoadingTop] = useState(false);
+  const [featuredStores, setFeaturedStores] = useState<
+    Awaited<ReturnType<typeof fetchMarketplaceHome>>['featuredStores']
+  >([]);
+  const [storeSections, setStoreSections] = useState<
+    Awaited<ReturnType<typeof fetchMarketplaceHome>>['storeSections']
+  >([]);
+  const [marketplacePromos, setMarketplacePromos] = useState<StorefrontProduct[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [showDeferredSections, setShowDeferredSections] = useState(false);
@@ -111,23 +121,32 @@ export function HomePageClient({ initialCatalog }: Props) {
   useEffect(() => {
     if (!showDeferredSections) return;
     let cancelled = false;
-    const loadTop = async () => {
+    const loadMarketplace = async () => {
       setLoadingTop(true);
       try {
-        const data = await fetchTopProducts(15);
+        const home = await fetchMarketplaceHome();
         if (cancelled) return;
-        const items = data.items ?? [];
-        setTopProducts(items);
-        if (items.length > 0) {
-          registerCatalog([...initialCatalog.items, ...items]);
+        const top = home.topProducts ?? [];
+        setTopProducts(top);
+        setFeaturedStores(home.featuredStores ?? []);
+        setStoreSections(home.storeSections ?? []);
+        setMarketplacePromos(home.marketplacePromotions ?? []);
+        const extra = [...top, ...home.marketplacePromotions, ...home.storeSections.flatMap((s) => s.products)];
+        if (extra.length > 0) {
+          registerCatalog([...initialCatalog.items, ...extra]);
         }
       } catch {
-        if (!cancelled) setTopProducts([]);
+        if (!cancelled) {
+          setTopProducts([]);
+          setFeaturedStores([]);
+          setStoreSections([]);
+          setMarketplacePromos([]);
+        }
       } finally {
         if (!cancelled) setLoadingTop(false);
       }
     };
-    void loadTop();
+    void loadMarketplace();
     return () => {
       cancelled = true;
     };
@@ -156,7 +175,7 @@ export function HomePageClient({ initialCatalog }: Props) {
           </div>
           <div className="flex items-center gap-2 rounded-2xl bg-white p-2 shadow-[0_4px_14px_rgba(17,24,39,0.06)]">
             <Link
-              href="/categories"
+              href="/search"
               className="flex flex-1 items-center gap-2 rounded-xl bg-[#F3F4F6] px-3 py-2.5 text-slate-500"
             >
               <Search className="h-4 w-4" />
@@ -195,15 +214,28 @@ export function HomePageClient({ initialCatalog }: Props) {
 
         {showDeferredSections ? (
           <>
-            {discounted.length > 0 ? (
-              <DiscountedCarousel products={discounted} loading={loadingPromos} onOpen={openProduct} />
+            <TopProductsCarousel products={topProducts} loading={loadingTop} />
+
+            <FeaturedStoresCarousel stores={featuredStores} />
+
+            {discounted.length > 0 || marketplacePromos.length > 0 ? (
+              <DiscountedCarousel
+                products={
+                  discounted.length > 0 ? discounted : marketplacePromos
+                }
+                loading={loadingPromos}
+                onOpen={openProduct}
+              />
             ) : null}
 
             <HomeDeliveryBanner />
 
-            <TopProductsCarousel products={topProducts} loading={loadingTop} />
+            <StoreSections sections={storeSections} onOpen={openProduct} />
 
-            <CatalogInfiniteGrid initial={initialCatalog} className="mt-5 pb-24" />
+            <section className="mt-5">
+              <h2 className="mb-2 text-base font-semibold text-[#111827]">Barcha mahsulotlar</h2>
+              <CatalogInfiniteGrid initial={initialCatalog} className="pb-24" />
+            </section>
           </>
         ) : (
           <div className="mt-5 space-y-4 pb-24">

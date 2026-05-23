@@ -156,6 +156,30 @@ export class UploadService {
     });
   }
 
+  /** Store logo or banner — stored under `stores/{storeId}/` on S3-compatible object storage. */
+  async uploadStoreImage(
+    storeId: string,
+    kind: 'logo' | 'banner',
+    file: Express.Multer.File,
+  ) {
+    const id = randomUUID();
+    const ts = Date.now();
+    const extension = file.mimetype === 'image/png' ? 'png' : file.mimetype === 'image/webp' ? 'webp' : 'jpg';
+    const key = `stores/${storeId}/${kind}-${ts}-${id}.${extension}`;
+    return this.spacesService.uploadBuffer({
+      key,
+      buffer: file.buffer,
+      contentType: file.mimetype,
+      cacheControl: 'public, max-age=31536000, immutable',
+    });
+  }
+
+  async deleteImageByUrl(url: string | null | undefined): Promise<void> {
+    const key = this.extractObjectKeyFromUrl(url ?? '', this.bucket);
+    if (!key) return;
+    await this.deleteImage(key);
+  }
+
   async runSpacesDebugUpload() {
     return this.spacesService.testUploadConnectivity();
   }
@@ -240,7 +264,7 @@ export class UploadService {
       if (key) knownKeys.add(key);
     };
 
-    const [products, assets, sessions, variants, categories, banners] = await Promise.all([
+    const [products, assets, sessions, variants, categories, banners, stores] = await Promise.all([
       this.prisma.product.findMany({
         select: { imageKey: true, imageCardKey: true, imageThumbKey: true },
       }),
@@ -256,6 +280,7 @@ export class UploadService {
       }),
       this.prisma.category.findMany({ select: { imageUrl: true } }),
       this.prisma.banner.findMany({ select: { imageUrl: true } }),
+      this.prisma.store.findMany({ select: { logoUrl: true, bannerUrl: true } }),
     ]);
 
     for (const product of products) {
@@ -282,6 +307,10 @@ export class UploadService {
     for (const banner of banners) {
       addKeyFromUrl(banner.imageUrl);
     }
+    for (const store of stores) {
+      addKeyFromUrl(store.logoUrl);
+      addKeyFromUrl(store.bannerUrl);
+    }
 
     return knownKeys;
   }
@@ -289,14 +318,23 @@ export class UploadService {
   private extractObjectKeyFromUrl(url: string, bucket: string): string | null {
     try {
       const parsed = new URL(url);
-      if (!parsed.hostname.includes('digitaloceanspaces.com')) {
-        return null;
+      let path = parsed.pathname.replace(/^\//, '');
+      if (!path) return null;
+      if (path.startsWith(`${bucket}/`)) {
+        path = path.slice(bucket.length + 1);
       }
-      const path = parsed.pathname.replace(/^\//, '');
-      if (!path || path.startsWith(`${bucket}/`)) {
-        return path.replace(new RegExp(`^${bucket}/`), '') || null;
+      const allowed = ['products/', 'categories/', 'banners/', 'users/', 'stores/', 'debug/'];
+      if (allowed.some((prefix) => path.startsWith(prefix))) {
+        return path;
       }
-      return path;
+      if (parsed.hostname.includes('digitaloceanspaces.com')) {
+        return path || null;
+      }
+      const cdnBase = this.spacesService.getPublicBaseUrl();
+      if (cdnBase && url.startsWith(cdnBase)) {
+        return path || null;
+      }
+      return null;
     } catch {
       return null;
     }

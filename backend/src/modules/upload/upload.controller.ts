@@ -142,10 +142,10 @@ export class UploadController {
       throw new BadRequestException("Noto'g'ri fayl turi. Faqat jpg/png/webp mumkin");
     }
     const folderRaw = req?.query?.folder?.trim().toLowerCase();
-    const allowedFolders = new Set(['products', 'categories', 'banners', 'users']);
+    const allowedFolders = new Set(['products', 'categories', 'banners', 'users', 'stores']);
     const folder =
       folderRaw && allowedFolders.has(folderRaw)
-        ? (folderRaw as 'products' | 'categories' | 'banners' | 'users')
+        ? (folderRaw as 'products' | 'categories' | 'banners' | 'users' | 'stores')
         : 'products';
 
     try {

@@ -49,6 +49,7 @@ import {
   orderNumberSearchVariants,
 } from '../../common/utils/order-number.util';
 import { AnalyticsIngestService } from '../analytics/analytics-ingest.service';
+import { OrderScopeService } from './order-scope.service';
 
 const pickerOrderListSelect = {
   id: true,
@@ -108,7 +109,15 @@ export class OrdersService implements OnModuleInit {
     private readonly settingsService: SettingsService,
     private readonly cache: CacheService,
     private readonly analyticsIngest: AnalyticsIngestService,
+    private readonly orderScope: OrderScopeService,
   ) {}
+
+  private withOrderScope(
+    scope: Prisma.OrderWhereInput | null,
+    where: Prisma.OrderWhereInput,
+  ): Prisma.OrderWhereInput {
+    return scope ? { AND: [where, scope] } : where;
+  }
 
   async onModuleInit() {
     void this.backfillMissingOrderNumbers();
@@ -189,6 +198,7 @@ export class OrdersService implements OnModuleInit {
       deliveryType?: 'INSTANT' | 'SCHEDULED';
       scheduledAt?: string;
       deliverySlot?: string;
+      storeId?: string;
     },
   ) {
     const latRaw = deliveryInfo?.latitude;
@@ -220,6 +230,19 @@ export class OrdersService implements OnModuleInit {
     const cart = await this.cartService.getCart(userId);
     if (!cart || cart.items.length === 0) {
       throw new BadRequestException('Cart is empty');
+    }
+
+    let resolvedStoreId: string | null = null;
+    const rawStoreId = deliveryInfo?.storeId?.trim();
+    if (rawStoreId) {
+      const store = await this.prisma.store.findFirst({
+        where: { id: rawStoreId, isActive: true },
+        select: { id: true },
+      });
+      if (!store) {
+        throw new BadRequestException('Do‘kon topilmadi');
+      }
+      resolvedStoreId = store.id;
     }
 
     const preparedLines: PreparedLine[] = [];
@@ -398,6 +421,7 @@ export class OrdersService implements OnModuleInit {
       const createdOrder = await tx.order.create({
         data: {
           trackingToken,
+          storeId: resolvedStoreId,
           userId,
           customerId,
           customerName: deliveryInfo?.name?.trim() || user.fullName,
@@ -869,6 +893,11 @@ export class OrdersService implements OnModuleInit {
       throw new BadRequestException('Order not found');
     }
 
+    if (actor.role === 'PICKER' || actor.role === 'COURIER') {
+      const scope = await this.orderScope.resolveStaffOrderScope(actor.userId);
+      await this.orderScope.assertOrderMatchesScope(orderId, scope);
+    }
+
     const currentStatus = order.status;
     if (actor.role === 'PICKER' && currentStatus === 'PICKING' && nextStatus === 'READY') {
       if (order.assignedPickerId !== actor.userId) {
@@ -1039,12 +1068,25 @@ export class OrdersService implements OnModuleInit {
     if (r === 'ADMIN' || r === 'SUPER_ADMIN' || r === 'MANAGER') {
       return this.listPaginated(opts);
     }
-    if (r === 'BUSINESS') {
-      const bp = await this.prisma.businessProfile.findUnique({ where: { userId } });
-      if (!bp) {
+    if (r === 'BUSINESS' || r === 'STORE_OWNER') {
+      let businessId: string | null = null;
+      if (r === 'STORE_OWNER') {
+        const store = await this.prisma.store.findFirst({
+          where: { ownerUserId: userId, isActive: true },
+          select: { businessProfileId: true },
+        });
+        businessId = store?.businessProfileId ?? null;
+      } else {
+        const bp = await this.prisma.businessProfile.findUnique({
+          where: { userId },
+          select: { id: true },
+        });
+        businessId = bp?.id ?? null;
+      }
+      if (!businessId) {
         return { items: [], page: 1, limit: 30, total: 0, totalPages: 1 };
       }
-      return this.listForBusinessPaginated(bp.id, opts);
+      return this.listForBusinessPaginated(businessId, opts);
     }
     throw new ForbiddenException('Buyurtmalar ro‘yxatiga ruxsat yo‘q');
   }
@@ -1262,10 +1304,14 @@ export class OrdersService implements OnModuleInit {
     return this.getPickerDashboard(pickerUserId).then((d) => d.activeOrders);
   }
 
-  listPickerScheduledQueue() {
+  async listPickerScheduledQueue(pickerUserId: string) {
+    const scope = await this.orderScope.resolveStaffOrderScope(pickerUserId);
     return this.prisma.order
       .findMany({
-        where: { status: OrderStatus.PENDING_SCHEDULE, isScheduled: true },
+        where: this.withOrderScope(scope, {
+          status: OrderStatus.PENDING_SCHEDULE,
+          isScheduled: true,
+        }),
         select: pickerOrderListSelect,
         orderBy: { scheduledAt: 'asc' },
         take: 80,

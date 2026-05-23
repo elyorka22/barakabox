@@ -8,7 +8,15 @@ import {
 } from '@onlinebozor/product-units';
 import { api, authStorage, authEvents, isApiError } from './api';
 import { t } from './i18n';
+import { assertCanAddFromStore, clearActiveStore } from './cart-store-context';
 import { showToast } from './toast';
+
+export type CartItemMeta = {
+  storeId?: string;
+  storeName?: string;
+  storeSlug?: string;
+  listingId?: string;
+};
 
 export type CartItem = {
   id: string;
@@ -56,6 +64,7 @@ type CartStoreState = {
   pendingByVariant: Record<string, number>;
   inFlightByVariant: Record<string, number>;
   productIdByVariant: Record<string, string>;
+  storeMetaByVariant: Record<string, CartItemMeta>;
   hydrated: boolean;
 };
 
@@ -80,6 +89,7 @@ let state: CartStoreState = {
   pendingByVariant: {},
   inFlightByVariant: {},
   productIdByVariant: {},
+  storeMetaByVariant: {},
   hydrated: false,
 };
 
@@ -142,11 +152,15 @@ function applyCartItemsSnapshot(items: CartItem[], extraVariantIds: string[] = [
   const changed = collectChangedVariantIds(prevServer, nextServer);
   for (const id of extraVariantIds) changed.add(id);
 
+  const cartEmpty = Object.keys(nextServer).length === 0;
+  if (cartEmpty) clearActiveStore();
+
   setState(
     {
       items,
       serverByVariant: nextServer,
       productIdByVariant: rememberVariantProduct(items, state.productIdByVariant),
+      storeMetaByVariant: cartEmpty ? {} : state.storeMetaByVariant,
       hydrated: true,
     },
     { variantIds: changed, notifyGlobal: true },
@@ -387,11 +401,15 @@ async function flushVariant(variantId: string, attempt = 0) {
     delete cleanedInFlight[variantId];
     state = { ...state, inFlightByVariant: cleanedInFlight };
     applyCartItemsSnapshot(updated?.items ?? [], [variantId]);
+    const itemMeta = state.storeMetaByVariant[variantId];
     void import('@/lib/analytics/client').then((m) =>
       m.trackAnalytics('product_added_to_cart', {
         productId,
         variantId,
         quantity: pending,
+        storeId: itemMeta?.storeId,
+        storeSlug: itemMeta?.storeSlug,
+        listingId: itemMeta?.listingId,
       }),
     );
   } catch (err) {
@@ -449,8 +467,12 @@ export function adjustCart(
   productId: string,
   sellingMode: SellingMode,
   action: 'add' | 'increase' | 'decrease',
+  meta?: CartItemMeta,
 ): void {
   if (!variantId || !productId) return;
+  if ((action === 'add' || action === 'increase') && meta && !assertCanAddFromStore(meta)) {
+    return;
+  }
   const current = getVariantQuantity(variantId);
   let delta: number;
   if (action === 'add') {
@@ -460,15 +482,17 @@ export function adjustCart(
   } else {
     delta = getSellingModeDecreaseDelta(current, sellingMode);
   }
-  incrementCart(variantId, productId, delta);
+  incrementCart(variantId, productId, delta, meta);
 }
 
 export function incrementCart(
   variantId: string,
   productId: string,
   delta: number,
+  meta?: CartItemMeta,
 ): void {
   if (!variantId || !productId || !delta) return;
+  if (delta > 0 && meta && !assertCanAddFromStore(meta)) return;
 
   const server = state.serverByVariant[variantId] ?? 0;
   const inFlight = state.inFlightByVariant[variantId] ?? 0;
@@ -485,6 +509,10 @@ export function incrementCart(
     delete nextPending[variantId];
   }
 
+  const nextMeta = meta
+    ? { ...state.storeMetaByVariant, [variantId]: meta }
+    : state.storeMetaByVariant;
+
   setState(
     {
       pendingByVariant: nextPending,
@@ -492,6 +520,7 @@ export function incrementCart(
         ...state.productIdByVariant,
         [variantId]: productId,
       },
+      storeMetaByVariant: nextMeta,
     },
     { variantIds: [variantId], notifyGlobal: true },
   );

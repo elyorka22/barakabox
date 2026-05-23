@@ -22,6 +22,10 @@ type Props = {
   sellingMode: SellingMode;
   unit?: ProductUnitCode;
   disabled?: boolean;
+  storeId?: string;
+  storeName?: string;
+  storeSlug?: string;
+  listingId?: string;
 };
 
 function stopLinkNavigation(event: React.SyntheticEvent) {
@@ -71,7 +75,17 @@ function CompactCardStepper({ displayLabel, disabled, onDecrease, onIncrease }: 
   );
 }
 
-function ProductCardCartControlBase({ variantId, productId, sellingMode, unit, disabled }: Props) {
+function ProductCardCartControlBase({
+  variantId,
+  productId,
+  sellingMode,
+  unit,
+  disabled,
+  storeId,
+  storeName,
+  storeSlug,
+  listingId,
+}: Props) {
   const quantity = useCartQuantity(variantId);
   const displayLabel = formatSellingModeQuantityCompact(quantity, sellingMode, unit ?? DEFAULT_PRODUCT_UNIT);
   const inCart = quantity > 0;
@@ -80,9 +94,14 @@ function ProductCardCartControlBase({ variantId, productId, sellingMode, unit, d
     (action: 'add' | 'increase' | 'decrease') => {
       if (disabled) return;
       hapticTap();
-      adjustCart(variantId, productId, sellingMode, action);
+      adjustCart(variantId, productId, sellingMode, action, {
+        storeId,
+        storeName,
+        storeSlug,
+        listingId,
+      });
     },
-    [disabled, variantId, productId, sellingMode],
+    [disabled, variantId, productId, sellingMode, storeId, storeName, storeSlug, listingId],
   );
 
   if (!inCart) {

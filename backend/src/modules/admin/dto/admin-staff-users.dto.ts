@@ -28,6 +28,10 @@ export class AdminCreateStaffUserDto {
   @IsOptional()
   @IsString()
   businessScopeId?: string;
+
+  @IsOptional()
+  @IsString()
+  storeScopeId?: string;
 }
 
 export class AdminUpdateStaffUserDto {
@@ -47,6 +51,10 @@ export class AdminUpdateStaffUserDto {
   @IsOptional()
   @IsString()
   businessScopeId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  storeScopeId?: string | null;
 
   @IsOptional()
   @IsString()

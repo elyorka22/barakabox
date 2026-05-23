@@ -387,9 +387,30 @@ export class ProductsService {
   }
 
   private async requireApprovedBusiness(userId: string) {
-    const business = await this.prisma.businessProfile.findUnique({
-      where: { userId },
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
     });
+    const role = (user?.role ?? '').toString().toUpperCase();
+
+    let business;
+    if (role === 'STORE_OWNER') {
+      const store = await this.prisma.store.findFirst({
+        where: { ownerUserId: userId, isActive: true },
+        select: { businessProfileId: true },
+      });
+      if (!store?.businessProfileId) {
+        throw new ForbiddenException('Business is not approved');
+      }
+      business = await this.prisma.businessProfile.findUnique({
+        where: { id: store.businessProfileId },
+      });
+    } else {
+      business = await this.prisma.businessProfile.findUnique({
+        where: { userId },
+      });
+    }
+
     if (!business || business.status !== 'APPROVED') {
       throw new ForbiddenException('Business is not approved');
     }

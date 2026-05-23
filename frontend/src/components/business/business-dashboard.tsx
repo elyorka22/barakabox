@@ -1,22 +1,35 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useBusinessDashboard } from '@/hooks/use-business-dashboard';
+import { authStorage } from '@/lib/api';
+import { useStorePanelDashboard } from '@/hooks/use-store-panel';
 import { BusinessStatsGrid } from '@/components/business/business-stats-grid';
 import { BusinessBottomNav, type BusinessTab } from '@/components/business/business-bottom-nav';
 import { BusinessOrdersPanel } from '@/components/business/business-orders-panel';
 import { BusinessProductsPanel } from '@/components/business/business-products-panel';
 import { BusinessInventoryPanel } from '@/components/business/business-inventory-panel';
+import { BusinessMarketplaceCatalogPanel } from '@/components/business/business-marketplace-catalog-panel';
+import { StorePanelStats } from '@/components/business/store-panel-stats';
+import { StoreInventoryPanel } from '@/components/business/store-inventory-panel';
+import { StoreTopPanel } from '@/components/business/store-top-panel';
+import { StoreTeamPanel } from '@/components/business/store-team-panel';
+import { StoreAnalyticsPanel } from '@/components/business/store-analytics-panel';
 import { formatMoneyUz } from '@/lib/format';
 
 export function BusinessDashboard() {
-  const { data, loading, error, reload } = useBusinessDashboard();
+  const { data, loading, error, reload, hasMarketplace } = useStorePanelDashboard();
   const [tab, setTab] = useState<BusinessTab>('home');
 
+  const legacy = data?.legacy;
+  const showTeam = (authStorage.getUser()?.role ?? '').toUpperCase() === 'STORE_OWNER';
+
   const maxDailyRevenue = useMemo(() => {
-    if (!data?.dailySales.length) return 1;
-    return Math.max(1, ...data.dailySales.map((d) => d.revenue));
-  }, [data?.dailySales]);
+    if (!legacy?.dailySales.length) return 1;
+    return Math.max(1, ...legacy.dailySales.map((d) => d.revenue));
+  }, [legacy?.dailySales]);
+
+  const pendingOrders = legacy?.kpis.pendingOrders ?? 0;
+  const headerName = data?.store?.name ?? legacy?.business.displayName ?? 'Do‘kon';
 
   if (loading && !data) {
     return (
@@ -43,62 +56,127 @@ export function BusinessDashboard() {
     );
   }
 
-  if (!data) return null;
-
   return (
     <div className="pb-24">
       <div className="border-b border-slate-200 bg-white px-4 py-3">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Doʻkon</p>
-        <h1 className="text-lg font-bold text-[#111827]">{data.business.displayName}</h1>
-        {data.business.login ? (
-          <p className="text-xs text-slate-500">Login: {data.business.login}</p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Do‘kon paneli</p>
+        <h1 className="text-lg font-bold text-[#111827]">{headerName}</h1>
+        {legacy?.business.login ? (
+          <p className="text-xs text-slate-500">Login: {legacy.business.login}</p>
+        ) : null}
+        {data?.store?.slug ? (
+          <p className="text-xs text-slate-400">/{data.store.slug}</p>
         ) : null}
       </div>
 
       {tab === 'home' ? (
         <div className="space-y-4 p-4">
-          <BusinessStatsGrid kpis={data.kpis} />
+          {data?.marketplace ? <StorePanelStats marketplace={data.marketplace} /> : null}
 
-          <section className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-black/[0.04]">
-            <h2 className="text-sm font-semibold text-[#111827]">7 kunlik savdo</h2>
-            <div className="mt-3 flex h-24 items-end gap-1">
-              {data.dailySales.map((day) => (
-                <div key={day.date} className="flex flex-1 flex-col items-center gap-1">
-                  <div
-                    className="w-full rounded-t-md bg-emerald-500/90"
-                    style={{ height: `${Math.max(8, (day.revenue / maxDailyRevenue) * 72)}px` }}
-                    title={formatMoneyUz(day.revenue)}
-                  />
-                  <span className="text-[9px] text-slate-400">{day.date.slice(5)}</span>
-                </div>
-              ))}
-            </div>
-          </section>
+          {legacy ? <BusinessStatsGrid kpis={legacy.kpis} /> : null}
 
-          {data.topProducts.length > 0 ? (
+          {legacy && legacy.dailySales.length > 0 ? (
             <section className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-black/[0.04]">
-              <h2 className="text-sm font-semibold">Eng koʻp sotilgan</h2>
-              <ul className="mt-2 space-y-2">
-                {data.topProducts.map((p) => (
-                  <li key={p.productId ?? p.name} className="flex justify-between text-sm">
-                    <span className="truncate font-medium">{p.name}</span>
-                    <span className="shrink-0 tabular-nums text-slate-600">
-                      {p.soldQuantity} {p.unit}
-                    </span>
-                  </li>
+              <h2 className="text-sm font-semibold text-[#111827]">7 kunlik savdo</h2>
+              <div className="mt-3 flex h-24 items-end gap-1">
+                {legacy.dailySales.map((day) => (
+                  <div key={day.date} className="flex flex-1 flex-col items-center gap-1">
+                    <div
+                      className="w-full rounded-t-md bg-emerald-500/90"
+                      style={{ height: `${Math.max(8, (day.revenue / maxDailyRevenue) * 72)}px` }}
+                      title={formatMoneyUz(day.revenue)}
+                    />
+                    <span className="text-[9px] text-slate-400">{day.date.slice(5)}</span>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </section>
           ) : null}
 
-          <BusinessInventoryPanel inventory={data.inventory} />
+          {data?.marketplace?.inventory ? (
+            <BusinessInventoryPanel
+              inventory={{
+                lowStock: data.marketplace.inventory.lowStock.map((p) => ({
+                  id: p.id,
+                  name: p.name,
+                  stockQuantity: p.stock,
+                  unit: 'dona',
+                })),
+                outOfStock: data.marketplace.inventory.outOfStock.map((p) => ({
+                  id: p.id,
+                  name: p.name,
+                  stockQuantity: p.stock,
+                  unit: 'dona',
+                })),
+              }}
+            />
+          ) : legacy ? (
+            <BusinessInventoryPanel inventory={legacy.inventory} />
+          ) : null}
+
+          {!hasMarketplace ? (
+            <section className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+              Marketplace do‘koni ulanmagan. Admin migratsiya yoki do‘kon bog‘lashini bajarsin.
+            </section>
+          ) : null}
+
+          {legacy ? (
+            <details className="rounded-2xl bg-white p-3 text-sm shadow-sm ring-1 ring-black/[0.04]">
+              <summary className="cursor-pointer font-semibold text-slate-700">
+                Legacy mahsulotlar (eski tizim)
+              </summary>
+              <div className="mt-3">
+                <BusinessProductsPanel onRefresh={reload} />
+              </div>
+            </details>
+          ) : null}
         </div>
       ) : null}
 
-      {tab === 'orders' ? <BusinessOrdersPanel orders={data.recentOrders} onRefresh={reload} /> : null}
-      {tab === 'products' ? <BusinessProductsPanel onRefresh={reload} /> : null}
+      {tab === 'orders' ? <BusinessOrdersPanel onRefresh={reload} /> : null}
 
-      <BusinessBottomNav tab={tab} onTabChange={setTab} pendingCount={data.kpis.pendingOrders} />
+      {tab === 'catalog' ? (
+        <div className="p-4 pb-24">
+          {hasMarketplace ? (
+            <BusinessMarketplaceCatalogPanel />
+          ) : (
+            <p className="text-sm text-slate-500">Marketplace katalogi mavjud emas.</p>
+          )}
+        </div>
+      ) : null}
+
+      {tab === 'inventory' ? (
+        hasMarketplace ? (
+          <StoreInventoryPanel />
+        ) : (
+          <p className="p-4 text-sm text-slate-500">Marketplace ombori ulanmagan.</p>
+        )
+      ) : null}
+
+      {tab === 'top' ? (
+        hasMarketplace ? (
+          <StoreTopPanel />
+        ) : (
+          <p className="p-4 text-sm text-slate-500">Top mahsulotlar uchun marketplace kerak.</p>
+        )
+      ) : null}
+
+      {tab === 'stats' ? (
+        hasMarketplace ? (
+          <StoreAnalyticsPanel />
+        ) : (
+          <p className="p-4 text-sm text-slate-500">Statistika uchun marketplace do‘koni kerak.</p>
+        )
+      ) : null}
+
+      {tab === 'team' && showTeam ? <StoreTeamPanel /> : null}
+
+      <BusinessBottomNav
+        tab={tab}
+        onTabChange={setTab}
+        pendingCount={pendingOrders}
+        showTeam={showTeam}
+      />
     </div>
   );
 }

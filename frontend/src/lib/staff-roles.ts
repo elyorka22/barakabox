@@ -16,7 +16,8 @@ const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN: 'Super admin',
   ADMIN: 'Admin',
   MANAGER: 'Menejer',
-  BUSINESS: 'Biznes',
+  STORE_OWNER: 'Do‘kon egasi',
+  BUSINESS: 'Biznes (legacy)',
   COURIER: 'Kuryer',
   PICKER: 'Yig‘uvchi',
   CLIENT: 'Mijoz',
@@ -32,7 +33,8 @@ export function roleBadgeClass(role: string): string {
   if (r === 'SUPER_ADMIN') return 'bg-violet-100 text-violet-800';
   if (r === 'ADMIN') return 'bg-sky-100 text-sky-800';
   if (r === 'MANAGER') return 'bg-indigo-100 text-indigo-900';
-  if (r === 'BUSINESS') return 'bg-amber-100 text-amber-900';
+  if (r === 'STORE_OWNER') return 'bg-amber-100 text-amber-900';
+  if (r === 'BUSINESS') return 'bg-amber-50 text-amber-800';
   if (r === 'COURIER') return 'bg-emerald-100 text-emerald-900';
   if (r === 'PICKER') return 'bg-orange-100 text-orange-900';
   return 'bg-slate-100 text-slate-700';

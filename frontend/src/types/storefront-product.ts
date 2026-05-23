@@ -28,6 +28,15 @@ export type StorefrontProduct = {
   isTopProduct?: boolean;
   topOrder?: number;
   topBadge?: string | null;
+  /** Marketplace listing id (when shown from StoreProduct). */
+  listingId?: string;
+  storeId?: string;
+  storeName?: string;
+  storeSlug?: string;
+  /** False when not yet linked to legacy Product — cart may be unavailable. */
+  purchasable?: boolean;
+  stock?: number;
+  brand?: string | null;
   variants?: Array<{
     id: string;
     flavor?: string | null;

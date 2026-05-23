@@ -7,9 +7,19 @@ describe('OrdersService transitions', () => {
   ) => {
     const prisma = {
       order: {
-        findUnique: jest.fn().mockResolvedValue({ id: 'o1', status: currentStatus }),
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'o1',
+          status: currentStatus,
+          assignedPickerId: null,
+          assignedCourierId: null,
+        }),
         update: jest.fn().mockImplementation(({ data }) => Promise.resolve({ id: 'o1', ...data })),
+        count: jest.fn().mockResolvedValue(1),
       },
+    };
+    const orderScope = {
+      resolveStaffOrderScope: jest.fn().mockResolvedValue(null),
+      assertOrderMatchesScope: jest.fn().mockResolvedValue(undefined),
     };
     const service = new OrdersService(
       prisma as never,
@@ -35,7 +45,10 @@ describe('OrdersService transitions', () => {
         getOrSet: jest.fn((_k: string, _ttl: number, fn: () => Promise<unknown>) => fn()),
         bumpCatalogVersion: jest.fn(),
         invalidateStorefrontCatalog: jest.fn(),
+        invalidateMarketplaceStorefront: jest.fn(),
       } as never,
+      { trackServerEvent: jest.fn() } as never,
+      orderScope as never,
     );
     return { service, prisma };
   };

@@ -1,6 +1,8 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { OrderStatus, Prisma } from '@prisma/client';
+import { isStoreOperatorRole, normalizeRole } from '../../common/roles';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
+import { StoreContextService } from '../marketplace/store-context.service';
 
 const ACTIVE_ORDER_STATUSES: OrderStatus[] = [
   OrderStatus.NEW,
@@ -22,13 +24,34 @@ const businessOrderWhere = (businessId: string): Prisma.OrderWhereInput => ({
 
 @Injectable()
 export class BusinessDashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storeContext: StoreContextService,
+  ) {}
 
   async requireBusiness(userId: string) {
-    const business = await this.prisma.businessProfile.findUnique({
-      where: { userId },
-      include: { user: { select: { id: true, email: true, staffLogin: true, phone: true, fullName: true } } },
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
     });
+    if (!user || !isStoreOperatorRole(user.role)) {
+      throw new ForbiddenException('Biznes profili topilmadi');
+    }
+
+    let business;
+    if (normalizeRole(user.role) === 'STORE_OWNER') {
+      const businessId = await this.storeContext.resolveBusinessProfileId(userId, user.role);
+      business = await this.prisma.businessProfile.findUnique({
+        where: { id: businessId },
+        include: { user: { select: { id: true, email: true, staffLogin: true, phone: true, fullName: true } } },
+      });
+    } else {
+      business = await this.prisma.businessProfile.findUnique({
+        where: { userId },
+        include: { user: { select: { id: true, email: true, staffLogin: true, phone: true, fullName: true } } },
+      });
+    }
+
     if (!business) {
       throw new ForbiddenException('Biznes profili topilmadi');
     }

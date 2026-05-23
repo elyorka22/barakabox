@@ -34,6 +34,7 @@ export type StoredUser = {
   staffLogin?: string | null;
   phone?: string | null;
   businessScopeId?: string | null;
+  storeScopeId?: string | null;
   isActive?: boolean;
 };
 

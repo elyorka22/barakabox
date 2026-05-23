@@ -23,8 +23,10 @@ type EmployeeListRow = {
   isActive: boolean;
   lastLoginAt: Date | null;
   businessScopeId: string | null;
+  storeScopeId: string | null;
   createdAt: Date;
   businessScope: { id: string; displayName: string } | null;
+  storeScope: { id: string; name: string } | null;
 };
 
 @Injectable()
@@ -37,33 +39,33 @@ export class UsersService {
     private readonly cache: CacheService,
   ) {}
 
-  /** Staff roles supported by the live DB enum (MANAGER omitted until migration applied). */
+  /** Staff roles supported by the live DB enum (omits values not yet migrated). */
   async resolveStaffRolesForDb(): Promise<Role[]> {
     if (this.staffRolesForQuery) {
       return this.staffRolesForQuery;
     }
     try {
-      const rows = await this.prisma.$queryRaw<{ hasManager: boolean }[]>`
-        SELECT EXISTS (
-          SELECT 1 FROM pg_enum e
-          INNER JOIN pg_type t ON e.enumtypid = t.oid
-          WHERE t.typname = 'Role' AND e.enumlabel = 'MANAGER'
-        ) AS "hasManager"
+      const rows = await this.prisma.$queryRaw<{ enumlabel: string }[]>`
+        SELECT e.enumlabel
+        FROM pg_enum e
+        INNER JOIN pg_type t ON e.enumtypid = t.oid
+        WHERE t.typname = 'Role'
       `;
-      const hasManager = rows[0]?.hasManager === true;
-      this.staffRolesForQuery = hasManager
-        ? [...PRISMA_STAFF_ROLES]
-        : PRISMA_STAFF_ROLES.filter((r) => r !== Role.MANAGER);
-      if (!hasManager) {
+      const labels = new Set(rows.map((r) => r.enumlabel));
+      this.staffRolesForQuery = PRISMA_STAFF_ROLES.filter((r) => labels.has(r));
+      const missing = PRISMA_STAFF_ROLES.filter((r) => !labels.has(r));
+      if (missing.length > 0) {
         this.logger.warn(
-          'Role enum MANAGER missing in database — run `npx prisma migrate deploy`. Listing staff without MANAGER filter.',
+          `Role enum missing in database: ${missing.join(', ')} — run \`npx prisma migrate deploy\`.`,
         );
       }
     } catch (err) {
       this.logger.warn(
-        `Could not probe Role enum; excluding MANAGER from staff queries: ${err instanceof Error ? err.message : err}`,
+        `Could not probe Role enum; using safe staff role subset: ${err instanceof Error ? err.message : err}`,
       );
-      this.staffRolesForQuery = PRISMA_STAFF_ROLES.filter((r) => r !== Role.MANAGER);
+      this.staffRolesForQuery = PRISMA_STAFF_ROLES.filter(
+        (r) => r !== Role.MANAGER && r !== Role.STORE_OWNER,
+      );
     }
     return this.staffRolesForQuery;
   }
@@ -79,8 +81,10 @@ export class UsersService {
       isActive: row.isActive,
       lastLoginAt: row.lastLoginAt?.toISOString() ?? null,
       businessScopeId: row.businessScopeId,
+      storeScopeId: row.storeScopeId,
       createdAt: row.createdAt.toISOString(),
       businessScope: row.businessScope,
+      storeScope: row.storeScope,
     };
   }
 
@@ -132,6 +136,7 @@ export class UsersService {
     staffLogin?: string | null;
     phone?: string | null;
     businessScopeId?: string | null;
+    storeScopeId?: string | null;
     isActive?: boolean;
   }): Promise<User> {
     return this.prisma.user.create({
@@ -143,6 +148,7 @@ export class UsersService {
         staffLogin: data.staffLogin?.trim().toLowerCase() ?? null,
         phone: data.phone?.trim() || null,
         businessScopeId: data.businessScopeId ?? null,
+        storeScopeId: data.storeScopeId ?? null,
         isActive: data.isActive ?? true,
       },
     });
@@ -202,7 +208,7 @@ export class UsersService {
     try {
       const staffRoles = await this.resolveStaffRolesForDb();
 
-      if (opts?.role === Role.MANAGER && !staffRoles.includes(Role.MANAGER)) {
+      if (opts?.role && !staffRoles.includes(opts.role)) {
         return { items: [], total: 0, page, limit };
       }
 
@@ -238,8 +244,10 @@ export class UsersService {
             isActive: true,
             lastLoginAt: true,
             businessScopeId: true,
+            storeScopeId: true,
             createdAt: true,
             businessScope: { select: { id: true, displayName: true } },
+            storeScope: { select: { id: true, name: true } },
           },
         }),
         this.prisma.user.count({ where }),
@@ -265,7 +273,7 @@ export class UsersService {
       const where: Prisma.UserWhereInput = {};
 
       if (roleFilter) {
-        if (roleFilter === Role.MANAGER && !staffRoles.includes(Role.MANAGER)) {
+        if (!staffRoles.includes(roleFilter)) {
           return [];
         }
         where.role = roleFilter;
@@ -295,9 +303,11 @@ export class UsersService {
           isActive: true,
           lastLoginAt: true,
           businessScopeId: true,
+          storeScopeId: true,
           createdAt: true,
           businessProfile: { select: { id: true, displayName: true } },
           businessScope: { select: { id: true, displayName: true } },
+          storeScope: { select: { id: true, name: true } },
         },
       });
 
@@ -305,6 +315,7 @@ export class UsersService {
         ...this.serializeEmployeeRow({
           ...row,
           businessScope: row.businessScope,
+          storeScope: row.storeScope,
         }),
         businessProfile: row.businessProfile,
       }));
@@ -320,6 +331,7 @@ export class UsersService {
       phone?: string | null;
       role?: Role;
       businessScopeId?: string | null;
+      storeScopeId?: string | null;
       staffLogin?: string | null;
     },
   ): Promise<User> {
@@ -347,6 +359,7 @@ export class UsersService {
         ...(data.phone !== undefined ? { phone: data.phone?.trim() || null } : {}),
         ...(data.role !== undefined ? { role: data.role } : {}),
         ...(data.businessScopeId !== undefined ? { businessScopeId: data.businessScopeId } : {}),
+        ...(data.storeScopeId !== undefined ? { storeScopeId: data.storeScopeId } : {}),
         ...(nextLogin !== undefined ? { staffLogin: nextLogin } : {}),
         ...(emailUpdate ? { email: emailUpdate } : {}),
       },

@@ -77,6 +77,7 @@ export class OrdersController {
       deliveryType: body?.deliveryType,
       scheduledAt: body?.scheduledAt,
       deliverySlot: body?.deliverySlot,
+      storeId: body?.storeId,
     });
   }
 
@@ -141,8 +142,8 @@ export class OrdersController {
   @Get('picker/scheduled')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('PICKER')
-  listPickerScheduled(@CurrentUser() _user: AuthUser) {
-    return this.ordersService.listPickerScheduledQueue();
+  listPickerScheduled(@CurrentUser() user: AuthUser) {
+    return this.ordersService.listPickerScheduledQueue(user.sub);
   }
 
   @Patch(':orderId/start-picking')
