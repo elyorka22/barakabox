@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 const ACTIONS = [
+  { href: '/admin/global-catalog', label: 'Global katalog', icon: Package },
   { href: '/admin/products?drawer=new', label: 'Mahsulot qo‘shish', icon: Plus },
   { href: '/admin/coupons', label: 'Kupon yaratish', icon: Percent },
   { href: '/admin/users?tab=employees&role=COURIER', label: 'Kuryer qo‘shish', icon: Bike },
