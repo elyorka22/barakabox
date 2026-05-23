@@ -33,6 +33,10 @@ export function CartScreen() {
   const guestTracking = useGuestOrderTracking();
 
   useEffect(() => {
+    void import('@/lib/analytics/client').then((m) => m.trackAnalytics('cart_opened', {}));
+  }, []);
+
+  useEffect(() => {
     const id = requestAnimationFrame(() => {
       setToken(authStorage.getAccessToken());
     });

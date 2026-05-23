@@ -12,7 +12,8 @@ import { HomeInstallCard } from '@/components/pwa/HomeInstallCard';
 import { SafeImage } from '@/components/safe-image';
 import { HomeDeliveryBanner } from '@/components/home/home-delivery-banner';
 import { formatMoneyUz } from '@/lib/format';
-import { fetchPromotionsPage, type PaginatedProducts } from '@/lib/storefront-api';
+import { fetchPromotionsPage, fetchTopProducts, type PaginatedProducts } from '@/lib/storefront-api';
+import { TopProductsCarousel } from '@/components/home/top-products-carousel';
 import { useProductSheet } from '@/lib/product-sheet-context';
 import type { StorefrontProduct } from '@/types/storefront-product';
 import { hasVisibleDiscount, resolveProductSalePricing } from '@/lib/promotion-product';
@@ -49,6 +50,8 @@ export function HomePageClient({ initialCatalog }: Props) {
   const { openProduct, registerCatalog } = useProductSheet();
   const [promoProducts, setPromoProducts] = useState<StorefrontProduct[]>([]);
   const [loadingPromos, setLoadingPromos] = useState(true);
+  const [topProducts, setTopProducts] = useState<StorefrontProduct[]>([]);
+  const [loadingTop, setLoadingTop] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [showDeferredSections, setShowDeferredSections] = useState(false);
@@ -104,6 +107,31 @@ export function HomePageClient({ initialCatalog }: Props) {
       else clearTimeout(id as number);
     };
   }, []);
+
+  useEffect(() => {
+    if (!showDeferredSections) return;
+    let cancelled = false;
+    const loadTop = async () => {
+      setLoadingTop(true);
+      try {
+        const data = await fetchTopProducts(15);
+        if (cancelled) return;
+        const items = data.items ?? [];
+        setTopProducts(items);
+        if (items.length > 0) {
+          registerCatalog([...initialCatalog.items, ...items]);
+        }
+      } catch {
+        if (!cancelled) setTopProducts([]);
+      } finally {
+        if (!cancelled) setLoadingTop(false);
+      }
+    };
+    void loadTop();
+    return () => {
+      cancelled = true;
+    };
+  }, [showDeferredSections, initialCatalog.items, registerCatalog]);
 
   return (
     <main className="bb-page bg-[#F8F8F8]">
@@ -172,6 +200,8 @@ export function HomePageClient({ initialCatalog }: Props) {
             ) : null}
 
             <HomeDeliveryBanner />
+
+            <TopProductsCarousel products={topProducts} loading={loadingTop} />
 
             <CatalogInfiniteGrid initial={initialCatalog} className="mt-5 pb-24" />
           </>

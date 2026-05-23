@@ -48,6 +48,7 @@ import {
   normalizeOrderNumber,
   orderNumberSearchVariants,
 } from '../../common/utils/order-number.util';
+import { AnalyticsIngestService } from '../analytics/analytics-ingest.service';
 
 const pickerOrderListSelect = {
   id: true,
@@ -106,6 +107,7 @@ export class OrdersService implements OnModuleInit {
     private readonly couponsService: CouponsService,
     private readonly settingsService: SettingsService,
     private readonly cache: CacheService,
+    private readonly analyticsIngest: AnalyticsIngestService,
   ) {}
 
   async onModuleInit() {
@@ -525,6 +527,18 @@ export class OrdersService implements OnModuleInit {
       orderNumber: order.orderNumber,
     });
     this.events.emit('order.created', { orderId: order.id, orderNumber: order.orderNumber });
+    this.analyticsIngest.trackServerEvent({
+      name: 'order_created',
+      userId: order.userId ?? undefined,
+      properties: {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        totalAmount: order.totalAmount,
+        isScheduled: order.isScheduled,
+        deliveryType: order.deliveryType,
+        itemCount: order.items?.length ?? 0,
+      },
+    });
     if (order.isScheduled) {
       this.events.emit('order.scheduled.created', {
         orderId: order.id,

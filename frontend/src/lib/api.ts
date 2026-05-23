@@ -130,6 +130,7 @@ async function request<T>(
       : typeof window !== 'undefined'
       ? authStorage.getAccessToken()
       : '';
+  const startedAt = typeof performance !== 'undefined' ? performance.now() : 0;
   let response: Response;
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
@@ -142,7 +143,22 @@ async function request<T>(
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch {
+    if (typeof window !== 'undefined' && !path.startsWith('/analytics')) {
+      void import('@/lib/analytics/client').then((m) =>
+        m.trackApiError({ path, status: 0, method, durationMs: Math.round(performance.now() - startedAt) }),
+      );
+    }
     throw new Error(`${t('common.networkError')}. ${t('common.retry')}`);
+  }
+
+  const durationMs = Math.round(performance.now() - startedAt);
+  if (typeof window !== 'undefined' && !path.startsWith('/analytics')) {
+    void import('@/lib/analytics/client').then((m) => {
+      m.trackSlowRequest({ path, method, durationMs });
+      if (!response.ok && response.status !== 401) {
+        m.trackApiError({ path, status: response.status, method, durationMs });
+      }
+    });
   }
 
   if (!response.ok) {

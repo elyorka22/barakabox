@@ -7,6 +7,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthUser } from '../../common/decorators/current-user.decorator';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { UpdateTopProductsDto } from './dto/update-top-products.dto';
 
 @Controller('products')
 export class ProductsController {
@@ -65,6 +66,20 @@ export class ProductsController {
       throw new BadRequestException('businessId required');
     }
     return this.productsService.createByAdmin(body.businessId, body);
+  }
+
+  @Get('admin/top-products')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  listTopForAdmin() {
+    return this.productsService.listTopProductsForAdmin();
+  }
+
+  @Patch('admin/top-products')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  updateTopForAdmin(@Body() body: UpdateTopProductsDto) {
+    return this.productsService.updateTopProductsBulk(body.items);
   }
 
   @Get('admin/list')

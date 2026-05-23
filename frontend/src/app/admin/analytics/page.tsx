@@ -1,5 +1,7 @@
-import { redirect } from 'next/navigation';
+'use client';
+
+import { AdminAnalyticsDashboard } from '@/components/admin/analytics/admin-analytics-dashboard';
 
 export default function AdminAnalyticsPage() {
-  redirect('/admin');
+  return <AdminAnalyticsDashboard />;
 }

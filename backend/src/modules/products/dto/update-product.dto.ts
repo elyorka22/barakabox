@@ -177,4 +177,19 @@ export class UpdateProductDto {
   @ValidateNested({ each: true })
   @Type(() => ProductVariantUpdateDto)
   variants?: ProductVariantUpdateDto[];
+
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  isTopProduct?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  topOrder?: number;
+
+  @IsOptional()
+  @IsString()
+  topBadge?: string | null;
 }

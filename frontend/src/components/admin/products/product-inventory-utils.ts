@@ -40,6 +40,9 @@ export type AdminInventoryProduct = {
   promotionEnabled?: boolean;
   promotionStartAt?: string | null;
   promotionEndAt?: string | null;
+  isTopProduct?: boolean;
+  topOrder?: number;
+  topBadge?: string | null;
 };
 
 export type StockFilter = 'all' | 'in_stock' | 'low' | 'out';

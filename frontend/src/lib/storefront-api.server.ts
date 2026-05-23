@@ -1,5 +1,5 @@
 import { getApiBaseUrl } from '@/lib/seo';
-import type { FetchProductsOpts, PaginatedProducts } from '@/lib/storefront-api';
+import type { FetchProductsOpts, PaginatedProducts, TopProductsResponse } from '@/lib/storefront-api';
 
 function buildProductsQuery(opts: FetchProductsOpts): string {
   const params = new URLSearchParams();
@@ -39,5 +39,23 @@ export async function fetchProductsPageServer(
     };
   } catch {
     return EMPTY_CATALOG;
+  }
+}
+
+const EMPTY_TOP: TopProductsResponse = { items: [] };
+
+/** Server-side top products for optional SSR prefetch. */
+export async function fetchTopProductsServer(limit = 15): Promise<TopProductsResponse> {
+  try {
+    const params = new URLSearchParams();
+    params.set('limit', String(limit));
+    const response = await fetch(`${getApiBaseUrl()}/products/top?${params.toString()}`, {
+      next: { revalidate: 120 },
+    });
+    if (!response.ok) return EMPTY_TOP;
+    const payload = (await response.json()) as TopProductsResponse;
+    return { items: Array.isArray(payload.items) ? payload.items : [] };
+  } catch {
+    return EMPTY_TOP;
   }
 }

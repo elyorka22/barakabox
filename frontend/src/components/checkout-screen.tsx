@@ -112,6 +112,10 @@ export function CheckoutScreen() {
     [subtotal, delivery, couponDiscount, cashbackBalance, redeemInput],
   );
 
+  useEffect(() => {
+    void import('@/lib/analytics/client').then((m) => m.trackAnalytics('checkout_started', {}));
+  }, []);
+
   const applyCoupon = async () => {
     const code = couponInput.trim();
     if (!code) {
@@ -513,6 +517,15 @@ export function CheckoutScreen() {
         enrich,
       );
       guestTracking.registerNewOrder(order);
+      void import('@/lib/analytics/client').then((m) => {
+        m.trackAnalytics('order_created', {
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          isScheduled: order.isScheduled,
+          deliveryType: order.deliveryType,
+        });
+        m.trackAnalytics('payment_success', { orderId: order.id, orderNumber: order.orderNumber });
+      });
       if (saveAddressChecked && apiPhone && geoCoords) {
         const label = saveAddressLabel.trim() || 'Manzil';
         const saveLine =
@@ -536,6 +549,11 @@ export function CheckoutScreen() {
         }
       }
     } catch (err) {
+      void import('@/lib/analytics/client').then((m) =>
+        m.trackAnalytics('payment_failed', {
+          message: err instanceof Error ? err.message : 'unknown',
+        }),
+      );
       setError(err instanceof Error ? err.message : "Xatolik yuz berdi. Qayta urinib ko'ring");
     } finally {
       setLoading(false);

@@ -387,10 +387,22 @@ async function flushVariant(variantId: string, attempt = 0) {
     delete cleanedInFlight[variantId];
     state = { ...state, inFlightByVariant: cleanedInFlight };
     applyCartItemsSnapshot(updated?.items ?? [], [variantId]);
+    void import('@/lib/analytics/client').then((m) =>
+      m.trackAnalytics('product_added_to_cart', {
+        productId,
+        variantId,
+        quantity: pending,
+      }),
+    );
   } catch (err) {
     const cleanedInFlight = { ...state.inFlightByVariant };
     delete cleanedInFlight[variantId];
     const rateLimited = isApiError(err) && err.status === 429;
+    if (!rateLimited || attempt >= MAX_FLUSH_ATTEMPTS) {
+      void import('@/lib/analytics/client').then((m) =>
+        m.trackAnalytics('cart_action_failed', { productId, variantId, rateLimited }),
+      );
+    }
 
     if (rateLimited && attempt < MAX_FLUSH_ATTEMPTS) {
       const restoredPending = (state.pendingByVariant[variantId] ?? 0) + pending;

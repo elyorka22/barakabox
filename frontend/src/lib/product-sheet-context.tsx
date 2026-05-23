@@ -33,6 +33,13 @@ export function ProductSheetProvider({ children }: { children: ReactNode }) {
   const openProduct = useCallback((p: StorefrontProduct) => {
     setProduct(p);
     setIsOpen(true);
+    void import('@/lib/analytics/client').then((m) =>
+      m.trackAnalytics('product_viewed', {
+        productId: p.id,
+        productName: p.name,
+        variantId: p.variants?.[0]?.id,
+      }),
+    );
   }, []);
 
   const openProductById = useCallback(

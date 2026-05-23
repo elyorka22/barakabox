@@ -296,6 +296,9 @@ model Product {
   promotionEndAt   DateTime?
   stockQuantity Int     @default(0)
   isActive     Boolean  @default(true)
+  isTopProduct Boolean  @default(false)
+  topOrder     Int      @default(0)
+  topBadge     String?
   cashbackType    CashbackType @default(NONE)
   cashbackValue   Int          @default(0)
   createdAt    DateTime @default(now())
@@ -316,6 +319,7 @@ model Product {
   @@index([isActive])
   @@index([discountEnabled, discountedPrice])
   @@index([promotionEnabled])
+  @@index([isTopProduct, topOrder])
 }
 
 model ProductImageAsset {
@@ -637,4 +641,36 @@ model HomepageBanner {
   isActive           Boolean  @default(true)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+}
+
+/// First-party behavioral analytics (batched from storefront).
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  name       String
+  sessionId  String
+  userId     String?
+  guestId    String?
+  path       String?
+  properties Json     @default("{}")
+  durationMs Int?
+  createdAt  DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+/// Pre-aggregated daily metrics for fast admin dashboards.
+model AnalyticsDailyMetric {
+  id         String   @id @default(cuid())
+  dateKey    String
+  metric     String
+  dimension  String   @default("")
+  value      Int      @default(0)
+  valueFloat Float?
+  updatedAt  DateTime @updatedAt
+
+  @@unique([dateKey, metric, dimension])
+  @@index([dateKey, metric])
 }

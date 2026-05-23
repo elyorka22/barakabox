@@ -25,6 +25,9 @@ export const storefrontProductSelect = {
   promotionEndAt: true,
   cashbackType: true,
   cashbackValue: true,
+  isTopProduct: true,
+  topOrder: true,
+  topBadge: true,
   variants: {
     where: { isActive: true },
     orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],
@@ -72,6 +75,9 @@ export function mapStorefrontProduct(row: StorefrontProductRow, opts?: { withPro
     promotionEndAt: row.promotionEndAt,
     cashbackType: row.cashbackType,
     cashbackValue: row.cashbackValue,
+    isTopProduct: row.isTopProduct,
+    topOrder: row.topOrder,
+    topBadge: row.topBadge,
     variants: row.variants,
     ...(pricing
       ? {

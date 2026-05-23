@@ -40,6 +40,17 @@ export async function fetchHomepageSections(): Promise<HomepageSections> {
   return api.get<HomepageSections>('/products/home');
 }
 
+export type TopProductsResponse = {
+  items: StorefrontProduct[];
+};
+
+/** Curated top products (manual today; swap provider for AI/personalized later). */
+export async function fetchTopProducts(limit = 15): Promise<TopProductsResponse> {
+  const params = new URLSearchParams();
+  params.set('limit', String(limit));
+  return api.get<TopProductsResponse>(`/products/top?${params.toString()}`);
+}
+
 export type PromotionSort = 'newest' | 'discount_desc';
 
 export async function fetchPromotionsPage(opts?: {

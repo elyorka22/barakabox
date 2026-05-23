@@ -1,5 +1,6 @@
 export const CACHE_TTL = {
   productsHome: 120,
+  productsTop: 120,
   productsPromotions: 120,
   productsList: 90,
   productsSearch: 60,
@@ -16,6 +17,7 @@ export const CACHE_TTL = {
 
 export const cacheKeys = {
   productsHome: () => 'storefront:products:home:v1',
+  productsTop: (limit: number) => `storefront:products:top:v1:${limit}`,
   productsPromotions: (catalogVersion: number, page: number, limit: number, sort: string) =>
     `storefront:products:promotions:v1:${catalogVersion}:${page}:${limit}:${sort}`,
   productsList: (

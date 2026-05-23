@@ -25,5 +25,7 @@ export function mapStorefrontProductToCardProps(product: StorefrontProduct): Pro
     promotionEnabled: product.promotionEnabled,
     promotionStartAt: product.promotionStartAt,
     promotionEndAt: product.promotionEndAt,
+    topBadge: product.topBadge,
+    cardVariant: product.isTopProduct ? 'top' : 'default',
   };
 }

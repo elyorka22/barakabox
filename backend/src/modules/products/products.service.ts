@@ -1,5 +1,5 @@
 import { ProductUnit, CashbackType, Prisma, SellingMode } from '@prisma/client';
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { CacheService } from '../../infrastructure/cache/cache.service';
 import { CACHE_TTL, cacheKeys } from '../../common/cache/cache-keys';
@@ -261,6 +261,99 @@ export class ProductsService {
   }
 
   /** Homepage sections — capped product counts, cached. */
+  private static readonly TOP_PRODUCTS_MAX = 15;
+
+  /** Curated homepage top products — cached separately from /products/home. */
+  async getTopProducts(limit = 15) {
+    const clamped = Math.min(
+      ProductsService.TOP_PRODUCTS_MAX,
+      Math.max(1, limit),
+    );
+    return this.cache.getOrSet(cacheKeys.productsTop(clamped), CACHE_TTL.productsTop, async () => {
+      const rows = await this.prisma.product.findMany({
+        where: { ...STOREFRONT_WHERE, isTopProduct: true },
+        select: storefrontProductSelect,
+        orderBy: [{ topOrder: 'asc' }, { updatedAt: 'desc' }],
+        take: clamped,
+      });
+      return { items: this.mapRows(rows) };
+    });
+  }
+
+  async listTopProductsForAdmin() {
+    const rows = await this.prisma.product.findMany({
+      where: { isTopProduct: true },
+      select: {
+        id: true,
+        name: true,
+        topOrder: true,
+        topBadge: true,
+        isActive: true,
+        stockQuantity: true,
+        imageThumbUrl: true,
+        imageCardUrl: true,
+        imageUrl: true,
+        business: { select: { displayName: true } },
+      },
+      orderBy: [{ topOrder: 'asc' }, { updatedAt: 'desc' }],
+      take: ProductsService.TOP_PRODUCTS_MAX,
+    });
+    return { items: rows };
+  }
+
+  async updateTopProductsBulk(
+    items: Array<{
+      id: string;
+      isTopProduct?: boolean;
+      topOrder?: number;
+      topBadge?: string | null;
+    }>,
+  ) {
+    const allowedBadges = new Set(['TOP', 'Trend', 'Mashhur', 'Tavsiya']);
+    const normalized = items.slice(0, ProductsService.TOP_PRODUCTS_MAX);
+
+    await this.prisma.$transaction(async (tx) => {
+      let order = 1;
+      for (const item of normalized) {
+        const product = await tx.product.findUnique({ where: { id: item.id } });
+        if (!product) {
+          throw new NotFoundException(`Product not found: ${item.id}`);
+        }
+
+        const isTop = item.isTopProduct ?? product.isTopProduct;
+        let topOrder = item.topOrder;
+        if (isTop) {
+          if (topOrder === undefined || topOrder <= 0) {
+            topOrder = order;
+            order += 1;
+          }
+        } else {
+          topOrder = 0;
+        }
+
+        let topBadge: string | null =
+          item.topBadge !== undefined ? item.topBadge : product.topBadge;
+        if (!isTop) {
+          topBadge = null;
+        } else if (topBadge && !allowedBadges.has(topBadge)) {
+          topBadge = null;
+        }
+
+        await tx.product.update({
+          where: { id: item.id },
+          data: {
+            isTopProduct: isTop,
+            topOrder: isTop ? topOrder : 0,
+            topBadge: isTop ? topBadge : null,
+          },
+        });
+      }
+    });
+
+    void this.touchCatalogCache();
+    return this.listTopProductsForAdmin();
+  }
+
   async getHomepageSections() {
     return this.cache.getOrSet(cacheKeys.productsHome(), CACHE_TTL.productsHome, async () => {
       const sectionLimit = 12;
@@ -368,6 +461,9 @@ export class ProductsService {
       promotionEndAt: true,
       businessId: true,
       isActive: true,
+      isTopProduct: true,
+      topOrder: true,
+      topBadge: true,
       createdAt: true,
       updatedAt: true,
       cashbackType: true,
@@ -536,6 +632,59 @@ export class ProductsService {
     return this.createByAdmin(business.id, data);
   }
 
+  private async buildTopProductPatch(
+    tx: Prisma.TransactionClient,
+    product: { id: string; isTopProduct: boolean; topOrder: number; topBadge: string | null },
+    data: {
+      isTopProduct?: boolean;
+      topOrder?: number;
+      topBadge?: string | null;
+    },
+  ): Promise<Prisma.ProductUpdateInput> {
+    const allowedBadges = new Set(['TOP', 'Trend', 'Mashhur', 'Tavsiya']);
+    if (
+      data.isTopProduct === undefined &&
+      data.topOrder === undefined &&
+      data.topBadge === undefined
+    ) {
+      return {};
+    }
+
+    const nextIsTop = data.isTopProduct ?? product.isTopProduct;
+    if (!nextIsTop) {
+      return { isTopProduct: false, topOrder: 0, topBadge: null };
+    }
+
+    if (data.isTopProduct === true && !product.isTopProduct) {
+      const count = await tx.product.count({ where: { isTopProduct: true } });
+      if (count >= ProductsService.TOP_PRODUCTS_MAX) {
+        throw new BadRequestException(
+          `Eng ko‘pi bilan ${ProductsService.TOP_PRODUCTS_MAX} ta top mahsulot bo‘lishi mumkin`,
+        );
+      }
+    }
+
+    let nextOrder = data.topOrder ?? product.topOrder;
+    if (!nextOrder || nextOrder <= 0) {
+      const agg = await tx.product.aggregate({
+        where: { isTopProduct: true, id: { not: product.id } },
+        _max: { topOrder: true },
+      });
+      nextOrder = (agg._max.topOrder ?? 0) + 1;
+    }
+
+    let nextBadge = data.topBadge !== undefined ? data.topBadge : product.topBadge;
+    if (nextBadge && !allowedBadges.has(nextBadge)) {
+      nextBadge = null;
+    }
+
+    return {
+      isTopProduct: true,
+      topOrder: nextOrder,
+      topBadge: nextBadge,
+    };
+  }
+
   async listMine(userId: string) {
     const business = await this.requireApprovedBusiness(userId);
     return this.prisma.product.findMany({
@@ -570,6 +719,9 @@ export class ProductsService {
       minimumAmount?: number;
       cashbackType?: CashbackType;
       cashbackValue?: number;
+      isTopProduct?: boolean;
+      topOrder?: number;
+      topBadge?: string | null;
       categoryId?: string;
       imageUrl?: string;
       imageKey?: string;
@@ -689,6 +841,7 @@ export class ProductsService {
           ...(data.minimumAmount !== undefined ? { minimumAmount: data.minimumAmount } : {}),
           ...(data.cashbackType !== undefined ? { cashbackType: data.cashbackType } : {}),
           ...(data.cashbackValue !== undefined ? { cashbackValue: data.cashbackValue } : {}),
+          ...(await this.buildTopProductPatch(tx, product, data)),
           categoryId: data.categoryId,
           imageUrl: data.imageUrl,
           imageKey: data.imageKey,

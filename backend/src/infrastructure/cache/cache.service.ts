@@ -62,6 +62,7 @@ export class CacheService {
     await this.bumpCatalogVersion();
     const keys = [
       'storefront:products:home:v1',
+      'storefront:products:top:v1:15',
       'storefront:banners:active:v1',
       'storefront:categories:v1:featured',
       'storefront:categories:v1:all',

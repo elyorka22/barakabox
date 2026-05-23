@@ -9,6 +9,7 @@ import {
   type VariantFormRow,
 } from '@/components/admin/products/admin-product-form-drawer';
 import { AdminProductsTable } from '@/components/admin/products/admin-products-table';
+import { AdminTopProductsPanel } from '@/components/admin/products/admin-top-products-panel';
 import {
   type AdminInventoryProduct,
   type SortBy,
@@ -63,6 +64,8 @@ const defaultForm = (businessId: string, categoryId: string): ProductFormState =
   promotionEnabled: false,
   promotionStartAt: '',
   promotionEndAt: '',
+  isTopProduct: false,
+  topBadge: '',
   cashbackType: 'NONE',
   cashbackValue: '0',
   variants: [{ ...EMPTY_VARIANT }],
@@ -220,6 +223,8 @@ export default function AdminProductsPage() {
       promotionEnabled: Boolean(item.promotionEnabled),
       promotionStartAt: item.promotionStartAt ? new Date(item.promotionStartAt).toISOString().slice(0, 16) : '',
       promotionEndAt: item.promotionEndAt ? new Date(item.promotionEndAt).toISOString().slice(0, 16) : '',
+      isTopProduct: Boolean(item.isTopProduct),
+      topBadge: (item.topBadge as ProductFormState['topBadge']) ?? '',
       cashbackType: (item.cashbackType as ProductFormState['cashbackType']) ?? 'NONE',
       cashbackValue: String(item.cashbackValue ?? 0),
       variants:
@@ -307,6 +312,9 @@ export default function AdminProductsPage() {
       promotionEnabled: form.promotionEnabled,
       promotionStartAt: form.promotionEnabled && form.promotionStartAt ? new Date(form.promotionStartAt).toISOString() : undefined,
       promotionEndAt: form.promotionEnabled && form.promotionEndAt ? new Date(form.promotionEndAt).toISOString() : undefined,
+      isTopProduct: form.isTopProduct,
+      ...(form.isTopProduct && form.topBadge ? { topBadge: form.topBadge } : {}),
+      ...(!form.isTopProduct ? { topBadge: null, topOrder: 0 } : {}),
       stockQuantity: normalizedVariants.reduce((s, v) => s + v.stock, 0),
       unit: form.unit,
       sellingMode: form.sellingMode,
@@ -456,6 +464,8 @@ export default function AdminProductsPage() {
           {error}
         </p>
       ) : null}
+
+      <AdminTopProductsPanel onChanged={() => void loadProducts()} />
 
       <div className="rounded-lg border border-slate-200 bg-white p-3">
         <div className="grid gap-2 lg:grid-cols-12">

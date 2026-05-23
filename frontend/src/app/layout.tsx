@@ -7,6 +7,8 @@ import { ApplePwaHead } from "@/components/pwa/ApplePwaHead";
 import { PWAProvider } from "@/components/pwa/PWAProvider";
 import { StorefrontScrollRestore } from "@/components/navigation/storefront-scroll-restore";
 import { StorefrontShell } from "@/components/storefront/storefront-shell";
+import { Suspense } from "react";
+import { AnalyticsProvider } from "@/components/analytics/analytics-provider";
 import { absoluteUrl, getSiteUrl } from "@/lib/seo";
 import "./globals.css";
 
@@ -143,11 +145,15 @@ export default function RootLayout({
           }}
         />
         <PWAProvider>
-          <AuthBootstrap />
-          <ToastHost />
-          <RippleProvider />
-          <StorefrontScrollRestore />
-          <StorefrontShell>{children}</StorefrontShell>
+          <Suspense fallback={null}>
+            <AnalyticsProvider>
+              <AuthBootstrap />
+              <ToastHost />
+              <RippleProvider />
+              <StorefrontScrollRestore />
+              <StorefrontShell>{children}</StorefrontShell>
+            </AnalyticsProvider>
+          </Suspense>
         </PWAProvider>
       </body>
     </html>

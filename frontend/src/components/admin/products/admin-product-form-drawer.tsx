@@ -37,6 +37,8 @@ export type ProductFormState = {
   promotionEnabled: boolean;
   promotionStartAt: string;
   promotionEndAt: string;
+  isTopProduct: boolean;
+  topBadge: '' | 'TOP' | 'Trend' | 'Mashhur' | 'Tavsiya';
   cashbackType: 'NONE' | 'PERCENT' | 'FIXED_AMOUNT';
   cashbackValue: string;
   variants: VariantFormRow[];
@@ -288,6 +290,44 @@ export function AdminProductFormDrawer({
                     </div>
                   </div>
                 ) : null}
+
+                <div className="rounded-lg border border-amber-200/70 bg-amber-50/50 p-2.5">
+                  <label className="flex items-center gap-2 text-xs font-medium text-slate-800">
+                    <input
+                      type="checkbox"
+                      checked={form.isTopProduct}
+                      onChange={(e) =>
+                        setForm((p) => ({
+                          ...p,
+                          isTopProduct: e.target.checked,
+                          topBadge: e.target.checked ? p.topBadge : '',
+                        }))
+                      }
+                    />
+                    Bosh sahifa — Top mahsulot
+                  </label>
+                  {form.isTopProduct ? (
+                    <div className="mt-2">
+                      <label className="mb-1 block text-xs font-medium text-slate-700">Top belgisi</label>
+                      <select
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                        value={form.topBadge}
+                        onChange={(e) =>
+                          setForm((p) => ({
+                            ...p,
+                            topBadge: e.target.value as ProductFormState['topBadge'],
+                          }))
+                        }
+                      >
+                        <option value="">—</option>
+                        <option value="TOP">TOP</option>
+                        <option value="Trend">Trend</option>
+                        <option value="Mashhur">Mashhur</option>
+                        <option value="Tavsiya">Tavsiya</option>
+                      </select>
+                    </div>
+                  ) : null}
+                </div>
 
                 <div className="grid gap-2 sm:grid-cols-2">
                   <div>

@@ -54,6 +54,8 @@ export type ProductCardProps = {
   promotionStartAt?: string | null;
   promotionEndAt?: string | null;
   imagePriority?: boolean;
+  topBadge?: string | null;
+  cardVariant?: 'default' | 'top';
 };
 
 function ProductCardBase({
@@ -79,6 +81,8 @@ function ProductCardBase({
   promotionStartAt,
   promotionEndAt,
   imagePriority = false,
+  topBadge,
+  cardVariant = 'default',
 }: ProductCardProps) {
   const { openProduct } = useProductSheet();
   const productImages = { imageUrl: productImageUrl, imageCardUrl, imageThumbUrl };
@@ -184,8 +188,11 @@ function ProductCardBase({
 
   const openSheet = () => openProduct(storefrontProduct);
 
+  const isTopCard = cardVariant === 'top';
+  const imageSizeClass = isTopCard ? 'max-h-[100%] max-w-[100%]' : 'max-h-[96%] max-w-[96%]';
+
   return (
-    <article className="product-card flex h-full flex-col">
+    <article className={`product-card flex h-full flex-col ${isTopCard ? 'product-card--top' : ''}`}>
       <ProductCardInCartRing>
         <button
           type="button"
@@ -221,7 +228,7 @@ function ProductCardBase({
                         loading={imagePriority ? 'eager' : 'lazy'}
                         sizes="(max-width: 768px) 50vw, 200px"
                         decoding="async"
-                        className={`max-h-[96%] max-w-[96%] object-contain transition-opacity duration-300 ${
+                        className={`${imageSizeClass} object-contain transition-opacity duration-300 ${
                           imageLoaded ? 'opacity-100' : 'opacity-0'
                         }`}
                         fallbackClassName={PRODUCT_IMAGE_FALLBACK_CLASS}
@@ -232,8 +239,17 @@ function ProductCardBase({
                 })}
               </div>
 
+              {topBadge ? (
+                <span className="pointer-events-none absolute left-1.5 top-1.5 z-[2] rounded-md bg-gradient-to-r from-amber-500 to-orange-500 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">
+                  {topBadge}
+                </span>
+              ) : null}
               {effectiveDiscountPrice ? (
-                <span className="pointer-events-none absolute left-1.5 top-1.5 z-[1] rounded-md bg-[#ef4444] px-1.5 py-0.5 text-[9px] font-bold text-white">
+                <span
+                  className={`pointer-events-none absolute z-[1] rounded-md bg-[#ef4444] px-1.5 py-0.5 text-[9px] font-bold text-white ${
+                    topBadge ? 'left-1.5 top-7' : 'left-1.5 top-1.5'
+                  }`}
+                >
                   -{Math.max(1, Math.round(((activeBasePrice - effectiveDiscountPrice) / activeBasePrice) * 100))}%
                 </span>
               ) : null}
@@ -322,6 +338,8 @@ function arePropsEqual(prev: ProductCardProps, next: ProductCardProps): boolean 
   if ((prev.promotionStartAt ?? '') !== (next.promotionStartAt ?? '')) return false;
   if ((prev.promotionEndAt ?? '') !== (next.promotionEndAt ?? '')) return false;
   if ((prev.imagePriority ?? false) !== (next.imagePriority ?? false)) return false;
+  if ((prev.topBadge ?? '') !== (next.topBadge ?? '')) return false;
+  if ((prev.cardVariant ?? 'default') !== (next.cardVariant ?? 'default')) return false;
   return areVariantsEqual(prev.variants, next.variants);
 }
 

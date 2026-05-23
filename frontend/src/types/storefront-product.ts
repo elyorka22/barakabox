@@ -25,6 +25,9 @@ export type StorefrontProduct = {
   isPromotion?: boolean;
   cashbackType?: 'NONE' | 'PERCENT' | 'FIXED_AMOUNT' | string | null;
   cashbackValue?: number | null;
+  isTopProduct?: boolean;
+  topOrder?: number;
+  topBadge?: string | null;
   variants?: Array<{
     id: string;
     flavor?: string | null;
