@@ -186,6 +186,37 @@ export function formatSellingModeQuantity(
   return `${qty} ${PRODUCT_UNIT_LABEL_UZ[unit] ?? PRODUCT_UNIT_LABEL_UZ.dona}`;
 }
 
+/** Compact labels for tight UI (product card stepper on mobile). */
+const PRODUCT_UNIT_LABEL_COMPACT: Record<ProductUnitCode, string> = {
+  dona: 'dona',
+  kg: 'kg',
+  gramm: 'g',
+  litr: 'litr',
+  ml: 'ml',
+  quti: 'quti',
+  karobka: 'karobka',
+  toplam: "to'plam",
+};
+
+export function formatSellingModeQuantityCompact(
+  quantity: number,
+  mode: SellingMode,
+  unit: ProductUnitCode = DEFAULT_PRODUCT_UNIT,
+): string {
+  const qty = Math.max(0, Math.round(Number(quantity) || 0));
+  if (mode === 'gram_step') {
+    if (qty < 1000) return `${qty} g`;
+    const kg = qty / 1000;
+    const text = Number.isInteger(kg) ? String(kg) : kg.toFixed(1).replace(/\.0$/, '');
+    return `${text} kg`;
+  }
+  if (mode === 'kilogram_step') {
+    return `${qty} kg`;
+  }
+  const label = PRODUCT_UNIT_LABEL_COMPACT[unit] ?? PRODUCT_UNIT_LABEL_COMPACT.dona;
+  return `${qty} ${label}`;
+}
+
 /**
  * Line total. Price is the *catalog* price (assumed per kg for weight products,
  * per piece otherwise — the historic convention). Cart quantity follows the mode.

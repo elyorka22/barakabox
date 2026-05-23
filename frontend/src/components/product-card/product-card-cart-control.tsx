@@ -7,7 +7,7 @@ import { hapticTap } from '@/lib/haptic';
 import { useCartQuantity } from '@/lib/use-cart-store';
 import {
   DEFAULT_PRODUCT_UNIT,
-  formatSellingModeQuantity,
+  formatSellingModeQuantityCompact,
   type ProductUnitCode,
   type SellingMode,
 } from '@onlinebozor/product-units';
@@ -39,33 +39,33 @@ type StepperProps = {
 function CompactCardStepper({ displayLabel, disabled, onDecrease, onIncrease }: StepperProps) {
   return (
     <div
-      className="product-card-qty-enter inline-flex h-[26px] max-w-[96px] items-center rounded-full bg-white/92 py-px pl-px pr-px shadow-[0_2px_8px_rgba(15,23,42,0.1)] ring-1 ring-black/[0.04]"
+      className="product-card-qty-stepper product-card-qty-enter inline-grid h-6 w-max max-w-full grid-cols-[20px_minmax(2.75rem,1fr)_20px] items-center rounded-full bg-white/95 shadow-[0_2px_8px_rgba(15,23,42,0.1)] ring-1 ring-black/[0.04]"
       role="group"
       aria-label="Miqdor"
     >
       <button
         type="button"
-        className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-[#f0f1f3] text-[#4b5563] transition-transform duration-100 active:scale-[0.9] disabled:opacity-40"
+        className="flex h-5 w-5 shrink-0 items-center justify-center justify-self-center rounded-full bg-[#f0f1f3] text-[#4b5563] transition-transform duration-100 active:scale-[0.9] disabled:opacity-40"
         onClick={onDecrease}
         disabled={disabled}
         aria-label="Miqdorni kamaytirish"
       >
-        <Minus className="h-3 w-3" strokeWidth={2.5} aria-hidden />
+        <Minus className="h-2.5 w-2.5" strokeWidth={2.75} aria-hidden />
       </button>
       <span
         key={displayLabel}
-        className="qty-selector-value min-w-[1.25rem] max-w-[2rem] truncate px-0.5 text-center text-[10px] font-semibold leading-none tabular-nums text-[#111827]"
+        className="qty-selector-value min-w-0 justify-self-center whitespace-nowrap px-1 text-center text-[10px] font-semibold leading-none tracking-tight tabular-nums text-[#111827]"
       >
         {displayLabel}
       </span>
       <button
         type="button"
-        className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full text-white ${ADD_GREEN} ${ADD_GREEN_SHADOW} transition-transform duration-100 active:scale-[0.9] disabled:opacity-40`}
+        className={`flex h-5 w-5 shrink-0 items-center justify-center justify-self-center rounded-full text-white ${ADD_GREEN} ${ADD_GREEN_SHADOW} transition-transform duration-100 active:scale-[0.9] disabled:opacity-40`}
         onClick={onIncrease}
         disabled={disabled}
         aria-label="Miqdorni oshirish"
       >
-        <Plus className="h-3 w-3" strokeWidth={2.5} aria-hidden />
+        <Plus className="h-2.5 w-2.5" strokeWidth={2.75} aria-hidden />
       </button>
     </div>
   );
@@ -73,7 +73,7 @@ function CompactCardStepper({ displayLabel, disabled, onDecrease, onIncrease }: 
 
 function ProductCardCartControlBase({ variantId, productId, sellingMode, unit, disabled }: Props) {
   const quantity = useCartQuantity(variantId);
-  const displayLabel = formatSellingModeQuantity(quantity, sellingMode, unit ?? DEFAULT_PRODUCT_UNIT);
+  const displayLabel = formatSellingModeQuantityCompact(quantity, sellingMode, unit ?? DEFAULT_PRODUCT_UNIT);
   const inCart = quantity > 0;
 
   const runAdjust = useCallback(

@@ -260,7 +260,7 @@ function ProductCardBase({
               ) : null}
 
               <div
-                className="absolute bottom-1.5 right-1.5 z-10"
+                className="absolute bottom-1 right-1 z-10 flex max-w-[calc(100%-6px)] justify-end"
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => e.stopPropagation()}
               >

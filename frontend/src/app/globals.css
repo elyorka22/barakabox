@@ -277,6 +277,17 @@ body {
 .qty-selector-value {
   will-change: transform;
   animation: qty-selector-bump 120ms ease-out;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.product-card-qty-stepper {
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+
+.product-card-qty-stepper .qty-selector-value {
+  max-width: none;
 }
 
 .product-card-qty-enter {
