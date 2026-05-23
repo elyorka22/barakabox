@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma, PrismaClient, Product, ProductVariant } from '@prisma/client';
+import { Prisma, Product, ProductVariant } from '@prisma/client';
+import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { slugifyName, withUniqueSlugSuffix } from '../../common/utils/slug.util';
 
 export type MarketplaceMigrationStats = {
@@ -26,7 +27,7 @@ type DedupeMaps = {
 export class MarketplaceMigrationService {
   private readonly logger = new Logger(MarketplaceMigrationService.name);
 
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   run(dryRun = false): Promise<MarketplaceMigrationStats> {
     return this.execute(dryRun);

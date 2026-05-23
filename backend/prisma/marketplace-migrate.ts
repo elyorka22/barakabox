@@ -9,12 +9,13 @@
  *   npm run marketplace:migrate
  *   npm run marketplace:migrate:dry
  */
-import { PrismaClient } from '@prisma/client';
 import { MarketplaceMigrationService } from '../src/modules/marketplace/marketplace-migration.service';
+import { PrismaService } from '../src/infrastructure/database/prisma.service';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaService();
 
 async function main() {
+  await prisma.$connect();
   const dryRun = process.argv.includes('--dry-run') || process.env.MARKETPLACE_MIGRATE_DRY === '1';
   const migration = new MarketplaceMigrationService(prisma);
   const stats = await migration.run(dryRun);
