@@ -1,4 +1,7 @@
-/** Staff role names (aligned with Prisma `Role` enum). */
+/**
+ * Staff role names (aligned with Prisma `Role` enum).
+ * Keep in sync with backend/src/common/roles.ts (Docker uses backend/ context only).
+ */
 export const STAFF_ROLE_ORDER = ['ADMIN', 'MANAGER', 'BUSINESS', 'PICKER', 'COURIER'] as const;
 
 export const ALL_STAFF_ROLES = ['SUPER_ADMIN', ...STAFF_ROLE_ORDER] as const;
