@@ -1,9 +1,10 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { CacheService } from '../../infrastructure/cache/cache.service';
 import { CACHE_TTL, cacheKeys } from '../../common/cache/cache-keys';
-import { Role, User } from '@prisma/client';
+import { Role, User, type Prisma } from '@prisma/client';
 import { PRISMA_STAFF_ROLES } from '../../common/roles';
+import { throwMappedPrismaError } from '../../common/utils/prisma-errors';
 
 const STAFF_EMAIL_DOMAIN = 'staff.barakabox.local';
 
@@ -12,12 +13,76 @@ export function staffEmailFromLogin(login: string): string {
   return `${normalized}@${STAFF_EMAIL_DOMAIN}`;
 }
 
+type EmployeeListRow = {
+  id: string;
+  email: string;
+  staffLogin: string | null;
+  phone: string | null;
+  fullName: string;
+  role: Role;
+  isActive: boolean;
+  lastLoginAt: Date | null;
+  businessScopeId: string | null;
+  createdAt: Date;
+  businessScope: { id: string; displayName: string } | null;
+};
+
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+  private staffRolesForQuery: Role[] | null = null;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
   ) {}
+
+  /** Staff roles supported by the live DB enum (MANAGER omitted until migration applied). */
+  async resolveStaffRolesForDb(): Promise<Role[]> {
+    if (this.staffRolesForQuery) {
+      return this.staffRolesForQuery;
+    }
+    try {
+      const rows = await this.prisma.$queryRaw<{ hasManager: boolean }[]>`
+        SELECT EXISTS (
+          SELECT 1 FROM pg_enum e
+          INNER JOIN pg_type t ON e.enumtypid = t.oid
+          WHERE t.typname = 'Role' AND e.enumlabel = 'MANAGER'
+        ) AS "hasManager"
+      `;
+      const hasManager = rows[0]?.hasManager === true;
+      this.staffRolesForQuery = hasManager
+        ? [...PRISMA_STAFF_ROLES]
+        : PRISMA_STAFF_ROLES.filter((r) => r !== Role.MANAGER);
+      if (!hasManager) {
+        this.logger.warn(
+          'Role enum MANAGER missing in database — run `npx prisma migrate deploy`. Listing staff without MANAGER filter.',
+        );
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Could not probe Role enum; excluding MANAGER from staff queries: ${err instanceof Error ? err.message : err}`,
+      );
+      this.staffRolesForQuery = PRISMA_STAFF_ROLES.filter((r) => r !== Role.MANAGER);
+    }
+    return this.staffRolesForQuery;
+  }
+
+  private serializeEmployeeRow(row: EmployeeListRow) {
+    return {
+      id: row.id,
+      email: row.email,
+      staffLogin: row.staffLogin,
+      phone: row.phone,
+      fullName: row.fullName,
+      role: row.role,
+      isActive: row.isActive,
+      lastLoginAt: row.lastLoginAt?.toISOString() ?? null,
+      businessScopeId: row.businessScopeId,
+      createdAt: row.createdAt.toISOString(),
+      businessScope: row.businessScope,
+    };
+  }
 
   findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
@@ -133,28 +198,93 @@ export class UsersService {
     const limit = Math.min(100, Math.max(1, opts?.limit ?? 25));
     const skip = (page - 1) * limit;
     const search = opts?.q?.trim();
-    const where: import('@prisma/client').Prisma.UserWhereInput = {
-      role: opts?.role ?? { in: PRISMA_STAFF_ROLES },
-    };
 
-    if (opts?.status === 'active') where.isActive = true;
-    else if (opts?.status === 'inactive') where.isActive = false;
+    try {
+      const staffRoles = await this.resolveStaffRolesForDb();
 
-    if (search) {
-      where.OR = [
-        { fullName: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { staffLogin: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search, mode: 'insensitive' } },
-      ];
+      if (opts?.role === Role.MANAGER && !staffRoles.includes(Role.MANAGER)) {
+        return { items: [], total: 0, page, limit };
+      }
+
+      const where: Prisma.UserWhereInput = {
+        role: opts?.role ?? { in: staffRoles },
+      };
+
+      if (opts?.status === 'active') where.isActive = true;
+      else if (opts?.status === 'inactive') where.isActive = false;
+
+      if (search) {
+        where.OR = [
+          { fullName: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { staffLogin: { contains: search, mode: 'insensitive' } },
+          { phone: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      const [items, total] = await Promise.all([
+        this.prisma.user.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
+          select: {
+            id: true,
+            email: true,
+            staffLogin: true,
+            phone: true,
+            fullName: true,
+            role: true,
+            isActive: true,
+            lastLoginAt: true,
+            businessScopeId: true,
+            createdAt: true,
+            businessScope: { select: { id: true, displayName: true } },
+          },
+        }),
+        this.prisma.user.count({ where }),
+      ]);
+
+      return {
+        items: items.map((row) => this.serializeEmployeeRow(row)),
+        total,
+        page,
+        limit,
+      };
+    } catch (error) {
+      throwMappedPrismaError(error, 'listEmployeesForAdmin');
     }
+  }
 
-    const [items, total] = await Promise.all([
-      this.prisma.user.findMany({
+  async listStaffForAdmin(params: { role?: Role; search?: string; includeClients?: boolean }) {
+    const search = params.search?.trim();
+    const roleFilter = params.role;
+
+    try {
+      const staffRoles = await this.resolveStaffRolesForDb();
+      const where: Prisma.UserWhereInput = {};
+
+      if (roleFilter) {
+        if (roleFilter === Role.MANAGER && !staffRoles.includes(Role.MANAGER)) {
+          return [];
+        }
+        where.role = roleFilter;
+      } else if (!params.includeClients) {
+        where.role = { in: staffRoles };
+      }
+
+      if (search) {
+        where.OR = [
+          { fullName: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { staffLogin: { contains: search, mode: 'insensitive' } },
+          { phone: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      const rows = await this.prisma.user.findMany({
         where,
-        skip,
-        take: limit,
-        orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
+        orderBy: { createdAt: 'desc' },
         select: {
           id: true,
           email: true,
@@ -166,53 +296,21 @@ export class UsersService {
           lastLoginAt: true,
           businessScopeId: true,
           createdAt: true,
+          businessProfile: { select: { id: true, displayName: true } },
           businessScope: { select: { id: true, displayName: true } },
         },
-      }),
-      this.prisma.user.count({ where }),
-    ]);
+      });
 
-    return { items, total, page, limit };
-  }
-
-  async listStaffForAdmin(params: { role?: Role; search?: string; includeClients?: boolean }) {
-    const search = params.search?.trim().toLowerCase();
-    const roleFilter = params.role;
-    const where: import('@prisma/client').Prisma.UserWhereInput = {};
-
-    if (roleFilter) {
-      where.role = roleFilter;
-    } else if (!params.includeClients) {
-      where.role = { in: PRISMA_STAFF_ROLES };
+      return rows.map((row) => ({
+        ...this.serializeEmployeeRow({
+          ...row,
+          businessScope: row.businessScope,
+        }),
+        businessProfile: row.businessProfile,
+      }));
+    } catch (error) {
+      throwMappedPrismaError(error, 'listStaffForAdmin');
     }
-
-    if (search) {
-      where.OR = [
-        { fullName: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { staffLogin: { contains: search, mode: 'insensitive' } },
-        { phone: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    return this.prisma.user.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        email: true,
-        staffLogin: true,
-        phone: true,
-        fullName: true,
-        role: true,
-        isActive: true,
-        lastLoginAt: true,
-        businessScopeId: true,
-        createdAt: true,
-        businessProfile: { select: { id: true, displayName: true } },
-        businessScope: { select: { id: true, displayName: true } },
-      },
-    });
   }
 
   async updateStaffProfile(

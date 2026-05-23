@@ -1,6 +1,6 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { Role } from '@prisma/client';
 import { AdminService } from './admin.service';
+import { parseStaffRoleQuery } from '../../common/utils/role-parse.util';
 import { AdminDashboardService, type DashboardPeriod } from './admin-dashboard.service';
 import { CustomersService } from '../customers/customers.service';
 import { UsersService } from '../users/users.service';
@@ -35,8 +35,7 @@ export class AdminController {
     @Query('role') role?: string,
     @Query('status') status?: string,
   ) {
-    const roleEnum =
-      role && role !== 'ALL' ? (role.toUpperCase() as Role) : undefined;
+    const roleEnum = parseStaffRoleQuery(role);
     const statusNorm =
       status === 'active' || status === 'inactive' || status === 'all' ? status : 'all';
     return this.usersService.listEmployeesForAdmin({

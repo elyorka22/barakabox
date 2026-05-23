@@ -2,7 +2,8 @@ import { Role } from '@prisma/client';
 import { IsIn, IsOptional, IsString, Matches, MinLength } from 'class-validator';
 import { PRISMA_STAFF_ROLES } from '../../../common/roles';
 
-const CREATABLE_STAFF_ROLES: Role[] = PRISMA_STAFF_ROLES;
+/** String values for class-validator (`IsIn` compares primitives). */
+const CREATABLE_STAFF_ROLE_VALUES: string[] = PRISMA_STAFF_ROLES.map((r) => String(r));
 
 export class AdminCreateStaffUserDto {
   @IsString()
@@ -21,7 +22,7 @@ export class AdminCreateStaffUserDto {
   @MinLength(8)
   password!: string;
 
-  @IsIn(CREATABLE_STAFF_ROLES)
+  @IsIn(CREATABLE_STAFF_ROLE_VALUES)
   role!: Role;
 
   @IsOptional()
@@ -40,7 +41,7 @@ export class AdminUpdateStaffUserDto {
   phone?: string | null;
 
   @IsOptional()
-  @IsIn(CREATABLE_STAFF_ROLES)
+  @IsIn(CREATABLE_STAFF_ROLE_VALUES)
   role?: Role;
 
   @IsOptional()

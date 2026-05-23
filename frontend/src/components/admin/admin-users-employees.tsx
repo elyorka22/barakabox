@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, authStorage } from '@/lib/api';
+import { api, authStorage, isApiError } from '@/lib/api';
 import {
   canManageStaffUser,
+  formatStaffRoleLabel,
   roleBadgeClass,
   staffRolesAssignableBy,
   staffRolesForFilter,
@@ -92,7 +93,11 @@ export function AdminUsersEmployees() {
       setUsers(res.items);
       setTotal(res.total);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Yuklab bo‘lmadi');
+      if (isApiError(e)) {
+        setError(e.message);
+      } else {
+        setError(e instanceof Error ? e.message : 'Yuklab bo‘lmadi');
+      }
     } finally {
       setLoading(false);
     }
@@ -313,7 +318,7 @@ export function AdminUsersEmployees() {
           <option value="ALL">Barcha rollar</option>
           {FILTER_ROLE_OPTIONS.map((r) => (
             <option key={r} value={r}>
-              {r}
+              {formatStaffRoleLabel(r)}
             </option>
           ))}
         </select>
@@ -382,7 +387,7 @@ export function AdminUsersEmployees() {
                     <td className="px-3 py-2.5 whitespace-nowrap">{user.phone ?? '—'}</td>
                     <td className="px-3 py-2.5">
                       <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${roleBadgeClass(user.role)}`}>
-                        {user.role}
+                        {formatStaffRoleLabel(user.role)}
                       </span>
                     </td>
                     <td className="px-3 py-2.5">
@@ -544,7 +549,7 @@ export function AdminUsersEmployees() {
                     {(panel === 'create' ? creatableRoles : creatableRoles.length > 0 ? creatableRoles : [formRole]).map(
                       (r) => (
                         <option key={r} value={r}>
-                          {r}
+                          {formatStaffRoleLabel(r)}
                         </option>
                       ),
                     )}

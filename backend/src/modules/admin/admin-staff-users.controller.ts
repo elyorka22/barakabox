@@ -7,6 +7,8 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthUser } from '../../common/decorators/current-user.decorator';
 import { canManageStaffUser, PRISMA_STAFF_ROLES, staffRolesAssignableBy } from '../../common/roles';
+import { throwMappedPrismaError } from '../../common/utils/prisma-errors';
+import { parseStaffRoleQuery } from '../../common/utils/role-parse.util';
 import { UsersService, staffEmailFromLogin } from '../users/users.service';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import {
@@ -60,7 +62,7 @@ export class AdminStaffUsersController {
     @Query('q') q?: string,
     @Query('includeClients') includeClients?: string,
   ) {
-    const roleEnum = role && role !== 'ALL' ? (role.toUpperCase() as Role) : undefined;
+    const roleEnum = parseStaffRoleQuery(role);
     return this.usersService.listStaffForAdmin({
       role: roleEnum,
       search: q,
@@ -70,31 +72,38 @@ export class AdminStaffUsersController {
 
   @Post()
   async create(@CurrentUser() actor: AuthUser, @Body() dto: AdminCreateStaffUserDto) {
-    this.assertCanAssignRole(actor, dto.role);
-    const login = dto.staffLogin.trim().toLowerCase();
-    const email = staffEmailFromLogin(login);
-    const existingEmail = await this.usersService.findByEmail(email);
-    const existingLogin = await this.usersService.findByStaffLogin(login);
-    if (existingEmail || existingLogin) {
-      throw new ConflictException('Bu login allaqachon band');
+    try {
+      this.assertCanAssignRole(actor, dto.role);
+      const login = dto.staffLogin.trim().toLowerCase();
+      const email = staffEmailFromLogin(login);
+      const existingEmail = await this.usersService.findByEmail(email);
+      const existingLogin = await this.usersService.findByStaffLogin(login);
+      if (existingEmail || existingLogin) {
+        throw new ConflictException('Bu login allaqachon band');
+      }
+      if (dto.businessScopeId) {
+        const bp = await this.prisma.businessProfile.findUnique({ where: { id: dto.businessScopeId } });
+        if (!bp) throw new ForbiddenException('Biznes topilmadi');
+      }
+      await this.usersService.assertStaffPhoneAvailable(dto.phone);
+      const passwordHash = await bcrypt.hash(dto.password, 10);
+      const user = await this.usersService.createUser({
+        email,
+        fullName: dto.fullName,
+        passwordHash,
+        role: dto.role,
+        staffLogin: login,
+        phone: dto.phone ?? null,
+        businessScopeId: dto.businessScopeId ?? null,
+        isActive: true,
+      });
+      return this.sanitize(user);
+    } catch (error) {
+      if (error instanceof ConflictException || error instanceof ForbiddenException) {
+        throw error;
+      }
+      throwMappedPrismaError(error, 'adminCreateStaffUser');
     }
-    if (dto.businessScopeId) {
-      const bp = await this.prisma.businessProfile.findUnique({ where: { id: dto.businessScopeId } });
-      if (!bp) throw new ForbiddenException('Biznes topilmadi');
-    }
-    await this.usersService.assertStaffPhoneAvailable(dto.phone);
-    const passwordHash = await bcrypt.hash(dto.password, 10);
-    const user = await this.usersService.createUser({
-      email,
-      fullName: dto.fullName,
-      passwordHash,
-      role: dto.role,
-      staffLogin: login,
-      phone: dto.phone ?? null,
-      businessScopeId: dto.businessScopeId ?? null,
-      isActive: true,
-    });
-    return this.sanitize(user);
   }
 
   @Patch(':id')

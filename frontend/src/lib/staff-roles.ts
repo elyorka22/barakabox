@@ -12,6 +12,21 @@ export {
   staffDashboardPath,
 } from '@onlinebozor/roles';
 
+const ROLE_LABELS: Record<string, string> = {
+  SUPER_ADMIN: 'Super admin',
+  ADMIN: 'Admin',
+  MANAGER: 'Menejer',
+  BUSINESS: 'Biznes',
+  COURIER: 'Kuryer',
+  PICKER: 'Yig‘uvchi',
+  CLIENT: 'Mijoz',
+};
+
+export function formatStaffRoleLabel(role: string): string {
+  const key = role.toUpperCase();
+  return ROLE_LABELS[key] ?? role;
+}
+
 export function roleBadgeClass(role: string): string {
   const r = role.toUpperCase();
   if (r === 'SUPER_ADMIN') return 'bg-violet-100 text-violet-800';
