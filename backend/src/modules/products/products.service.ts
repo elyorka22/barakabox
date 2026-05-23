@@ -527,6 +527,9 @@ export class ProductsService {
       minimumAmount?: number;
       cashbackType?: CashbackType;
       cashbackValue?: number;
+      isTopProduct?: boolean;
+      topOrder?: number;
+      topBadge?: string | null;
       categoryId?: string;
       imageUrl?: string;
       imageKey?: string;
@@ -558,6 +561,11 @@ export class ProductsService {
 
     const sellingMode = data.sellingMode ?? defaultSellingModeForUnit(data.unit);
     return this.prisma.$transaction(async (tx) => {
+      const topFields = await this.buildTopProductPatch(
+        tx,
+        { id: 'new', isTopProduct: false, topOrder: 0, topBadge: null },
+        data,
+      );
       const product = await tx.product.create({
         data: {
           businessId: business.id,
@@ -584,6 +592,9 @@ export class ProductsService {
           imageThumbKey: data.imageThumbKey,
           cashbackType: data.cashbackType ?? 'NONE',
           cashbackValue: data.cashbackValue ?? 0,
+          isTopProduct: topFields.isTopProduct === true,
+          topOrder: typeof topFields.topOrder === 'number' ? topFields.topOrder : 0,
+          topBadge: (topFields.topBadge as string | null) ?? null,
           variants: {
             create: (data.variants?.length
               ? data.variants

@@ -1,6 +1,7 @@
 import { ProductUnit, CashbackType, SellingMode } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import { IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { ProductTopFieldsDto } from './product-top-fields.dto';
 
 const SELLING_MODE_INPUT_MAP: Record<string, SellingMode> = {
   piece: 'PIECE',
@@ -64,7 +65,7 @@ class ProductVariantDto {
   sortOrder?: number;
 }
 
-export class CreateProductDto {
+export class CreateProductDto extends ProductTopFieldsDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty()

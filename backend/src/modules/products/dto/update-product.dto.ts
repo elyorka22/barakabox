@@ -1,6 +1,7 @@
 import { ProductUnit, CashbackType, SellingMode } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import { IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { ProductTopFieldsDto } from './product-top-fields.dto';
 
 const SELLING_MODE_INPUT_MAP: Record<string, SellingMode> = {
   piece: 'PIECE',
@@ -67,7 +68,7 @@ class ProductVariantUpdateDto {
   sortOrder?: number;
 }
 
-export class UpdateProductDto {
+export class UpdateProductDto extends ProductTopFieldsDto {
   @IsOptional()
   @IsString()
   name?: string;
@@ -177,19 +178,4 @@ export class UpdateProductDto {
   @ValidateNested({ each: true })
   @Type(() => ProductVariantUpdateDto)
   variants?: ProductVariantUpdateDto[];
-
-  @IsOptional()
-  @Type(() => Boolean)
-  @IsBoolean()
-  isTopProduct?: boolean;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  topOrder?: number;
-
-  @IsOptional()
-  @IsString()
-  topBadge?: string | null;
 }
