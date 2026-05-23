@@ -2,14 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, authStorage } from '@/lib/api';
-
-type StaffRole =
-  | 'SUPER_ADMIN'
-  | 'ADMIN'
-  | 'BUSINESS'
-  | 'COURIER'
-  | 'PICKER'
-  | 'CLIENT';
+import {
+  canManageStaffUser,
+  roleBadgeClass,
+  staffRolesAssignableBy,
+  staffRolesForFilter,
+  type StaffRoleName,
+} from '@/lib/staff-roles';
 
 type AdminUserRow = {
   id: string;
@@ -17,7 +16,7 @@ type AdminUserRow = {
   staffLogin: string | null;
   phone: string | null;
   fullName: string;
-  role: StaffRole;
+  role: StaffRoleName;
   isActive: boolean;
   lastLoginAt: string | null;
   businessScopeId: string | null;
@@ -34,33 +33,7 @@ type EmployeesResponse = {
   limit: number;
 };
 
-const STAFF_ROLE_OPTIONS: StaffRole[] = ['SUPER_ADMIN', 'ADMIN', 'BUSINESS', 'COURIER', 'PICKER'];
-
-function roleOptionsForActor(actorRole: string | undefined): StaffRole[] {
-  const r = (actorRole ?? '').toUpperCase();
-  if (r === 'SUPER_ADMIN') return [...STAFF_ROLE_OPTIONS];
-  return STAFF_ROLE_OPTIONS.filter((role) => role !== 'SUPER_ADMIN' && role !== 'ADMIN');
-}
-
-function canManageUserRow(actorRole: string | undefined, row: AdminUserRow, actorId: string | undefined): boolean {
-  const ar = (actorRole ?? '').toUpperCase();
-  const tr = row.role;
-  if (tr === 'CLIENT') return true;
-  if (row.id === actorId) return false;
-  if (ar === 'SUPER_ADMIN') return true;
-  if (ar === 'ADMIN') return tr !== 'SUPER_ADMIN' && tr !== 'ADMIN';
-  return false;
-}
-
-function roleBadgeClass(role: string) {
-  const r = role.toUpperCase();
-  if (r === 'SUPER_ADMIN') return 'bg-violet-100 text-violet-800';
-  if (r === 'ADMIN') return 'bg-sky-100 text-sky-800';
-  if (r === 'BUSINESS') return 'bg-amber-100 text-amber-900';
-  if (r === 'COURIER') return 'bg-emerald-100 text-emerald-900';
-  if (r === 'PICKER') return 'bg-orange-100 text-orange-900';
-  return 'bg-slate-100 text-slate-700';
-}
+const FILTER_ROLE_OPTIONS = staffRolesForFilter();
 
 function formatDate(iso: string | null | undefined) {
   if (!iso) return '—';
@@ -74,7 +47,7 @@ function formatDate(iso: string | null | undefined) {
 export function AdminUsersEmployees() {
   const [search, setSearch] = useState('');
   const [appliedSearch, setAppliedSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'ALL' | StaffRole>('ALL');
+  const [roleFilter, setRoleFilter] = useState<'ALL' | StaffRoleName>('ALL');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [page, setPage] = useState(1);
   const [users, setUsers] = useState<AdminUserRow[]>([]);
@@ -89,7 +62,7 @@ export function AdminUsersEmployees() {
   const [formPhone, setFormPhone] = useState('');
   const [formLogin, setFormLogin] = useState('');
   const [formPassword, setFormPassword] = useState('');
-  const [formRole, setFormRole] = useState<StaffRole>('COURIER');
+  const [formRole, setFormRole] = useState<StaffRoleName>('COURIER');
   const [formBusinessScopeId, setFormBusinessScopeId] = useState('');
   const [formBusy, setFormBusy] = useState(false);
   const [resetPassword, setResetPassword] = useState('');
@@ -98,7 +71,7 @@ export function AdminUsersEmployees() {
   const me = authStorage.getUser();
   const actorRole = me?.role;
   const actorId = me?.id;
-  const creatableRoles = useMemo(() => roleOptionsForActor(actorRole), [actorRole]);
+  const creatableRoles = useMemo(() => staffRolesAssignableBy(actorRole), [actorRole]);
   const limit = 25;
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
@@ -153,7 +126,7 @@ export function AdminUsersEmployees() {
     setFormPhone('');
     setFormLogin('');
     setFormPassword('');
-    setFormRole(roleOptionsForActor(actorRole)[0] ?? 'COURIER');
+    setFormRole(creatableRoles[0] ?? 'COURIER');
     setFormBusinessScopeId('');
     setPanel('create');
   };
@@ -300,7 +273,7 @@ export function AdminUsersEmployees() {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <p className="text-xs text-slate-500 md:text-sm">Ichki xodimlar: admin, kuryer, yig‘uvchi va boshqalar.</p>
+        <p className="text-xs text-slate-500 md:text-sm">Ichki xodimlar: admin, menejer, kuryer, yig‘uvchi va boshqalar.</p>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -310,13 +283,15 @@ export function AdminUsersEmployees() {
           >
             CSV eksport
           </button>
-          <button
-            type="button"
-            className="min-h-10 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white"
-            onClick={openCreate}
-          >
-            Yangi xodim
-          </button>
+          {creatableRoles.length > 0 ? (
+            <button
+              type="button"
+              className="min-h-10 rounded-xl bg-emerald-600 px-4 text-sm font-semibold text-white"
+              onClick={openCreate}
+            >
+              Yangi xodim
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -333,10 +308,10 @@ export function AdminUsersEmployees() {
         <select
           className="min-h-10 rounded-xl border border-slate-200 px-3 text-sm"
           value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value as 'ALL' | StaffRole)}
+          onChange={(e) => setRoleFilter(e.target.value as 'ALL' | StaffRoleName)}
         >
           <option value="ALL">Barcha rollar</option>
-          {STAFF_ROLE_OPTIONS.map((r) => (
+          {FILTER_ROLE_OPTIONS.map((r) => (
             <option key={r} value={r}>
               {r}
             </option>
@@ -394,7 +369,7 @@ export function AdminUsersEmployees() {
               </tr>
             ) : (
               users.map((user) => {
-                const canManage = canManageUserRow(actorRole, user, actorId);
+                const canManage = canManageStaffUser(actorRole, user.role, actorId, user.id);
                 return (
                   <tr key={user.id} className="border-b border-slate-100 hover:bg-slate-50/80">
                     <td className="px-3 py-2.5">
@@ -564,13 +539,15 @@ export function AdminUsersEmployees() {
                   <select
                     className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
                     value={formRole}
-                    onChange={(e) => setFormRole(e.target.value as StaffRole)}
+                    onChange={(e) => setFormRole(e.target.value as StaffRoleName)}
                   >
-                    {creatableRoles.map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
+                    {(panel === 'create' ? creatableRoles : creatableRoles.length > 0 ? creatableRoles : [formRole]).map(
+                      (r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ),
+                    )}
                   </select>
                   <select
                     className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"

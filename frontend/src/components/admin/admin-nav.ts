@@ -43,4 +43,12 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
 
 export const ADMIN_NAV_GROUPS: AdminNavItem['group'][] = ['Asosiy', 'Boshqaruv', 'Monitoring', 'Tizim'];
 
+export function adminNavItemsForRole(actorRole?: string | null): AdminNavItem[] {
+  const r = (actorRole ?? '').toUpperCase();
+  if (r === 'SUPER_ADMIN' || r === 'ADMIN') {
+    return ADMIN_NAV_ITEMS;
+  }
+  return ADMIN_NAV_ITEMS.filter((item) => item.href !== '/admin/settings');
+}
+
 export const LOGOUT_ITEM = { href: '/profile', label: 'Logout', icon: ShieldAlert };

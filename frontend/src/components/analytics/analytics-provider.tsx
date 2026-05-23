@@ -3,17 +3,14 @@
 import { useEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { startAnalyticsRuntime, trackPageView } from '@/lib/analytics/client';
-import { hasAnalyticsConsent } from '@/lib/analytics/consent';
-import { CookieConsentBanner } from '@/components/analytics/cookie-consent-banner';
 
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (hasAnalyticsConsent()) {
-      startAnalyticsRuntime();
-    }
+    startAnalyticsRuntime();
+
     const onError = (event: ErrorEvent) => {
       void import('@/lib/analytics/client').then((m) =>
         m.trackAnalytics('frontend_error', {
@@ -37,16 +34,10 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!hasAnalyticsConsent()) return;
     const qs = searchParams?.toString();
     const path = qs ? `${pathname}?${qs}` : pathname;
     trackPageView(path);
   }, [pathname, searchParams]);
 
-  return (
-    <>
-      {children}
-      <CookieConsentBanner />
-    </>
-  );
+  return children;
 }

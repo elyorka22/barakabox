@@ -20,6 +20,7 @@ async function createUser(
 
 async function main() {
   const admin = await createUser('admin@barakabox.local', 'Admin', Role.SUPER_ADMIN, { staffLogin: 'admin' });
+  const manager = await createUser('manager@barakabox.local', 'Manager', Role.MANAGER, { staffLogin: 'manager' });
   const businessUser = await createUser('business@barakabox.local', 'Business Owner', Role.BUSINESS, {
     staffLogin: 'business',
   });

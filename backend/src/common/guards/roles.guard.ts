@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
+import { roleMatchesRequired } from '../roles';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -30,18 +31,13 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('Insufficient permissions');
     }
 
-    const allowed = normalizedRequiredRoles.some((required) => this.roleMatches(userRole, required));
+    const allowed = normalizedRequiredRoles.some((required) =>
+      roleMatchesRequired(userRole, required),
+    );
     if (!allowed) {
       throw new ForbiddenException('Insufficient permissions');
     }
 
     return true;
-  }
-
-  /** SUPER_ADMIN inherits ADMIN. ADMIN decorator matches ADMIN or SUPER_ADMIN. */
-  private roleMatches(userRole: string, required: string): boolean {
-    if (userRole === required) return true;
-    if (required === 'ADMIN' && (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN')) return true;
-    return false;
   }
 }

@@ -35,4 +35,16 @@ describe('RolesGuard', () => {
     const guard = new RolesGuard(reflector);
     expect(guard.canActivate(makeContext('ADMIN'))).toBe(true);
   });
+
+  it('allows MANAGER for ADMIN routes', () => {
+    const reflector = { getAllAndOverride: jest.fn().mockReturnValue(['ADMIN']) } as unknown as Reflector;
+    const guard = new RolesGuard(reflector);
+    expect(guard.canActivate(makeContext('MANAGER'))).toBe(true);
+  });
+
+  it('blocks MANAGER for SYSTEM_ADMIN routes', () => {
+    const reflector = { getAllAndOverride: jest.fn().mockReturnValue(['SYSTEM_ADMIN']) } as unknown as Reflector;
+    const guard = new RolesGuard(reflector);
+    expect(() => guard.canActivate(makeContext('MANAGER'))).toThrow(ForbiddenException);
+  });
 });

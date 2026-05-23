@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ChevronDown, ExternalLink, Home, Menu, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ADMIN_NAV_GROUPS, ADMIN_NAV_ITEMS, LOGOUT_ITEM } from './admin-nav';
+import { ADMIN_NAV_GROUPS, LOGOUT_ITEM, adminNavItemsForRole } from './admin-nav';
 import { authStorage } from '@/lib/api';
 import { getAbsoluteSiteUrlForNewTab, getPublicSiteHref } from '@/lib/admin-site-url';
 
@@ -81,13 +81,15 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     [sectionOpen, persistSection],
   );
 
+  const navItems = useMemo(() => adminNavItemsForRole(authStorage.getUser()?.role), []);
+
   const groupedItems = useMemo(
     () =>
       ADMIN_NAV_GROUPS.map((group) => ({
         group,
-        items: ADMIN_NAV_ITEMS.filter((item) => item.group === group),
-      })),
-    [],
+        items: navItems.filter((item) => item.group === group),
+      })).filter((section) => section.items.length > 0),
+    [navItems],
   );
 
   const closeMobile = useCallback(() => setMobileOpen(false), []);

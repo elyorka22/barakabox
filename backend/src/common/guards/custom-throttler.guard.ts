@@ -15,7 +15,7 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
       return true;
     }
     const roleFromGuard = (req.user?.role ?? '').toUpperCase();
-    if (roleFromGuard === 'ADMIN' || roleFromGuard === 'SUPER_ADMIN') return true;
+    if (roleFromGuard === 'ADMIN' || roleFromGuard === 'SUPER_ADMIN' || roleFromGuard === 'MANAGER') return true;
 
     const authorization = req.headers?.authorization;
     const token = authorization?.startsWith('Bearer ') ? authorization.slice(7) : '';
@@ -24,7 +24,7 @@ export class CustomThrottlerGuard extends ThrottlerGuard {
         const payloadRaw = token.split('.')[1] ?? '';
         const payload = JSON.parse(Buffer.from(payloadRaw, 'base64url').toString('utf-8')) as { role?: string };
         const pr = (payload.role ?? '').toUpperCase();
-        if (pr === 'ADMIN' || pr === 'SUPER_ADMIN') {
+        if (pr === 'ADMIN' || pr === 'SUPER_ADMIN' || pr === 'MANAGER') {
           return true;
         }
       } catch {

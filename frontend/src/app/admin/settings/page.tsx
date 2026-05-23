@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { api, authStorage } from '@/lib/api';
+import { isSystemAdminRole } from '@/lib/staff-roles';
 import { showToast } from '@/lib/toast';
 import { fetchPublicSettings, type PublicSettings } from '@/lib/public-settings';
 import { fetchHomepageBannerAdmin, type HomepageBanner } from '@/lib/homepage-banner';
@@ -17,7 +19,14 @@ import {
 } from '@/lib/scheduled-delivery';
 
 export default function AdminSettingsPage() {
+  const router = useRouter();
   const token = authStorage.getAccessToken();
+
+  useEffect(() => {
+    if (!isSystemAdminRole(authStorage.getUser()?.role)) {
+      router.replace('/admin');
+    }
+  }, [router]);
   const [health, setHealth] = useState<{ ok: boolean; message: string } | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [supportLoading, setSupportLoading] = useState(true);

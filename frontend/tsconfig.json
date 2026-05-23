@@ -20,7 +20,8 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@onlinebozor/product-units": ["../shared/product-units.ts"]
+      "@onlinebozor/product-units": ["../shared/product-units.ts"],
+      "@onlinebozor/roles": ["../shared/roles.ts"]
     }
   },
   "include": [

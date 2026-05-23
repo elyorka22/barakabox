@@ -6,6 +6,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthUser } from '../../common/decorators/current-user.decorator';
+import { canManageStaffUser, PRISMA_STAFF_ROLES, staffRolesAssignableBy } from '../../common/roles';
 import { UsersService, staffEmailFromLogin } from '../users/users.service';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import {
@@ -13,8 +14,6 @@ import {
   AdminResetStaffPasswordDto,
   AdminUpdateStaffUserDto,
 } from './dto/admin-staff-users.dto';
-
-const STAFF_ROLES: Role[] = [Role.SUPER_ADMIN, Role.ADMIN, Role.BUSINESS, Role.COURIER, Role.PICKER];
 
 @Controller('admin/users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -29,41 +28,30 @@ export class AdminStaffUsersController {
     if (targetRole === Role.CLIENT) {
       throw new ForbiddenException('CLIENT staff orqali yaratilmaydi');
     }
-    const r = (actor.role ?? '').toUpperCase();
-    if (targetRole === Role.SUPER_ADMIN && r !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Faqat super admin boshqa super admin yaratishi mumkin');
+    const allowed = staffRolesAssignableBy(actor.role).map((r) => r.toUpperCase());
+    if (!allowed.includes(targetRole)) {
+      throw new ForbiddenException('Bu rolni tayinlash huquqingiz yo‘q');
     }
-    if (targetRole === Role.ADMIN && r !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Faqat super admin ADMIN rolini tayinlashi mumkin');
-    }
-    if (!STAFF_ROLES.includes(targetRole)) {
+    if (!PRISMA_STAFF_ROLES.includes(targetRole)) {
       throw new ForbiddenException('Noto‘g‘ri rol');
     }
   }
 
-  /** ADMIN cannot manage SUPER_ADMIN / other ADMIN accounts; no self-service on destructive actions. */
   private assertActorMayMutateStaff(actor: AuthUser, target: User, mode: 'edit-profile' | 'privileged') {
     if (target.role === Role.CLIENT) {
       return;
     }
-    const ar = (actor.role ?? '').toUpperCase();
-    const tr = target.role;
     if (actor.sub === target.id) {
       if (mode === 'privileged') {
         throw new ForbiddenException('O‘z akkauntingiz uchun bu amal taqiqlangan');
       }
       return;
     }
-    if (ar === 'SUPER_ADMIN') {
-      return;
+    if (
+      !canManageStaffUser(actor.role, target.role, actor.sub, target.id)
+    ) {
+      throw new ForbiddenException('Insufficient permissions');
     }
-    if (ar === 'ADMIN') {
-      if (tr === Role.SUPER_ADMIN || tr === Role.ADMIN) {
-        throw new ForbiddenException('Faqat super admin boshqa adminlarni boshqarishi mumkin');
-      }
-      return;
-    }
-    throw new ForbiddenException('Insufficient permissions');
   }
 
   @Get()

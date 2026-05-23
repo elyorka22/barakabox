@@ -10,7 +10,7 @@ import { UpdateSchedulingSettingsDto } from './dto/update-scheduling-settings.dt
 
 @Controller('admin/settings')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN')
+@Roles('SYSTEM_ADMIN')
 export class AdminSettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 

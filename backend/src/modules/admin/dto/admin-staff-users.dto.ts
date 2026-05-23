@@ -1,7 +1,8 @@
 import { Role } from '@prisma/client';
 import { IsIn, IsOptional, IsString, Matches, MinLength } from 'class-validator';
+import { PRISMA_STAFF_ROLES } from '../../../common/roles';
 
-const CREATABLE_STAFF_ROLES: Role[] = [Role.SUPER_ADMIN, Role.ADMIN, Role.BUSINESS, Role.COURIER, Role.PICKER];
+const CREATABLE_STAFF_ROLES: Role[] = PRISMA_STAFF_ROLES;
 
 export class AdminCreateStaffUserDto {
   @IsString()

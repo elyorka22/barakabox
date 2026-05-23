@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authEvents, authStorage } from '@/lib/api';
+import { isAdminPanelRole } from '@/lib/staff-roles';
 import { AdminShell } from '@/components/admin/admin-shell';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -15,8 +16,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       await authStorage.restoreSession();
       const user = authStorage.getUser();
       const token = authStorage.getAccessToken() || authStorage.getRefreshToken();
-      const role = (user?.role ?? '').toUpperCase();
-      if (!token || (role !== 'ADMIN' && role !== 'SUPER_ADMIN')) {
+      if (!token || !isAdminPanelRole(user?.role)) {
         router.replace('/profile');
         return;
       }

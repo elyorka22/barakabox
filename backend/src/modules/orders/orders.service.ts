@@ -1036,7 +1036,7 @@ export class OrdersService implements OnModuleInit {
     },
   ) {
     const r = role.toUpperCase();
-    if (r === 'ADMIN' || r === 'SUPER_ADMIN') {
+    if (r === 'ADMIN' || r === 'SUPER_ADMIN' || r === 'MANAGER') {
       return this.listPaginated(opts);
     }
     if (r === 'BUSINESS') {

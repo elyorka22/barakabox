@@ -1,7 +1,6 @@
 'use client';
 
 import { getAnalyticsIdentity } from '@/lib/analytics/identity';
-import { hasAnalyticsConsent } from '@/lib/analytics/consent';
 import { getAnalyticsSessionId, markSessionStarted } from '@/lib/analytics/session';
 import type { AnalyticsEventName } from '@/lib/analytics/events';
 import { ANALYTICS_EVENTS } from '@/lib/analytics/events';
@@ -36,8 +35,7 @@ let posthog: PostHogLike | null = null;
 
 function canTrack(): boolean {
   if (typeof window === 'undefined') return false;
-  if (process.env.NEXT_PUBLIC_ANALYTICS_DISABLED === 'true') return false;
-  return hasAnalyticsConsent();
+  return process.env.NEXT_PUBLIC_ANALYTICS_DISABLED !== 'true';
 }
 
 async function initPostHog() {

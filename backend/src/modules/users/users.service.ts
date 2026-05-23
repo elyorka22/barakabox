@@ -3,6 +3,7 @@ import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { CacheService } from '../../infrastructure/cache/cache.service';
 import { CACHE_TTL, cacheKeys } from '../../common/cache/cache-keys';
 import { Role, User } from '@prisma/client';
+import { PRISMA_STAFF_ROLES } from '../../common/roles';
 
 const STAFF_EMAIL_DOMAIN = 'staff.barakabox.local';
 
@@ -45,7 +46,7 @@ export class UsersService {
   async assertStaffPhoneAvailable(phone: string | null | undefined, excludeUserId?: string): Promise<void> {
     const normalized = phone?.trim() || '';
     if (!normalized) return;
-    const staffRoles = [Role.SUPER_ADMIN, Role.ADMIN, Role.BUSINESS, Role.COURIER, Role.PICKER];
+    const staffRoles = PRISMA_STAFF_ROLES;
     const found = await this.prisma.user.findFirst({
       where: {
         phone: normalized,
@@ -133,7 +134,7 @@ export class UsersService {
     const skip = (page - 1) * limit;
     const search = opts?.q?.trim();
     const where: import('@prisma/client').Prisma.UserWhereInput = {
-      role: opts?.role ?? { in: [Role.SUPER_ADMIN, Role.ADMIN, Role.BUSINESS, Role.COURIER, Role.PICKER] },
+      role: opts?.role ?? { in: PRISMA_STAFF_ROLES },
     };
 
     if (opts?.status === 'active') where.isActive = true;
@@ -182,7 +183,7 @@ export class UsersService {
     if (roleFilter) {
       where.role = roleFilter;
     } else if (!params.includeClients) {
-      where.role = { in: [Role.SUPER_ADMIN, Role.ADMIN, Role.BUSINESS, Role.COURIER, Role.PICKER] };
+      where.role = { in: PRISMA_STAFF_ROLES };
     }
 
     if (search) {
