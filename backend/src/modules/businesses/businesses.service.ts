@@ -6,6 +6,8 @@ import {
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { UsersService, staffEmailFromLogin } from '../users/users.service';
 import { BusinessDashboardService } from './business-dashboard.service';
+import { StoreContextService } from '../marketplace/store-context.service';
+import { slugifyName, withUniqueSlugSuffix } from '../../common/utils/slug.util';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -14,7 +16,21 @@ export class BusinessesService {
     private readonly prisma: PrismaService,
     private readonly usersService: UsersService,
     private readonly dashboardService: BusinessDashboardService,
+    private readonly storeContext: StoreContextService,
   ) {}
+
+  private async uniqueStoreSlug(base: string): Promise<string> {
+    const slug = slugifyName(base) || 'store';
+    for (let i = 0; i < 30; i += 1) {
+      const candidate = i === 0 ? slug : withUniqueSlugSuffix(slug, String(i));
+      const exists = await this.prisma.store.findUnique({
+        where: { slug: candidate },
+        select: { id: true },
+      });
+      if (!exists) return candidate;
+    }
+    return withUniqueSlugSuffix(slug, Date.now().toString(36));
+  }
 
   async registerBusiness(userId: string, displayName: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -78,6 +94,8 @@ export class BusinessesService {
 
     const passwordHash = await bcrypt.hash(data.password, 10);
 
+    const slug = await this.uniqueStoreSlug(displayName);
+
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
@@ -90,7 +108,7 @@ export class BusinessesService {
           isActive: true,
         },
       });
-      return tx.businessProfile.create({
+      const profile = await tx.businessProfile.create({
         data: {
           userId: user.id,
           displayName,
@@ -103,6 +121,19 @@ export class BusinessesService {
         },
         include: { user: true },
       });
+      await tx.store.create({
+        data: {
+          name: displayName,
+          slug,
+          phone,
+          address: data.address?.trim() || null,
+          logoUrl: data.logoUrl?.trim() || null,
+          isActive: true,
+          businessProfileId: profile.id,
+          ownerUserId: user.id,
+        },
+      });
+      return profile;
     });
   }
 
@@ -162,11 +193,13 @@ export class BusinessesService {
     });
   }
 
-  approve(businessId: string) {
-    return this.prisma.businessProfile.update({
+  async approve(businessId: string) {
+    const profile = await this.prisma.businessProfile.update({
       where: { id: businessId },
       data: { status: 'APPROVED', isActive: true },
     });
+    await this.storeContext.ensureStoreLinkedToBusinessProfile(profile.userId);
+    return profile;
   }
 
   reject(businessId: string) {

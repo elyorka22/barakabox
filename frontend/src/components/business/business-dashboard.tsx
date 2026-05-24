@@ -140,7 +140,20 @@ export function BusinessDashboard() {
           {hasMarketplace ? (
             <BusinessMarketplaceCatalogPanel />
           ) : (
-            <p className="text-sm text-slate-500">Marketplace katalogi mavjud emas.</p>
+            <div className="rounded-2xl border border-dashed border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <p className="font-medium">Marketplace do‘koni ulanmadi</p>
+              <p className="mt-1 text-xs text-amber-800">
+                Biznes profili topilmadi yoki ruxsat yoʻq. Sahifani yangilang — tizim do‘konni avtomatik
+                bog‘laydi.
+              </p>
+              <button
+                type="button"
+                className="mt-3 text-sm font-semibold text-emerald-700"
+                onClick={() => void reload()}
+              >
+                Qayta yuklash
+              </button>
+            </div>
           )}
         </div>
       ) : null}

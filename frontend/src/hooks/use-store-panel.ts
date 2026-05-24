@@ -29,5 +29,11 @@ export function useStorePanelDashboard() {
     void load();
   }, [load]);
 
-  return { data, loading, error, reload: load, hasMarketplace: Boolean(data?.marketplace) };
+  return {
+    data,
+    loading,
+    error,
+    reload: load,
+    hasMarketplace: Boolean(data?.marketplace ?? data?.store),
+  };
 }

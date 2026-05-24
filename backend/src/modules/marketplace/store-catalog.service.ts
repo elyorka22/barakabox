@@ -65,17 +65,11 @@ export class StoreCatalogService {
       throw new ForbiddenException('Faqat do‘kon operatori uchun');
     }
     if (r === 'STORE_OWNER') {
-      return this.storeContext.requireOwnedStore(userId);
+      const owned = await this.storeContext.findOwnedStore(userId);
+      if (owned) return owned;
+      return this.storeContext.ensureStoreLinkedToBusinessProfile(userId);
     }
-    const store = await this.prisma.store.findFirst({
-      where: { businessProfile: { userId }, isActive: true },
-    });
-    if (!store) {
-      throw new ForbiddenException(
-        'Marketplace do‘koni ulanmagan. Admin global katalogdan do‘konni bog‘lashi kerak.',
-      );
-    }
-    return store;
+    return this.storeContext.ensureStoreLinkedToBusinessProfile(userId);
   }
 
   async browseGlobalCatalog(

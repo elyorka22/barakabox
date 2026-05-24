@@ -24,6 +24,8 @@ type CatalogProduct = {
 type BrowseResponse = {
   items: CatalogProduct[];
   total: number;
+  page?: number;
+  totalPages?: number;
 };
 
 type Listing = {
@@ -42,6 +44,7 @@ export function BusinessMarketplaceCatalogPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState('');
+  const [catalogTotal, setCatalogTotal] = useState(0);
 
   const load = useCallback(async () => {
     const token = authStorage.getAccessToken();
@@ -57,6 +60,7 @@ export function BusinessMarketplaceCatalogPanel() {
         api.get<Listing[]>('/businesses/catalog/listings', token),
       ]);
       setBrowse(Array.isArray(browseRes?.items) ? browseRes.items : []);
+      setCatalogTotal(typeof browseRes?.total === 'number' ? browseRes.total : 0);
       setListings(Array.isArray(listingRes) ? listingRes : []);
     } catch (e) {
       if (isApiError(e)) {
@@ -128,8 +132,13 @@ export function BusinessMarketplaceCatalogPanel() {
       <div>
         <h2 className="text-sm font-semibold text-[#111827]">Global katalog</h2>
         <p className="text-xs text-slate-500">
-          Narx va omborni siz belgilaysiz. Nom va rasm platforma katalogida.
+          Platforma global katalogidagi mahsulotlardan tanlang — narx va omborni siz belgilaysiz.
         </p>
+        {catalogTotal > 0 ? (
+          <p className="mt-1 text-xs font-medium text-emerald-700">
+            {catalogTotal} ta global mahsulot mavjud
+          </p>
+        ) : null}
       </div>
 
       {error ? (
@@ -193,7 +202,11 @@ export function BusinessMarketplaceCatalogPanel() {
           <div className="space-y-2">
             <p className="text-xs font-medium text-slate-600">Katalogdan qo‘shish</p>
             {browse.length === 0 ? (
-              <p className="text-sm text-slate-500">Mahsulot topilmadi</p>
+              <p className="text-sm text-slate-500">
+                {catalogTotal === 0
+                  ? 'Global katalogda faol mahsulot yoʻq. Admin panelda «Global katalog» boʻlimidan qoʻshing.'
+                  : 'Qidiruv boʻyicha mahsulot topilmadi. Qidiruvni tozalang yoki «Qidirish» tugmasini bosing.'}
+              </p>
             ) : (
               browse.map((p) => (
                 <div
