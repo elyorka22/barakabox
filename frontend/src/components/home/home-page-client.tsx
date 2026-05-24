@@ -22,13 +22,19 @@ import type { StorefrontProduct } from '@/types/storefront-product';
 type Props = {
   initialCatalog: PaginatedProducts;
   catalogSource?: CatalogSource;
+  initialStores?: StoreCard[];
 };
 
-export function HomePageClient({ initialCatalog, catalogSource = 'legacy' }: Props) {
+export function HomePageClient({
+  initialCatalog,
+  catalogSource = 'legacy',
+  initialStores = [],
+}: Props) {
   const { registerCatalog } = useProductSheet();
   const [topProducts, setTopProducts] = useState<StorefrontProduct[]>([]);
   const [loadingTop, setLoadingTop] = useState(false);
-  const [featuredStores, setFeaturedStores] = useState<StoreCard[]>([]);
+  const [featuredStores, setFeaturedStores] = useState<StoreCard[]>(initialStores);
+  const [loadingStores, setLoadingStores] = useState(initialStores.length === 0);
   const [popularProducts, setPopularProducts] = useState<StorefrontProduct[]>([]);
   const [promotionProducts, setPromotionProducts] = useState<StorefrontProduct[]>([]);
   const [showDeferredSections, setShowDeferredSections] = useState(false);
@@ -54,12 +60,17 @@ export function HomePageClient({ initialCatalog, catalogSource = 'legacy' }: Pro
     let cancelled = false;
     const loadMarketplace = async () => {
       setLoadingTop(true);
+      if (featuredStores.length === 0) setLoadingStores(true);
       try {
         const home = await fetchMarketplaceHome();
         if (cancelled) return;
         const top = home.topProducts ?? [];
         setTopProducts(top);
-        setFeaturedStores(home.featuredStores ?? []);
+        const stores =
+          (home.featuredStores?.length ?? 0) > 0
+            ? home.featuredStores
+            : (home.storeShowcase?.nearby ?? []);
+        setFeaturedStores(stores);
         setPopularProducts(home.popularProducts ?? []);
         setPromotionProducts(home.marketplacePromotions ?? []);
         if (top.length > 0) {
@@ -73,7 +84,10 @@ export function HomePageClient({ initialCatalog, catalogSource = 'legacy' }: Pro
           setPromotionProducts([]);
         }
       } finally {
-        if (!cancelled) setLoadingTop(false);
+        if (!cancelled) {
+          setLoadingTop(false);
+          setLoadingStores(false);
+        }
       }
     };
     void loadMarketplace();
@@ -125,10 +139,10 @@ export function HomePageClient({ initialCatalog, catalogSource = 'legacy' }: Pro
 
         <HomeStoreTypes />
 
+        <FeaturedStoresCarousel stores={featuredStores} loading={loadingStores} />
+
         {showDeferredSections ? (
           <>
-            <FeaturedStoresCarousel stores={featuredStores} />
-
             <PopularProductsCarousel products={popularProducts} loading={loadingTop} />
 
             <TopProductsCarousel products={topProducts} loading={loadingTop} />

@@ -38,7 +38,16 @@ export class StorefrontStoresService {
 
   getHomeShowcase() {
     return this.cache.getOrSet(cacheKeys.storesShowcase(), CACHE_TTL.storesShowcase, async () => {
-      const nearby = await this.fetchSection('nearby', SECTION_LIMIT);
+      let nearby = await this.fetchSection('nearby', SECTION_LIMIT);
+      if (nearby.length === 0) {
+        const rows = await this.prisma.store.findMany({
+          where: { isActive: true },
+          orderBy: [{ isFeatured: 'desc' }, { sortOrder: 'asc' }, { name: 'asc' }],
+          take: SECTION_LIMIT,
+          select: storeCardSelect,
+        });
+        nearby = rows.map(mapStoreCard);
+      }
       return { nearby };
     });
   }

@@ -91,7 +91,7 @@ export class StorefrontHomeService {
   }
 
   private async buildHomepage() {
-    const [legacyTopRows, marketplaceTopRows, storeShowcase, featuredStores, popularBlock, promotionsBlock] =
+    const [legacyTopRows, marketplaceTopRows, storeShowcase, popularBlock, promotionsBlock] =
       await Promise.all([
       this.prisma.product.findMany({
         where: { ...STOREFRONT_PRODUCT_WHERE, isTopProduct: true },
@@ -122,7 +122,7 @@ export class StorefrontHomeService {
 
     return {
       topProducts,
-      featuredStores: featuredStores.map(mapStoreCard),
+      featuredStores: storeShowcase.nearby,
       marketplacePromotions: promotionsBlock.items,
       popularProducts: popularBlock.items,
       storeSections: [],

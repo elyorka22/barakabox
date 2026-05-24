@@ -12,6 +12,7 @@ import { SafeImage } from '@/components/safe-image';
 import {
   PRODUCT_IMAGE_FALLBACK_CLASS,
   PRODUCT_IMAGE_SURFACE_CLASS,
+  resolveProductImageUrl,
   resolveVariantImageUrl,
 } from '@/lib/product-image';
 import { buildProductCardMetaLine } from '@/lib/product-card-meta';
@@ -99,19 +100,32 @@ function ProductCardBase({
   const unitType = normalizeIncomingProductUnit(unitProp) ?? DEFAULT_PRODUCT_UNIT;
   const sellingMode = resolveSellingMode({ sellingMode: sellingModeProp, unit: unitProp ?? unitType });
   const effectiveVariants = variants ?? EMPTY_VARIANTS;
+  const displayVariants =
+    effectiveVariants.length > 0
+      ? effectiveVariants
+      : resolveProductImageUrl(productImages)
+        ? [
+            {
+              id: listingId ?? id,
+              price,
+              stock: 0,
+              imageUrl: resolveProductImageUrl(productImages),
+            },
+          ]
+        : EMPTY_VARIANTS;
   const [activeVariantIndex, setActiveVariantIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
-  const [variantSig, setVariantSig] = useState(() => keyOfVariants(effectiveVariants));
+  const [variantSig, setVariantSig] = useState(() => keyOfVariants(displayVariants));
 
-  const currentSig = keyOfVariants(effectiveVariants);
+  const currentSig = keyOfVariants(displayVariants);
   if (currentSig !== variantSig) {
     setVariantSig(currentSig);
     setActiveVariantIndex(0);
   }
 
   const activeVariant =
-    effectiveVariants.length > 0
-      ? effectiveVariants[Math.min(activeVariantIndex, effectiveVariants.length - 1)]
+    displayVariants.length > 0
+      ? displayVariants[Math.min(activeVariantIndex, displayVariants.length - 1)]
       : null;
 
   const activeVariantId = activeVariant?.id ?? '';
@@ -140,8 +154,8 @@ function ProductCardBase({
   }
 
   const goToVariant = (targetIndex: number) => {
-    if (!effectiveVariants.length) return;
-    setActiveVariantIndex(Math.max(0, Math.min(targetIndex, effectiveVariants.length - 1)));
+    if (!displayVariants.length) return;
+    setActiveVariantIndex(Math.max(0, Math.min(targetIndex, displayVariants.length - 1)));
   };
 
   const handleTouchEnd = (touchEndX: number) => {
@@ -186,7 +200,8 @@ function ProductCardBase({
     promotionEnabled,
     promotionStartAt,
     promotionEndAt,
-    variants: effectiveVariants.map((v) => ({
+    stock: activeVariant?.stock,
+    variants: displayVariants.map((v) => ({
       id: v.id,
       flavor: v.flavor,
       description: v.description,
@@ -234,7 +249,7 @@ function ProductCardBase({
                 className="flex h-full w-full transition-transform duration-300 ease-out"
                 style={{ transform: `translateX(-${activeVariantIndex * 100}%)` }}
               >
-                {effectiveVariants.map((variant) => {
+                {displayVariants.map((variant) => {
                   const src = resolveVariantImageUrl(variant, productImages);
                   return (
                     <div key={variant.id} className="flex h-full min-w-full items-center justify-center px-1 pt-0.5">

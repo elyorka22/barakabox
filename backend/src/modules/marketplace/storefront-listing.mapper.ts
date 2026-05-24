@@ -43,6 +43,8 @@ export function mapListingToStorefront(row: StorefrontListingRow) {
   const oldPrice = row.oldPrice;
   const hasDiscount = oldPrice !== null && oldPrice > price;
 
+  const imageUrl = row.globalVariant?.imageUrl ?? row.globalProduct.imageUrl;
+
   return {
     id: row.legacyProductId ?? row.id,
     listingId: row.id,
@@ -56,8 +58,8 @@ export function mapListingToStorefront(row: StorefrontListingRow) {
     unit: row.globalProduct.unit,
     unitType: row.globalProduct.unit,
     categoryId: row.globalProduct.categoryId,
-    imageUrl: row.globalVariant?.imageUrl ?? row.globalProduct.imageUrl,
-    imageCardUrl: row.globalProduct.imageCardUrl,
+    imageUrl,
+    imageCardUrl: row.globalProduct.imageCardUrl ?? row.globalProduct.imageUrl,
     imageThumbUrl: row.globalProduct.imageThumbUrl,
     discountEnabled: hasDiscount,
     discountedPrice: hasDiscount ? price : null,
@@ -70,5 +72,15 @@ export function mapListingToStorefront(row: StorefrontListingRow) {
     isTopProduct: row.isTop,
     topOrder: row.topOrder,
     stock: row.stock,
+    variants: [
+      {
+        id: row.globalVariant?.id ?? row.legacyProductId ?? row.id,
+        flavor: variantLabel ?? row.globalProduct.brand,
+        price,
+        discountPrice: hasDiscount ? price : null,
+        stock: row.stock,
+        imageUrl,
+      },
+    ],
   };
 }

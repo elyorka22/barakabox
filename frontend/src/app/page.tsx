@@ -1,5 +1,6 @@
 import { HomePageClient } from '@/components/home/home-page-client';
 import { fetchMarketplaceCatalogPageServer } from '@/lib/marketplace-catalog.server';
+import { fetchMarketplaceHomeServer } from '@/lib/marketplace-home';
 import { fetchProductsPageServer } from '@/lib/storefront-api.server';
 
 const marketplaceCatalogOnly =
@@ -7,7 +8,14 @@ const marketplaceCatalogOnly =
   process.env.NEXT_PUBLIC_MARKETPLACE_CATALOG_ONLY === '1';
 
 export default async function Home() {
-  const marketplaceCatalog = await fetchMarketplaceCatalogPageServer({ page: 1, limit: 24 });
+  const [marketplaceCatalog, marketplaceHome] = await Promise.all([
+    fetchMarketplaceCatalogPageServer({ page: 1, limit: 24 }),
+    fetchMarketplaceHomeServer(),
+  ]);
+  const initialStores =
+    marketplaceHome.featuredStores.length > 0
+      ? marketplaceHome.featuredStores
+      : (marketplaceHome.storeShowcase?.nearby ?? []);
   const legacyCatalog = marketplaceCatalogOnly
     ? null
     : await fetchProductsPageServer({ page: 1, limit: 24 });
@@ -21,6 +29,7 @@ export default async function Home() {
     <HomePageClient
       initialCatalog={initialCatalog}
       catalogSource={useMarketplace ? 'marketplace' : 'legacy'}
+      initialStores={initialStores}
     />
   );
 }
