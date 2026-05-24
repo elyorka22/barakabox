@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Bell, ChevronDown, Heart, Search } from 'lucide-react';
 import { guestStorage } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
@@ -9,15 +9,17 @@ import { HomeBannerCarousel } from '@/components/home/home-banner-carousel';
 import { CatalogInfiniteGrid, type CatalogSource } from '@/components/home/catalog-infinite-grid';
 import { PopularProductsCarousel } from '@/components/home/popular-products-carousel';
 import { HomeInstallCard } from '@/components/pwa/HomeInstallCard';
-import type { PaginatedProducts } from '@/lib/storefront-api';
+import { fetchPromotionsPage, type PaginatedProducts } from '@/lib/storefront-api';
 import { fetchMarketplaceHome } from '@/lib/marketplace-home';
 import { TopProductsCarousel } from '@/components/home/top-products-carousel';
-import { HomePromotionsCarousel } from '@/components/home/home-promotions-carousel';
 import { HomeStoreTypes } from '@/components/home/home-store-types';
 import { FeaturedStoresCarousel } from '@/components/home/featured-stores-carousel';
+import { HomeDiscountedCarousel } from '@/components/home/home-discounted-carousel';
+import { HomeDeliveryBanner } from '@/components/home/home-delivery-banner';
 import type { StoreCard } from '@/lib/stores-api';
 import { useProductSheet } from '@/lib/product-sheet-context';
 import type { StorefrontProduct } from '@/types/storefront-product';
+import { hasVisibleDiscount } from '@/lib/promotion-product';
 
 type Props = {
   initialCatalog: PaginatedProducts;
@@ -30,19 +32,41 @@ export function HomePageClient({
   catalogSource = 'legacy',
   initialStores = [],
 }: Props) {
-  const { registerCatalog } = useProductSheet();
+  const { openProduct, registerCatalog } = useProductSheet();
+  const [promoProducts, setPromoProducts] = useState<StorefrontProduct[]>([]);
+  const [loadingPromos, setLoadingPromos] = useState(true);
   const [topProducts, setTopProducts] = useState<StorefrontProduct[]>([]);
   const [loadingTop, setLoadingTop] = useState(false);
   const [featuredStores, setFeaturedStores] = useState<StoreCard[]>(initialStores);
   const [loadingStores, setLoadingStores] = useState(initialStores.length === 0);
   const [popularProducts, setPopularProducts] = useState<StorefrontProduct[]>([]);
-  const [promotionProducts, setPromotionProducts] = useState<StorefrontProduct[]>([]);
+  const [marketplacePromos, setMarketplacePromos] = useState<StorefrontProduct[]>([]);
   const [showDeferredSections, setShowDeferredSections] = useState(false);
+
+  const discountedProducts =
+    promoProducts.length > 0 ? promoProducts : marketplacePromos;
+
+  const loadPromotions = useCallback(async () => {
+    setLoadingPromos(true);
+    try {
+      const data = await fetchPromotionsPage({ page: 1, limit: 12, sort: 'discount_desc' });
+      const items = data.items.filter(hasVisibleDiscount);
+      setPromoProducts(items);
+      if (items.length > 0) {
+        registerCatalog([...initialCatalog.items, ...items]);
+      }
+    } catch {
+      setPromoProducts([]);
+    } finally {
+      setLoadingPromos(false);
+    }
+  }, [initialCatalog.items, registerCatalog]);
 
   useEffect(() => {
     guestStorage.getGuestId();
     registerCatalog(initialCatalog.items);
-  }, [initialCatalog.items, registerCatalog]);
+    void loadPromotions();
+  }, [initialCatalog.items, registerCatalog, loadPromotions]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -72,16 +96,21 @@ export function HomePageClient({
             : (home.storeShowcase?.nearby ?? []);
         setFeaturedStores(stores);
         setPopularProducts(home.popularProducts ?? []);
-        setPromotionProducts(home.marketplacePromotions ?? []);
-        if (top.length > 0) {
-          registerCatalog([...initialCatalog.items, ...top]);
+        setMarketplacePromos(home.marketplacePromotions ?? []);
+        const extra = [
+          ...top,
+          ...(home.marketplacePromotions ?? []),
+          ...(home.popularProducts ?? []),
+        ];
+        if (extra.length > 0) {
+          registerCatalog([...initialCatalog.items, ...extra]);
         }
       } catch {
         if (!cancelled) {
           setTopProducts([]);
           setFeaturedStores([]);
           setPopularProducts([]);
-          setPromotionProducts([]);
+          setMarketplacePromos([]);
         }
       } finally {
         if (!cancelled) {
@@ -141,13 +170,21 @@ export function HomePageClient({
 
         <FeaturedStoresCarousel stores={featuredStores} loading={loadingStores} />
 
+        <HomeDiscountedCarousel
+          products={discountedProducts}
+          loading={
+            (loadingPromos || loadingTop) && discountedProducts.length === 0
+          }
+          onOpen={openProduct}
+        />
+
+        <HomeDeliveryBanner />
+
         {showDeferredSections ? (
           <>
             <PopularProductsCarousel products={popularProducts} loading={loadingTop} />
 
             <TopProductsCarousel products={topProducts} loading={loadingTop} />
-
-            <HomePromotionsCarousel products={promotionProducts} loading={loadingTop} />
 
             <CatalogInfiniteGrid
               initial={initialCatalog}
