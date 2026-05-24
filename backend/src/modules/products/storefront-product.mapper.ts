@@ -8,6 +8,7 @@ import {
 export const storefrontProductSelect = {
   id: true,
   name: true,
+  description: true,
   price: true,
   unit: true,
   sellingMode: true,
@@ -60,6 +61,7 @@ export function mapStorefrontProduct(row: StorefrontProductRow, opts?: { withPro
   return {
     id: row.id,
     name: row.name,
+    description: row.description,
     price: String(row.price),
     unit: row.unit,
     unitType: row.unit,

@@ -38,6 +38,7 @@ export function mapStorefrontProductToCardProps(
     storeSlug: product.storeSlug,
     purchasable: product.purchasable,
     name: product.name,
+    subtitle: product.description ?? undefined,
     price: product.price,
     unit: product.unit ?? undefined,
     sellingMode: product.sellingMode ?? undefined,

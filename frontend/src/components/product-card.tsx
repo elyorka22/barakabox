@@ -175,6 +175,7 @@ function ProductCardBase({
   const metaLine = buildProductCardMetaLine({
     flavor: activeVariant?.flavor,
     subtitle,
+    description: activeVariant?.description,
     categoryName,
     unit: unitType,
     minimumAmount,

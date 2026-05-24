@@ -26,13 +26,18 @@ function ProductCardInfoBase({
   layout = 'default',
 }: Props) {
   if (layout === 'grid') {
-    const subtitle = unitLine || metaLine;
+    const unit = unitLine.trim();
+    const detail = metaLine.trim();
+    const showDetail = Boolean(detail) && detail !== unit;
     return (
       <div className="flex shrink-0 flex-col gap-0.5 px-0.5 pb-1 pt-1.5">
         <ProductCardPriceRow basePrice={basePrice} salePrice={salePrice} layout="grid" />
-        <h3 className="line-clamp-3 text-[12px] font-normal leading-[1.25] text-[#111827]">{name}</h3>
-        {subtitle ? (
-          <p className="line-clamp-1 text-[11px] leading-tight text-[#9ca3af]">{subtitle}</p>
+        <h3 className="line-clamp-2 text-[12px] font-normal leading-[1.25] text-[#111827]">{name}</h3>
+        {unit ? (
+          <p className="line-clamp-1 text-[11px] leading-tight text-[#9ca3af]">{unit}</p>
+        ) : null}
+        {showDetail ? (
+          <p className="line-clamp-2 text-[11px] leading-tight text-[#9ca3af]">{detail}</p>
         ) : null}
       </div>
     );

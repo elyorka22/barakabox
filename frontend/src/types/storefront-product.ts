@@ -2,6 +2,7 @@
 export type StorefrontProduct = {
   id: string;
   name: string;
+  description?: string | null;
   price: string;
   unit?: string | null;
   unitType?: string | null;

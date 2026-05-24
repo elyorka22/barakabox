@@ -24,6 +24,7 @@ export function buildProductCardUnitLine(input: {
 type MetaInput = {
   flavor?: string | null;
   subtitle?: string | null;
+  description?: string | null;
   categoryName?: string | null;
   unit: ProductUnitCode;
   minimumAmount?: number | null;
@@ -36,6 +37,9 @@ export function buildProductCardMetaLine(input: MetaInput): string {
 
   const subtitle = input.subtitle?.trim();
   if (subtitle) return subtitle;
+
+  const description = input.description?.trim();
+  if (description) return description;
 
   const amount = input.minimumAmount ?? input.stepAmount;
   if (amount && amount > 0) {
