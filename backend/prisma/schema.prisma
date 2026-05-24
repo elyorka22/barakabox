@@ -122,6 +122,15 @@ enum CashbackTransactionStatus {
   CANCELLED
 }
 
+enum StoreType {
+  GROCERY
+  PHARMACY
+  PET
+  BABY
+  ELECTRONICS
+  COSMETICS
+}
+
 enum CouponDiscountType {
   PERCENT
   FIXED_AMOUNT
@@ -713,6 +722,10 @@ model GlobalProduct {
   imagesJson    Json            @default("[]")
   /// Flexible attributes (weight, country, tags, etc.) — not duplicated per store.
   attributes    Json            @default("{}")
+  /// Suggested price/stock when a store imports from global catalog.
+  defaultPrice  Int             @default(0)
+  defaultStock  Int             @default(0)
+  isPopular     Boolean         @default(false)
   isActive      Boolean         @default(true)
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
@@ -724,6 +737,7 @@ model GlobalProduct {
 
   @@index([categoryId])
   @@index([isActive])
+  @@index([isPopular])
   @@index([name])
 }
 
@@ -767,6 +781,7 @@ model Store {
   minOrderPrice         Int              @default(0)
   isActive              Boolean          @default(true)
   isFeatured            Boolean          @default(false)
+  storeType             StoreType        @default(GROCERY)
   sortOrder             Int              @default(0)
   ownerUserId       String?
   businessProfileId String?          @unique
@@ -779,6 +794,7 @@ model Store {
   orders            Order[]
 
   @@index([isActive])
+  @@index([storeType])
   @@index([ownerUserId])
 }
 
@@ -808,4 +824,5 @@ model StoreProduct {
   @@index([storeId, isTop, topOrder])
   @@index([globalProductId])
   @@index([globalVariantId])
+  @@index([isVisible, oldPrice])
 }

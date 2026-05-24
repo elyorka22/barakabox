@@ -110,7 +110,9 @@ export function SearchPageClient() {
 
   const legacyItems = result?.legacyProducts.items ?? [];
   const listingItems = result?.listings.items ?? [];
-  const hasProducts = legacyItems.length > 0 || listingItems.length > 0;
+  const preferListings = listingItems.length > 0;
+  const productItems = preferListings ? listingItems : legacyItems;
+  const hasProducts = productItems.length > 0;
 
   return (
     <main className="bb-page bg-[#F8F8F8] pb-24">
@@ -179,7 +181,7 @@ export function SearchPageClient() {
                   {result.stores.map((store) => (
                     <li key={store.id}>
                       <Link
-                        href={`/stores/${store.slug}`}
+                        href={`/store/${store.slug}`}
                         className="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-sm"
                       >
                         <div className="h-11 w-11 overflow-hidden rounded-full bg-slate-100">
@@ -200,22 +202,10 @@ export function SearchPageClient() {
             {hasProducts ? (
               <section>
                 <h2 className="text-base font-semibold text-[#111827]">Mahsulotlar</h2>
-                {legacyItems.length > 0 ? (
-                  <>
-                    {listingItems.length > 0 ? (
-                      <p className="mt-1 text-xs text-slate-500">Katalog</p>
-                    ) : null}
-                    <SearchProductGrid products={legacyItems} />
-                  </>
+                {preferListings && legacyItems.length > 0 ? (
+                  <p className="mt-1 text-xs text-slate-500">Marketplace katalogi</p>
                 ) : null}
-                {listingItems.length > 0 ? (
-                  <>
-                    {legacyItems.length > 0 ? (
-                      <p className="mt-4 text-xs text-slate-500">Do‘konlar</p>
-                    ) : null}
-                    <SearchProductGrid products={listingItems} />
-                  </>
-                ) : null}
+                <SearchProductGrid products={productItems} />
               </section>
             ) : null}
 

@@ -26,6 +26,9 @@ const EMPTY_FORM: GlobalProductFormState = {
   imageUrl: '',
   imageKey: '',
   isActive: true,
+  defaultPrice: '0',
+  defaultStock: '0',
+  isPopular: false,
 };
 
 const EMPTY_VARIANT: GlobalVariantFormState = {
@@ -144,6 +147,9 @@ export default function AdminGlobalCatalogPage() {
       imageUrl: row.imageUrl ?? '',
       imageKey: '',
       isActive: row.isActive,
+      defaultPrice: String(row.defaultPrice ?? 0),
+      defaultStock: String(row.defaultStock ?? 0),
+      isPopular: row.isPopular ?? false,
     });
     setVariantForm({ ...EMPTY_VARIANT });
     setDrawerOpen(true);
@@ -173,6 +179,9 @@ export default function AdminGlobalCatalogPage() {
         categoryId: form.categoryId || undefined,
         unit: form.unit || DEFAULT_PRODUCT_UNIT,
         isActive: form.isActive,
+        defaultPrice: Number(form.defaultPrice.replace(/\s/g, '')) || 0,
+        defaultStock: Number(form.defaultStock.replace(/\s/g, '')) || 0,
+        isPopular: form.isPopular,
       };
       const slug = form.slug.trim();
       if (slug) body.slug = slug;

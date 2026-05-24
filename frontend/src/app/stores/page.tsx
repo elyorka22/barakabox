@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { fetchStoresListServer } from '@/lib/stores-api';
+import { parseStoreTypeQuery, STORE_TYPE_CARDS } from '@/lib/store-types';
 import { StoreCardLink } from '@/components/stores/store-card';
 import { MobileNav } from '@/components/app-nav';
 
-type Props = { searchParams: Promise<{ section?: string }> };
+type Props = { searchParams: Promise<{ section?: string; type?: string }> };
 
 const SECTION_LABELS: Record<string, string> = {
   featured: 'Tavsiya etilgan',
@@ -13,19 +14,24 @@ const SECTION_LABELS: Record<string, string> = {
 };
 
 export default async function StoresIndexPage({ searchParams }: Props) {
-  const { section } = await searchParams;
+  const { section, type } = await searchParams;
   const validSection =
     section === 'featured' || section === 'nearby' || section === 'top' || section === 'new'
       ? section
       : undefined;
+  const storeType = parseStoreTypeQuery(type);
 
   const data = await fetchStoresListServer({
     section: validSection,
+    type: storeType,
     page: 1,
     limit: 48,
   });
 
-  const title = validSection ? SECTION_LABELS[validSection] ?? 'Do‘konlar' : 'Do‘konlar';
+  const typeLabel = storeType
+    ? STORE_TYPE_CARDS.find((c) => c.type === storeType)?.label
+    : undefined;
+  const title = typeLabel ?? (validSection ? SECTION_LABELS[validSection] ?? 'Do‘konlar' : 'Do‘konlar');
 
   return (
     <main className="bb-page bg-[#F8F8F8] pb-24">

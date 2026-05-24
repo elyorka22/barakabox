@@ -22,6 +22,7 @@ export const storeCardSelect = {
   minOrderPrice: true,
   isActive: true,
   isFeatured: true,
+  storeType: true,
   sortOrder: true,
   createdAt: true,
   _count: {
@@ -49,6 +50,7 @@ export function mapStoreCard(row: StoreCardRow) {
     phone: row.phone,
     isActive: row.isActive,
     isFeatured: row.isFeatured,
+    storeType: row.storeType,
     deliveryTime: row.deliveryTimeMinutes,
     deliveryTimeMinutes: row.deliveryTimeMinutes,
     rating: row.rating != null ? Number(row.rating) : 0,

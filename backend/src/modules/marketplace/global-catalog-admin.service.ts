@@ -30,6 +30,9 @@ const globalProductSelect = {
   imagesJson: true,
   attributes: true,
   isActive: true,
+  defaultPrice: true,
+  defaultStock: true,
+  isPopular: true,
   categoryId: true,
   createdAt: true,
   category: { select: { id: true, name: true, slug: true } },
@@ -164,6 +167,9 @@ export class GlobalCatalogAdminService {
             unit: dto.unit ?? 'dona',
             attributes: normalizeAttributes(dto.attributes),
             isActive: dto.isActive ?? true,
+            defaultPrice: dto.defaultPrice ?? 0,
+            defaultStock: dto.defaultStock ?? 0,
+            isPopular: dto.isPopular ?? false,
           },
         });
 
@@ -233,6 +239,9 @@ export class GlobalCatalogAdminService {
             : {}),
           ...(imageProvided ? { imageUrl } : {}),
           ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+          ...(dto.defaultPrice !== undefined ? { defaultPrice: dto.defaultPrice } : {}),
+          ...(dto.defaultStock !== undefined ? { defaultStock: dto.defaultStock } : {}),
+          ...(dto.isPopular !== undefined ? { isPopular: dto.isPopular } : {}),
         },
         select: globalProductSelect,
       });

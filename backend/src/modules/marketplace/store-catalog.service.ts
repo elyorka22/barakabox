@@ -11,7 +11,11 @@ import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { isStoreOperatorRole, normalizeRole } from '../../common/roles';
 import { throwMappedPrismaError } from '../../common/utils/prisma-errors';
 import { CacheService } from '../../infrastructure/cache/cache.service';
-import { CreateStoreListingDto, UpdateStoreListingDto } from './dto/global-catalog.dto';
+import {
+  BulkImportStoreListingsDto,
+  CreateStoreListingDto,
+  UpdateStoreListingDto,
+} from './dto/global-catalog.dto';
 import { StoreContextService } from './store-context.service';
 
 const listingSelect = {
@@ -105,6 +109,9 @@ export class StoreCatalogService {
             unit: true,
             imageUrl: true,
             imageThumbUrl: true,
+            imageCardUrl: true,
+            defaultPrice: true,
+            defaultStock: true,
             description: true,
             category: { select: { id: true, name: true } },
             variants: {
@@ -195,6 +202,70 @@ export class StoreCatalogService {
     if (globalVariantId) {
       throw new BadRequestException('Bu mahsulotda variant yo‘q');
     }
+  }
+
+  async bulkImportListings(storeId: string, dto: BulkImportStoreListingsDto) {
+    const ids = [...new Set(dto.globalProductIds.map((id) => id.trim()).filter(Boolean))];
+    if (ids.length === 0) {
+      throw new BadRequestException('Kamida bitta mahsulot tanlang');
+    }
+
+    const products = await this.prisma.globalProduct.findMany({
+      where: { id: { in: ids }, isActive: true },
+      select: {
+        id: true,
+        defaultPrice: true,
+        defaultStock: true,
+        variants: { where: { isActive: true }, select: { id: true }, take: 1 },
+      },
+    });
+
+    const existing = await this.prisma.storeProduct.findMany({
+      where: { storeId, globalProductId: { in: ids }, globalVariantId: null },
+      select: { globalProductId: true },
+    });
+    const listed = new Set(existing.map((e) => e.globalProductId));
+
+    let created = 0;
+    let skipped = 0;
+    const errors: string[] = [];
+
+    for (const product of products) {
+      if ((product.variants ?? []).length > 0) {
+        skipped += 1;
+        errors.push(`${product.id}: variantli mahsulot — alohida qo‘shing`);
+        continue;
+      }
+      if (listed.has(product.id)) {
+        skipped += 1;
+        continue;
+      }
+      const price = product.defaultPrice > 0 ? product.defaultPrice : 1000;
+      const stock = product.defaultStock > 0 ? product.defaultStock : 0;
+      try {
+        await this.prisma.storeProduct.create({
+          data: {
+            storeId,
+            globalProductId: product.id,
+            price,
+            stock,
+            isVisible: true,
+          },
+        });
+        created += 1;
+        listed.add(product.id);
+      } catch {
+        skipped += 1;
+      }
+    }
+
+    const storeRow = await this.prisma.store.findUnique({
+      where: { id: storeId },
+      select: { slug: true },
+    });
+    this.touchStorefrontCache(storeRow?.slug);
+
+    return { created, skipped, requested: ids.length, errors: errors.slice(0, 10) };
   }
 
   async createListing(storeId: string, dto: CreateStoreListingDto) {

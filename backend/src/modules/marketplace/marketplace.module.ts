@@ -4,6 +4,7 @@ import { MarketplaceAdminController } from './marketplace-admin.controller';
 import { MarketplaceStorefrontController } from './marketplace-storefront.controller';
 import { StorefrontStoresController } from './storefront-stores.controller';
 import { StorefrontStoresService } from './storefront-stores.service';
+import { StorefrontMarketplaceCatalogService } from './storefront-marketplace-catalog.service';
 import { StorefrontHomeService } from './storefront-home.service';
 import { MarketplaceCatalogService } from './marketplace-catalog.service';
 import { DatabaseModule } from '../../infrastructure/database/database.module';
@@ -40,6 +41,7 @@ import { StoreAdminService } from './store-admin.service';
     StoreContextService,
     StorefrontHomeService,
     StorefrontStoresService,
+    StorefrontMarketplaceCatalogService,
     StorefrontSearchService,
     StorefrontListingProductService,
     StoreAnalyticsService,
@@ -53,6 +55,7 @@ import { StoreAdminService } from './store-admin.service';
     StoreContextService,
     StorefrontHomeService,
     StorefrontStoresService,
+    StorefrontMarketplaceCatalogService,
     StorefrontSearchService,
     StoreAnalyticsService,
     StoreAdminService,

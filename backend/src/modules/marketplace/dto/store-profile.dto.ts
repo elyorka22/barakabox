@@ -1,10 +1,8 @@
 import { StoreType } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
-  IsBoolean,
   IsEnum,
   IsInt,
-  IsNumber,
   IsOptional,
   IsString,
   Max,
@@ -13,7 +11,8 @@ import {
   MinLength,
 } from 'class-validator';
 
-export class UpdateStoreDto {
+/** Store owner can update storefront profile (not admin-only flags). */
+export class UpdateStoreProfileDto {
   @IsOptional()
   @IsString()
   @MinLength(2)
@@ -36,46 +35,13 @@ export class UpdateStoreDto {
   description?: string;
 
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(5)
-  @Max(240)
-  deliveryTimeMinutes?: number;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  @Max(5)
-  rating?: number;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  deliveryPrice?: number;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  minOrderPrice?: number;
-
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  isFeatured?: boolean;
-
-  @IsOptional()
   @IsEnum(StoreType)
   storeType?: StoreType;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @Min(0)
-  sortOrder?: number;
+  @Min(5)
+  @Max(240)
+  deliveryTimeMinutes?: number;
 }

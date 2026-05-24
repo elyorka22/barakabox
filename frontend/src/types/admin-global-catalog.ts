@@ -20,6 +20,9 @@ export type GlobalCatalogProduct = {
   imageCardUrl: string | null;
   imageThumbUrl: string | null;
   isActive: boolean;
+  defaultPrice: number;
+  defaultStock: number;
+  isPopular: boolean;
   categoryId: string | null;
   createdAt: string;
   category: { id: string; name: string; slug: string } | null;
@@ -45,6 +48,9 @@ export type GlobalProductFormState = {
   imageUrl: string;
   imageKey: string;
   isActive: boolean;
+  defaultPrice: string;
+  defaultStock: string;
+  isPopular: boolean;
 };
 
 export type GlobalVariantFormState = {

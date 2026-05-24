@@ -10,6 +10,7 @@ import {
 } from './storefront-listing.mapper';
 import { mapStoreCard, storeCardSelect, VISIBLE_STORE_LISTING_WHERE } from './store-card.mapper';
 import { StorefrontStoresService } from './storefront-stores.service';
+import { StorefrontMarketplaceCatalogService } from './storefront-marketplace-catalog.service';
 
 const STOREFRONT_PRODUCT_WHERE: Prisma.ProductWhereInput = {
   isActive: true,
@@ -26,6 +27,7 @@ export class StorefrontHomeService {
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
     private readonly storefrontStores: StorefrontStoresService,
+    private readonly marketplaceCatalog: StorefrontMarketplaceCatalogService,
   ) {}
 
   getHomepage() {
@@ -89,7 +91,8 @@ export class StorefrontHomeService {
   }
 
   private async buildHomepage() {
-    const [legacyTopRows, marketplaceTopRows, storeShowcase] = await Promise.all([
+    const [legacyTopRows, marketplaceTopRows, storeShowcase, featuredStores, popularBlock, promotionsBlock] =
+      await Promise.all([
       this.prisma.product.findMany({
         where: { ...STOREFRONT_PRODUCT_WHERE, isTopProduct: true },
         select: storefrontProductSelect,
@@ -103,6 +106,14 @@ export class StorefrontHomeService {
         take: StorefrontHomeService.TOP_LIMIT,
       }),
       this.storefrontStores.getHomeShowcase(),
+      this.prisma.store.findMany({
+        where: { isActive: true, isFeatured: true },
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        take: 10,
+        select: storeCardSelect,
+      }),
+      this.marketplaceCatalog.listPopular(12),
+      this.marketplaceCatalog.listPromotions({ page: 1, limit: 12 }),
     ]);
 
     const legacyTop = legacyTopRows.map((r) => mapStorefrontProduct(r));
@@ -111,8 +122,9 @@ export class StorefrontHomeService {
 
     return {
       topProducts,
-      featuredStores: [],
-      marketplacePromotions: [],
+      featuredStores: featuredStores.map(mapStoreCard),
+      marketplacePromotions: promotionsBlock.items,
+      popularProducts: popularBlock.items,
       storeSections: [],
       storeShowcase,
     };

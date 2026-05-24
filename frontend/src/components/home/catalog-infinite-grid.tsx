@@ -2,6 +2,7 @@
 
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { ProductCard } from '@/components/product-card';
+import { fetchMarketplaceCatalogPage } from '@/lib/marketplace-catalog';
 import { fetchProductsPage, type PaginatedProducts } from '@/lib/storefront-api';
 import { mapStorefrontProductToCardProps } from '@/lib/storefront-product-card';
 import { useProductSheet } from '@/lib/product-sheet-context';
@@ -10,8 +11,11 @@ import type { StorefrontProduct } from '@/types/storefront-product';
 const PAGE_SIZE = 24;
 const SENTINEL_ROOT_MARGIN = '480px 0px';
 
+export type CatalogSource = 'legacy' | 'marketplace';
+
 type Props = {
   initial: PaginatedProducts;
+  source?: CatalogSource;
   categoryId?: string;
   businessId?: string;
   search?: string;
@@ -73,6 +77,7 @@ function CatalogSkeletonRow() {
 
 export function CatalogInfiniteGrid({
   initial,
+  source = 'legacy',
   categoryId,
   businessId,
   search,
@@ -105,14 +110,23 @@ export function CatalogInfiniteGrid({
 
     try {
       const nextPage = page + 1;
-      const result = await fetchProductsPage({
-        page: nextPage,
-        limit: PAGE_SIZE,
-        categoryId,
-        businessId,
-        search,
-        sort,
-      });
+      const result =
+        source === 'marketplace'
+          ? await fetchMarketplaceCatalogPage({
+              page: nextPage,
+              limit: PAGE_SIZE,
+              categoryId,
+              q: search,
+              sort: sort === 'newest' || sort === 'price_asc' || sort === 'price_desc' ? sort : 'newest',
+            })
+          : await fetchProductsPage({
+              page: nextPage,
+              limit: PAGE_SIZE,
+              categoryId,
+              businessId,
+              search,
+              sort,
+            });
 
       if (requestIdRef.current !== requestId) return;
 
@@ -128,7 +142,7 @@ export function CatalogInfiniteGrid({
         setLoading(false);
       }
     }
-  }, [hasMore, page, categoryId, businessId, search, sort]);
+  }, [hasMore, page, source, categoryId, businessId, search, sort]);
 
   useEffect(() => {
     const node = sentinelRef.current;

@@ -136,6 +136,42 @@ export function AdminGlobalProductFormDrawer({
               />
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-700">
+                  Standart narx (so‘m)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  value={form.defaultPrice}
+                  onChange={(e) => setForm((f) => ({ ...f, defaultPrice: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-slate-700">
+                  Standart ombor
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  value={form.defaultStock}
+                  onChange={(e) => setForm((f) => ({ ...f, defaultStock: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={form.isPopular}
+                onChange={(e) => setForm((f) => ({ ...f, isPopular: e.target.checked }))}
+              />
+              Mashhur (bosh sahifada tavsiya)
+            </label>
+
             <ImageUploader
               label="Asosiy rasm"
               valueUrl={form.imageUrl}

@@ -2,10 +2,19 @@ import { api } from '@/lib/api';
 import { getApiBaseUrl } from '@/lib/seo';
 import type { StorefrontProduct } from '@/types/storefront-product';
 
+export type StoreTypeCode =
+  | 'GROCERY'
+  | 'PHARMACY'
+  | 'PET'
+  | 'BABY'
+  | 'ELECTRONICS'
+  | 'COSMETICS';
+
 export type StoreCard = {
   id: string;
   name: string;
   slug: string;
+  storeType?: StoreTypeCode;
   logo: string | null;
   banner: string | null;
   logoUrl: string | null;
@@ -97,6 +106,7 @@ export async function fetchStoreProducts(
 
 export async function fetchStoresListServer(params?: {
   section?: 'featured' | 'new' | 'top' | 'nearby';
+  type?: StoreTypeCode;
   page?: number;
   limit?: number;
 }): Promise<StoresListResponse> {
@@ -110,6 +120,7 @@ export async function fetchStoresListServer(params?: {
   try {
     const q = new URLSearchParams();
     if (params?.section) q.set('section', params.section);
+    if (params?.type) q.set('type', params.type);
     if (params?.page) q.set('page', String(params.page));
     if (params?.limit) q.set('limit', String(params.limit));
     const suffix = q.toString() ? `?${q}` : '';

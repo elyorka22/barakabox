@@ -115,6 +115,23 @@ export class CreateGlobalProductDto {
   isActive?: boolean;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  defaultPrice?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  defaultStock?: number;
+
+  @IsOptional()
+  @Transform(optionalBoolean)
+  @IsBoolean()
+  isPopular?: boolean;
+
+  @IsOptional()
   @IsObject()
   attributes?: Record<string, unknown>;
 
@@ -177,6 +194,23 @@ export class UpdateGlobalProductDto {
   @Transform(optionalBoolean)
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  defaultPrice?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  defaultStock?: number;
+
+  @IsOptional()
+  @Transform(optionalBoolean)
+  @IsBoolean()
+  isPopular?: boolean;
 
   @IsOptional()
   @IsObject()
@@ -320,4 +354,11 @@ export class UpdateStoreListingDto {
   @IsInt()
   @Min(0)
   topOrder?: number;
+}
+
+/** Bulk import global products into store (onboarding). */
+export class BulkImportStoreListingsDto {
+  @IsArray()
+  @IsString({ each: true })
+  globalProductIds!: string[];
 }

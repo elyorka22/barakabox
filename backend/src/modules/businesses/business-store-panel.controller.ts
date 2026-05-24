@@ -1,4 +1,18 @@
-import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -6,6 +20,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthUser } from '../../common/decorators/current-user.decorator';
 import { StoreAnalyticsQueryDto } from '../marketplace/dto/store-analytics.dto';
 import { UpdateStoreTopProductsDto } from '../marketplace/dto/store-panel.dto';
+import { UpdateStoreProfileDto } from '../marketplace/dto/store-profile.dto';
 import { StoreAnalyticsService } from '../marketplace/store-analytics.service';
 import { StorePanelOrdersQueryDto } from './dto/store-panel-orders.dto';
 import { StorePanelOrdersService } from './store-panel-orders.service';
@@ -24,6 +39,44 @@ export class BusinessStorePanelController {
   @Get('store')
   getStore(@CurrentUser() user: AuthUser) {
     return this.panel.getStoreContext(user.sub, user.role);
+  }
+
+  @Get('onboarding')
+  getOnboarding(@CurrentUser() user: AuthUser) {
+    return this.panel.getOnboardingStatus(user.sub, user.role);
+  }
+
+  @Patch('store')
+  updateStore(@CurrentUser() user: AuthUser, @Body() dto: UpdateStoreProfileDto) {
+    return this.panel.updateStoreProfile(user.sub, user.role, dto);
+  }
+
+  @Post('store/image')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_, file, callback) => {
+        const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!allowed.includes(file.mimetype)) {
+          return callback(new BadRequestException('Faqat jpg/png/webp'), false);
+        }
+        callback(null, true);
+      },
+    }),
+  )
+  uploadStoreImage(
+    @CurrentUser() user: AuthUser,
+    @Query('kind') kind: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (kind !== 'logo' && kind !== 'banner') {
+      throw new BadRequestException('kind=logo yoki banner');
+    }
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Rasm fayli kerak');
+    }
+    return this.panel.uploadStoreImage(user.sub, user.role, kind, file);
   }
 
   @Get('dashboard')

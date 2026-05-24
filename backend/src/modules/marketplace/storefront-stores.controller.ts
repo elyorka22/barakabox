@@ -1,9 +1,24 @@
 import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
+import { StoreType } from '@prisma/client';
 import { StorefrontStoresService, StoreListSection } from './storefront-stores.service';
 
 function parseSection(raw?: string): StoreListSection | undefined {
   const v = raw?.trim().toLowerCase();
   if (v === 'featured' || v === 'new' || v === 'top' || v === 'nearby') return v;
+  return undefined;
+}
+
+function parseStoreType(raw?: string): StoreType | undefined {
+  const v = raw?.trim().toUpperCase();
+  const allowed: StoreType[] = [
+    'GROCERY',
+    'PHARMACY',
+    'PET',
+    'BABY',
+    'ELECTRONICS',
+    'COSMETICS',
+  ];
+  if (v && allowed.includes(v as StoreType)) return v as StoreType;
   return undefined;
 }
 
@@ -24,6 +39,8 @@ export class StorefrontStoresController {
   @Get()
   listStores(
     @Query('section') section?: string,
+    @Query('type') type?: string,
+    @Query('storeType') storeType?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('lat') lat?: string,
@@ -31,6 +48,7 @@ export class StorefrontStoresController {
   ) {
     return this.stores.listStores({
       section: parseSection(section),
+      storeType: parseStoreType(storeType ?? type),
       page: Number(page || 1),
       limit: Number(limit || 24),
       lat: lat != null && lat !== '' ? Number(lat) : undefined,

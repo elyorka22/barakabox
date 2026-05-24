@@ -4,6 +4,8 @@ import { CacheService } from '../../infrastructure/cache/cache.service';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { StoreCatalogService } from '../marketplace/store-catalog.service';
 import { UpdateStoreTopItemDto } from '../marketplace/dto/store-panel.dto';
+import { UpdateStoreProfileDto } from '../marketplace/dto/store-profile.dto';
+import { StoreAdminService, type StoreMediaKind } from '../marketplace/store-admin.service';
 import { BusinessDashboardService } from './business-dashboard.service';
 
 const LOW_STOCK_THRESHOLD = 5;
@@ -42,9 +44,25 @@ export class StorePanelService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storeCatalog: StoreCatalogService,
+    private readonly storeAdmin: StoreAdminService,
     private readonly businessDashboard: BusinessDashboardService,
     private readonly cache: CacheService,
   ) {}
+
+  private storeProfileSelect = {
+    id: true,
+    name: true,
+    slug: true,
+    logoUrl: true,
+    bannerUrl: true,
+    description: true,
+    address: true,
+    phone: true,
+    storeType: true,
+    deliveryTimeMinutes: true,
+    deliveryPrice: true,
+    minOrderPrice: true,
+  } satisfies Prisma.StoreSelect;
 
   private labelListing(row: ListingRow) {
     const base = row.globalProduct.name;
@@ -55,22 +73,72 @@ export class StorePanelService {
   async getStoreContext(userId: string, role: string) {
     try {
       const store = await this.storeCatalog.resolveStoreForOperator(userId, role);
+      const listingCount = await this.prisma.storeProduct.count({
+        where: { storeId: store.id },
+      });
+      const full = await this.prisma.store.findUnique({
+        where: { id: store.id },
+        select: this.storeProfileSelect,
+      });
       return {
         available: true as const,
-        store: {
-          id: store.id,
-          name: store.name,
-          slug: store.slug,
-          logoUrl: store.logoUrl,
-          address: store.address,
-          phone: store.phone,
-          deliveryPrice: store.deliveryPrice,
-          minOrderPrice: store.minOrderPrice,
-        },
+        store: { ...full!, listingCount },
       };
     } catch {
       return { available: false as const, store: null };
     }
+  }
+
+  async getOnboardingStatus(userId: string, role: string) {
+    const ctx = await this.getStoreContext(userId, role);
+    if (!ctx.available || !ctx.store) {
+      return { available: false, complete: false, steps: null };
+    }
+    const s = ctx.store;
+    const profileDone = Boolean(s.name?.trim() && s.address?.trim());
+    const logoDone = Boolean(s.logoUrl);
+    const productsDone = (s.listingCount ?? 0) > 0;
+    return {
+      available: true,
+      complete: profileDone && logoDone && productsDone,
+      listingCount: s.listingCount ?? 0,
+      steps: {
+        profile: profileDone,
+        branding: logoDone,
+        products: productsDone,
+      },
+    };
+  }
+
+  async updateStoreProfile(userId: string, role: string, dto: UpdateStoreProfileDto) {
+    const store = await this.storeCatalog.resolveStoreForOperator(userId, role);
+    const updated = await this.prisma.store.update({
+      where: { id: store.id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.address !== undefined ? { address: dto.address?.trim() || null } : {}),
+        ...(dto.phone !== undefined ? { phone: dto.phone?.trim() || null } : {}),
+        ...(dto.description !== undefined ? { description: dto.description?.trim() || null } : {}),
+        ...(dto.storeType !== undefined ? { storeType: dto.storeType } : {}),
+        ...(dto.deliveryTimeMinutes !== undefined
+          ? { deliveryTimeMinutes: dto.deliveryTimeMinutes }
+          : {}),
+      },
+      select: this.storeProfileSelect,
+    });
+    void this.cache.invalidateMarketplaceStorefront(updated.slug);
+    const listingCount = await this.prisma.storeProduct.count({ where: { storeId: store.id } });
+    return { store: { ...updated, listingCount } };
+  }
+
+  async uploadStoreImage(
+    userId: string,
+    role: string,
+    kind: StoreMediaKind,
+    file: Express.Multer.File,
+  ) {
+    const store = await this.storeCatalog.resolveStoreForOperator(userId, role);
+    return this.storeAdmin.uploadStoreImage(store.id, kind, file);
   }
 
   async getDashboard(userId: string, role: string) {

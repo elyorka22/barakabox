@@ -66,6 +66,9 @@ export class CacheService {
       cacheKeys.marketplaceStores(true),
       cacheKeys.storesFeatured(),
       cacheKeys.storesShowcase(),
+      'storefront:marketplace:catalog:v1:',
+      'storefront:marketplace:popular:v1:',
+      'storefront:marketplace:promotions:v1:',
     ];
     for (const limit of [12, 15, 20, 24]) {
       keys.push(cacheKeys.productsTop(limit));

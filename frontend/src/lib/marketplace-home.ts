@@ -15,6 +15,7 @@ export type MarketplaceHome = {
   topProducts: StorefrontProduct[];
   featuredStores: StoreCard[];
   marketplacePromotions: StorefrontProduct[];
+  popularProducts: StorefrontProduct[];
   storeSections: StoreSection[];
   storeShowcase?: StoreShowcase;
 };
@@ -36,6 +37,7 @@ const EMPTY_HOME: MarketplaceHome = {
   topProducts: [],
   featuredStores: [],
   marketplacePromotions: [],
+  popularProducts: [],
   storeSections: [],
   storeShowcase: { nearby: [] },
 };

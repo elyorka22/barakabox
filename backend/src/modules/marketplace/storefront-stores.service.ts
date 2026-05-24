@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, StoreType } from '@prisma/client';
 import { CacheService } from '../../infrastructure/cache/cache.service';
 import { CACHE_TTL, cacheKeys } from '../../common/cache/cache-keys';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
@@ -45,6 +45,7 @@ export class StorefrontStoresService {
 
   listStores(opts?: {
     section?: StoreListSection;
+    storeType?: StoreType;
     page?: number;
     limit?: number;
     lat?: number;
@@ -53,7 +54,13 @@ export class StorefrontStoresService {
     const section = opts?.section;
     const page = Math.max(1, opts?.page ?? 1);
     const limit = Math.min(48, Math.max(1, opts?.limit ?? DEFAULT_PAGE_LIMIT));
-    const cacheKey = cacheKeys.storesList(section, page, limit, opts?.lat, opts?.lng);
+    const cacheKey = cacheKeys.storesList(
+      section ?? opts?.storeType ?? 'all',
+      page,
+      limit,
+      opts?.lat,
+      opts?.lng,
+    );
 
     return this.cache.getOrSet(cacheKey, CACHE_TTL.storesList, async () => {
       if (section) {
@@ -61,16 +68,19 @@ export class StorefrontStoresService {
         return { items, page: 1, limit, total: items.length, totalPages: 1 };
       }
 
+      const where: Prisma.StoreWhereInput = { ...ACTIVE_STORE_WHERE };
+      if (opts?.storeType) where.storeType = opts.storeType;
+
       const skip = (page - 1) * limit;
       const [rows, total] = await Promise.all([
         this.prisma.store.findMany({
-          where: ACTIVE_STORE_WHERE,
+          where,
           orderBy: [{ isFeatured: 'desc' }, { sortOrder: 'asc' }, { name: 'asc' }],
           skip,
           take: limit,
           select: storeCardSelect,
         }),
-        this.prisma.store.count({ where: ACTIVE_STORE_WHERE }),
+        this.prisma.store.count({ where }),
       ]);
 
       return {

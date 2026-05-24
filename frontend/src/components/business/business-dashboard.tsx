@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { authStorage } from '@/lib/api';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { api, authStorage } from '@/lib/api';
 import { useStorePanelDashboard } from '@/hooks/use-store-panel';
 import { BusinessStatsGrid } from '@/components/business/business-stats-grid';
 import { BusinessBottomNav, type BusinessTab } from '@/components/business/business-bottom-nav';
@@ -17,8 +18,33 @@ import { StoreAnalyticsPanel } from '@/components/business/store-analytics-panel
 import { formatMoneyUz } from '@/lib/format';
 
 export function BusinessDashboard() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data, loading, error, reload, hasMarketplace } = useStorePanelDashboard();
-  const [tab, setTab] = useState<BusinessTab>('home');
+  const initialTab = searchParams.get('tab');
+  const [tab, setTab] = useState<BusinessTab>(
+    initialTab === 'catalog' ||
+      initialTab === 'orders' ||
+      initialTab === 'inventory' ||
+      initialTab === 'top' ||
+      initialTab === 'stats' ||
+      initialTab === 'team'
+      ? initialTab
+      : 'home',
+  );
+
+  useEffect(() => {
+    const token = authStorage.getAccessToken();
+    if (!token || loading) return;
+    void api
+      .get<{ available: boolean; complete: boolean }>('/businesses/panel/onboarding', token)
+      .then((status) => {
+        if (status.available && !status.complete) {
+          router.replace('/business/onboarding');
+        }
+      })
+      .catch(() => undefined);
+  }, [loading, router]);
 
   const legacy = data?.legacy;
   const showTeam = (authStorage.getUser()?.role ?? '').toUpperCase() === 'STORE_OWNER';

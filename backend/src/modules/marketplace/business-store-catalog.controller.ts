@@ -4,7 +4,11 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthUser } from '../../common/decorators/current-user.decorator';
-import { CreateStoreListingDto, UpdateStoreListingDto } from './dto/global-catalog.dto';
+import {
+  BulkImportStoreListingsDto,
+  CreateStoreListingDto,
+  UpdateStoreListingDto,
+} from './dto/global-catalog.dto';
 import { StoreCatalogService } from './store-catalog.service';
 
 /** Store operator: browse global catalog and manage store listings (Stage 3). */
@@ -41,6 +45,12 @@ export class BusinessStoreCatalogController {
   async addListing(@CurrentUser() user: AuthUser, @Body() dto: CreateStoreListingDto) {
     const store = await this.storeCatalog.resolveStoreForOperator(user.sub, user.role);
     return this.storeCatalog.createListing(store.id, dto);
+  }
+
+  @Post('listings/bulk')
+  async bulkImport(@CurrentUser() user: AuthUser, @Body() dto: BulkImportStoreListingsDto) {
+    const store = await this.storeCatalog.resolveStoreForOperator(user.sub, user.role);
+    return this.storeCatalog.bulkImportListings(store.id, dto);
   }
 
   @Patch('listings/:id')

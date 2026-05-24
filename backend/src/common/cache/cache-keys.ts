@@ -8,6 +8,9 @@ export const CACHE_TTL = {
   storesList: 180,
   storeDetail: 120,
   storeProducts: 90,
+  marketplaceCatalog: 90,
+  marketplacePopular: 120,
+  marketplacePromotions: 90,
   marketplaceSearch: 60,
   productsTop: 120,
   productsPromotions: 120,
@@ -26,7 +29,7 @@ export const CACHE_TTL = {
 
 export const cacheKeys = {
   productsHome: () => 'storefront:products:home:v1',
-  marketplaceHome: () => 'storefront:marketplace:home:v2',
+  marketplaceHome: () => 'storefront:marketplace:home:v5',
   marketplaceStores: (featured: boolean) =>
     `storefront:marketplace:stores:v1:${featured ? 'featured' : 'all'}`,
   marketplaceStore: (slug: string) =>
@@ -51,6 +54,18 @@ export const cacheKeys = {
     promo?: boolean,
   ) =>
     `storefront:stores:products:v1:${encodeURIComponent(slug)}:${page}:${limit}:${q ? encodeURIComponent(q) : '_'}:${categoryId ?? '_'}:${promo ? '1' : '0'}`,
+  marketplaceCatalog: (
+    page: number,
+    limit: number,
+    categoryId?: string,
+    q?: string,
+    sort?: string,
+    storeId?: string,
+  ) =>
+    `storefront:marketplace:catalog:v1:${page}:${limit}:${categoryId ?? '_'}:${q ? encodeURIComponent(q) : '_'}:${sort ?? 'newest'}:${storeId ?? '_'}`,
+  marketplacePopular: (limit: number) => `storefront:marketplace:popular:v1:${limit}`,
+  marketplacePromotions: (page: number, limit: number) =>
+    `storefront:marketplace:promotions:v1:${page}:${limit}`,
   marketplaceSearch: (q: string, page: number, limit: number) =>
     `storefront:marketplace:search:v1:${encodeURIComponent(q)}:${page}:${limit}`,
   productsTop: (limit: number) => `storefront:products:top:v1:${limit}`,

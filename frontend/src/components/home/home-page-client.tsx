@@ -6,25 +6,31 @@ import { Bell, ChevronDown, Heart, Search } from 'lucide-react';
 import { guestStorage } from '@/lib/api';
 import { MobileNav } from '@/components/app-nav';
 import { HomeBannerCarousel } from '@/components/home/home-banner-carousel';
-import { CatalogInfiniteGrid } from '@/components/home/catalog-infinite-grid';
+import { CatalogInfiniteGrid, type CatalogSource } from '@/components/home/catalog-infinite-grid';
+import { PopularProductsCarousel } from '@/components/home/popular-products-carousel';
 import { HomeInstallCard } from '@/components/pwa/HomeInstallCard';
 import type { PaginatedProducts } from '@/lib/storefront-api';
 import { fetchMarketplaceHome } from '@/lib/marketplace-home';
 import { TopProductsCarousel } from '@/components/home/top-products-carousel';
-import { HomeStoresShowcase } from '@/components/home/home-stores-showcase';
-import type { StoreShowcase } from '@/lib/stores-api';
+import { HomePromotionsCarousel } from '@/components/home/home-promotions-carousel';
+import { HomeStoreTypes } from '@/components/home/home-store-types';
+import { FeaturedStoresCarousel } from '@/components/home/featured-stores-carousel';
+import type { StoreCard } from '@/lib/stores-api';
 import { useProductSheet } from '@/lib/product-sheet-context';
 import type { StorefrontProduct } from '@/types/storefront-product';
 
 type Props = {
   initialCatalog: PaginatedProducts;
+  catalogSource?: CatalogSource;
 };
 
-export function HomePageClient({ initialCatalog }: Props) {
+export function HomePageClient({ initialCatalog, catalogSource = 'legacy' }: Props) {
   const { registerCatalog } = useProductSheet();
   const [topProducts, setTopProducts] = useState<StorefrontProduct[]>([]);
   const [loadingTop, setLoadingTop] = useState(false);
-  const [storeShowcase, setStoreShowcase] = useState<StoreShowcase | null>(null);
+  const [featuredStores, setFeaturedStores] = useState<StoreCard[]>([]);
+  const [popularProducts, setPopularProducts] = useState<StorefrontProduct[]>([]);
+  const [promotionProducts, setPromotionProducts] = useState<StorefrontProduct[]>([]);
   const [showDeferredSections, setShowDeferredSections] = useState(false);
 
   useEffect(() => {
@@ -53,14 +59,18 @@ export function HomePageClient({ initialCatalog }: Props) {
         if (cancelled) return;
         const top = home.topProducts ?? [];
         setTopProducts(top);
-        setStoreShowcase(home.storeShowcase ?? null);
+        setFeaturedStores(home.featuredStores ?? []);
+        setPopularProducts(home.popularProducts ?? []);
+        setPromotionProducts(home.marketplacePromotions ?? []);
         if (top.length > 0) {
           registerCatalog([...initialCatalog.items, ...top]);
         }
       } catch {
         if (!cancelled) {
           setTopProducts([]);
-          setStoreShowcase(null);
+          setFeaturedStores([]);
+          setPopularProducts([]);
+          setPromotionProducts([]);
         }
       } finally {
         if (!cancelled) setLoadingTop(false);
@@ -113,23 +123,32 @@ export function HomePageClient({ initialCatalog }: Props) {
         <HomeBannerCarousel />
         <HomeInstallCard />
 
-        {showDeferredSections ? (
-          <HomeStoresShowcase showcase={storeShowcase} loading={loadingTop} />
-        ) : null}
+        <HomeStoreTypes />
 
         {showDeferredSections ? (
           <>
+            <FeaturedStoresCarousel stores={featuredStores} />
+
+            <PopularProductsCarousel products={popularProducts} loading={loadingTop} />
+
             <TopProductsCarousel products={topProducts} loading={loadingTop} />
 
-            <section className="mt-5">
-              <h2 className="mb-2 text-base font-semibold text-[#111827]">Barcha mahsulotlar</h2>
-              <CatalogInfiniteGrid initial={initialCatalog} className="pb-24" />
-            </section>
+            <HomePromotionsCarousel products={promotionProducts} loading={loadingTop} />
+
+            <CatalogInfiniteGrid
+              initial={initialCatalog}
+              source={catalogSource}
+              className="mt-5 pb-24"
+            />
           </>
         ) : (
           <div className="mt-5 space-y-4 pb-24">
             <div className="bb-skeleton h-36 rounded-3xl" />
-            <CatalogInfiniteGrid initial={initialCatalog} className="mt-2" />
+            <CatalogInfiniteGrid
+              initial={initialCatalog}
+              source={catalogSource}
+              className="mt-2"
+            />
           </div>
         )}
 

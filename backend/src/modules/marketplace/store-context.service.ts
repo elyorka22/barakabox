@@ -140,6 +140,7 @@ export class StoreContextService {
         minOrderPrice: true,
         isActive: true,
         isFeatured: true,
+        storeType: true,
         sortOrder: true,
         businessProfileId: true,
         createdAt: true,
