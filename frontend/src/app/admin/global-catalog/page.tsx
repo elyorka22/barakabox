@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react';
 import { api, authStorage } from '@/lib/api';
 import { normalizeAssetUrl } from '@/lib/asset-url';
 import { AdminGlobalProductFormDrawer } from '@/components/admin/global-catalog/admin-global-product-form-drawer';
+import { DEFAULT_PRODUCT_UNIT } from '@onlinebozor/product-units';
 import type {
   GlobalCatalogListResponse,
   GlobalCatalogProduct,
@@ -21,6 +22,7 @@ const EMPTY_FORM: GlobalProductFormState = {
   description: '',
   brand: '',
   categoryId: '',
+  unit: DEFAULT_PRODUCT_UNIT,
   imageUrl: '',
   imageKey: '',
   isActive: true,
@@ -134,6 +136,7 @@ export default function AdminGlobalCatalogPage() {
       description: row.description ?? '',
       brand: row.brand ?? '',
       categoryId: row.categoryId ?? '',
+      unit: row.unit || DEFAULT_PRODUCT_UNIT,
       imageUrl: row.imageUrl ?? '',
       imageKey: '',
       isActive: row.isActive,
@@ -159,15 +162,18 @@ export default function AdminGlobalCatalogPage() {
     setError('');
     setSuccess('');
     try {
-      const body = {
+      const body: Record<string, unknown> = {
         name,
-        slug: form.slug.trim() || undefined,
         description: form.description.trim() || undefined,
         brand: form.brand.trim() || undefined,
         categoryId: form.categoryId || undefined,
-        imageUrl: form.imageUrl.trim() || undefined,
+        unit: form.unit || DEFAULT_PRODUCT_UNIT,
         isActive: form.isActive,
       };
+      const slug = form.slug.trim();
+      if (slug) body.slug = slug;
+      const imageUrl = form.imageUrl.trim();
+      if (imageUrl) body.imageUrl = imageUrl;
 
       let saved: GlobalCatalogProduct;
       if (form.id) {
@@ -358,6 +364,7 @@ export default function AdminGlobalCatalogPage() {
                   </td>
                   <td className="px-3 py-2 text-slate-600">
                     {row.category?.name ?? '—'}
+                    <span className="ml-1 text-xs text-slate-400">/ {row.unit}</span>
                   </td>
                   <td className="px-3 py-2 text-slate-600">
                     {row.variants.length > 0

@@ -2,6 +2,10 @@
 
 import { X } from 'lucide-react';
 import { ImageUploader } from '@/components/admin/image-uploader';
+import {
+  PRODUCT_UNIT_SELECT_OPTIONS,
+  type ProductUnitCode,
+} from '@onlinebozor/product-units';
 import type {
   GlobalCatalogProduct,
   GlobalProductFormState,
@@ -88,6 +92,23 @@ export function AdminGlobalProductFormDrawer({
                 value={form.brand}
                 onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
               />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-700">O‘lchov birligi</label>
+              <select
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                value={form.unit}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, unit: e.target.value as ProductUnitCode }))
+                }
+              >
+                {PRODUCT_UNIT_SELECT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>

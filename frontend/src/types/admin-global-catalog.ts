@@ -13,6 +13,7 @@ export type GlobalCatalogProduct = {
   slug: string;
   description: string | null;
   brand: string | null;
+  unit: string;
   imageUrl: string | null;
   imageCardUrl: string | null;
   imageThumbUrl: string | null;
@@ -38,6 +39,7 @@ export type GlobalProductFormState = {
   description: string;
   brand: string;
   categoryId: string;
+  unit: string;
   imageUrl: string;
   imageKey: string;
   isActive: boolean;

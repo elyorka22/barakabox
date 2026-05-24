@@ -701,6 +701,8 @@ model GlobalProduct {
   description   String?
   categoryId    String?
   brand         String?
+  /// Default sale unit label for storefront (price is per store listing).
+  unit          ProductUnit     @default(dona)
   imageUrl      String?
   imageKey      String?
   imageCardUrl  String?

@@ -104,6 +104,7 @@ export class StoreCatalogService {
           name: true,
           slug: true,
           brand: true,
+          unit: true,
           imageUrl: true,
           imageThumbUrl: true,
           description: true,

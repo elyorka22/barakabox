@@ -193,6 +193,7 @@ export class MarketplaceMigrationService {
         imageThumbUrl: product.imageThumbUrl,
         imageThumbKey: product.imageThumbKey,
         imagesJson: this.productImagesJson(product),
+        unit: product.unit,
         isActive: product.isActive,
         legacyProductId: product.id,
       },

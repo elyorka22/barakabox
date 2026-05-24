@@ -8,6 +8,7 @@ import {
   CreateGlobalProductDto,
   CreateGlobalVariantDto,
   UpdateGlobalProductDto,
+  resolveGlobalImageUrl,
 } from './dto/global-catalog.dto';
 
 const globalProductSelect = {
@@ -16,6 +17,7 @@ const globalProductSelect = {
   slug: true,
   description: true,
   brand: true,
+  unit: true,
   imageUrl: true,
   imageCardUrl: true,
   imageThumbUrl: true,
@@ -49,7 +51,7 @@ export class GlobalCatalogAdminService {
   }
 
   private async uniqueSlug(base: string, excludeId?: string): Promise<string> {
-    let slug = slugifyName(base) || 'product';
+    const slug = slugifyName(base) || 'product';
     for (let i = 0; i < 20; i += 1) {
       const candidate = i === 0 ? slug : withUniqueSlugSuffix(slug, String(i));
       const existing = await this.prisma.globalProduct.findFirst({
@@ -107,21 +109,46 @@ export class GlobalCatalogAdminService {
 
   async createGlobalProduct(dto: CreateGlobalProductDto) {
     const slug = await this.uniqueSlug(dto.slug?.trim() || dto.name);
+    const imageUrl = resolveGlobalImageUrl(dto);
+
     try {
-      const created = await this.prisma.globalProduct.create({
-        data: {
-          name: dto.name.trim(),
-          slug,
-          description: dto.description?.trim() || null,
-          categoryId: dto.categoryId || null,
-          brand: dto.brand?.trim() || null,
-          imageUrl: dto.imageUrl?.trim() || null,
-          isActive: dto.isActive ?? true,
-        },
-        select: globalProductSelect,
+      const product = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.globalProduct.create({
+          data: {
+            name: dto.name.trim(),
+            slug,
+            description: dto.description?.trim() || null,
+            categoryId: dto.categoryId || null,
+            brand: dto.brand?.trim() || null,
+            imageUrl,
+            unit: dto.unit ?? 'dona',
+            isActive: dto.isActive ?? true,
+          },
+        });
+
+        const nested = dto.variants ?? [];
+        for (let i = 0; i < nested.length; i += 1) {
+          const v = nested[i];
+          await tx.globalVariant.create({
+            data: {
+              globalProductId: created.id,
+              type: v.type.trim(),
+              value: v.value.trim(),
+              imageUrl: resolveGlobalImageUrl(v),
+              sku: v.sku?.trim() || null,
+              sortOrder: v.sortOrder ?? i,
+            },
+          });
+        }
+
+        return tx.globalProduct.findUniqueOrThrow({
+          where: { id: created.id },
+          select: globalProductSelect,
+        });
       });
+
       this.touchStorefrontCache();
-      return created;
+      return product;
     } catch (error) {
       throwMappedPrismaError(error, 'createGlobalProduct');
       throw error;
@@ -132,15 +159,27 @@ export class GlobalCatalogAdminService {
     const existing = await this.prisma.globalProduct.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Global mahsulot topilmadi');
 
+    const slug =
+      dto.slug !== undefined
+        ? await this.uniqueSlug(dto.slug?.trim() || dto.name?.trim() || existing.name, id)
+        : undefined;
+
+    const imageProvided = dto.imageUrl !== undefined || dto.image !== undefined;
+    const imageUrl = imageProvided
+      ? resolveGlobalImageUrl({ imageUrl: dto.imageUrl, image: dto.image })
+      : undefined;
+
     try {
       const updated = await this.prisma.globalProduct.update({
         where: { id },
         data: {
           ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+          ...(slug !== undefined ? { slug } : {}),
           ...(dto.description !== undefined ? { description: dto.description } : {}),
           ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {}),
           ...(dto.brand !== undefined ? { brand: dto.brand } : {}),
-          ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {}),
+          ...(dto.unit !== undefined ? { unit: dto.unit } : {}),
+          ...(imageProvided ? { imageUrl } : {}),
           ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         },
         select: globalProductSelect,
@@ -166,7 +205,7 @@ export class GlobalCatalogAdminService {
           globalProductId,
           type: dto.type.trim(),
           value: dto.value.trim(),
-          imageUrl: dto.imageUrl?.trim() || null,
+          imageUrl: resolveGlobalImageUrl(dto),
           sku: dto.sku?.trim() || null,
           sortOrder: dto.sortOrder ?? 0,
         },
