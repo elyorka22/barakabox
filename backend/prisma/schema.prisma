@@ -711,6 +711,8 @@ model GlobalProduct {
   imageThumbKey String?
   /// Extra gallery entries: [{ url, cardUrl, thumbUrl, sortOrder }]
   imagesJson    Json            @default("[]")
+  /// Flexible attributes (weight, country, tags, etc.) — not duplicated per store.
+  attributes    Json            @default("{}")
   isActive      Boolean         @default(true)
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt

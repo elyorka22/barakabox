@@ -1,2 +1,2 @@
--- Global catalog: default sale unit on platform products.
-ALTER TABLE "GlobalProduct" ADD COLUMN "unit" "ProductUnit" NOT NULL DEFAULT 'dona';
+-- No-op: this migration was originally ordered before GlobalProduct table creation.
+-- Real column changes live in 20260530140000_global_product_unit_and_attributes.

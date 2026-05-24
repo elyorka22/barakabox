@@ -44,9 +44,15 @@ class StoreImageKindDto {
   kind!: 'logo' | 'banner';
 }
 
+function parseIncludeInactiveFlag(raw?: string): boolean {
+  if (!raw) return false;
+  const v = raw.trim().toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes';
+}
+
 @Controller('admin/marketplace')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN')
+@Roles('ADMIN', 'SYSTEM_ADMIN')
 export class MarketplaceAdminController {
   constructor(
     private readonly storeContext: StoreContextService,
@@ -127,7 +133,7 @@ export class MarketplaceAdminController {
       categoryId: categoryId?.trim() || undefined,
       page: Number(page || 1),
       limit: Number(limit || 24),
-      includeInactive: includeInactive === '1' || includeInactive === 'true',
+      includeInactive: parseIncludeInactiveFlag(includeInactive),
     });
   }
 

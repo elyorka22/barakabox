@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api, authStorage } from '@/lib/api';
+import { api, authStorage, isApiError } from '@/lib/api';
 import { StoreListingsPanel } from '@/components/business/store-listings-panel';
 import { formatMoneyUz } from '@/lib/format';
 
@@ -56,10 +56,14 @@ export function BusinessMarketplaceCatalogPanel() {
         api.get<BrowseResponse>(`/businesses/catalog/browse?${params}`, token),
         api.get<Listing[]>('/businesses/catalog/listings', token),
       ]);
-      setBrowse(browseRes.items);
-      setListings(listingRes);
+      setBrowse(Array.isArray(browseRes?.items) ? browseRes.items : []);
+      setListings(Array.isArray(listingRes) ? listingRes : []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Yuklab bo‘lmadi');
+      if (isApiError(e)) {
+        setError(e.message);
+      } else {
+        setError(e instanceof Error ? e.message : 'Yuklab bo‘lmadi');
+      }
     } finally {
       setLoading(false);
     }

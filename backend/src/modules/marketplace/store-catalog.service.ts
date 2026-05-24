@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { CashbackType, Prisma } from '@prisma/client';
@@ -46,6 +47,8 @@ const listingSelect = {
 
 @Injectable()
 export class StoreCatalogService {
+  private readonly logger = new Logger(StoreCatalogService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storeContext: StoreContextService,
@@ -93,64 +96,73 @@ export class StoreCatalogService {
       ];
     }
 
-    const [products, total, existingListings] = await Promise.all([
-      this.prisma.globalProduct.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { name: 'asc' },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          brand: true,
-          unit: true,
-          imageUrl: true,
-          imageThumbUrl: true,
-          description: true,
-          category: { select: { id: true, name: true } },
-          variants: {
-            where: { isActive: true },
-            orderBy: [{ sortOrder: 'asc' }, { value: 'asc' }],
-            select: {
-              id: true,
-              type: true,
-              value: true,
-              imageUrl: true,
-              sku: true,
+    try {
+      const [products, total, existingListings] = await Promise.all([
+        this.prisma.globalProduct.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { name: 'asc' },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            brand: true,
+            unit: true,
+            imageUrl: true,
+            imageThumbUrl: true,
+            description: true,
+            category: { select: { id: true, name: true } },
+            variants: {
+              where: { isActive: true },
+              orderBy: [{ sortOrder: 'asc' }, { value: 'asc' }],
+              select: {
+                id: true,
+                type: true,
+                value: true,
+                imageUrl: true,
+                sku: true,
+              },
             },
           },
-        },
-      }),
-      this.prisma.globalProduct.count({ where }),
-      this.prisma.storeProduct.findMany({
-        where: { storeId },
-        select: { globalProductId: true, globalVariantId: true },
-      }),
-    ]);
+        }),
+        this.prisma.globalProduct.count({ where }),
+        this.prisma.storeProduct.findMany({
+          where: { storeId },
+          select: { globalProductId: true, globalVariantId: true },
+        }),
+      ]);
 
-    const listedKeys = new Set(
-      existingListings.map((l) =>
-        l.globalVariantId ? `${l.globalProductId}:${l.globalVariantId}` : `${l.globalProductId}:`,
-      ),
-    );
+      const listedKeys = new Set(
+        existingListings.map((l) =>
+          l.globalVariantId ? `${l.globalProductId}:${l.globalVariantId}` : `${l.globalProductId}:`,
+        ),
+      );
 
-    const items = products.map((p) => {
-      const hasVariants = p.variants.length > 0;
-      const variants = p.variants.map((v) => ({
-        ...v,
-        alreadyListed: listedKeys.has(`${p.id}:${v.id}`),
-      }));
-      const baseListed = !hasVariants && listedKeys.has(`${p.id}:`);
-      return {
-        ...p,
-        hasVariants,
-        alreadyListed: hasVariants ? variants.every((v) => v.alreadyListed) : baseListed,
-        variants,
-      };
-    });
+      const items = products.map((p) => {
+        const hasVariants = (p.variants ?? []).length > 0;
+        const variants = (p.variants ?? []).map((v) => ({
+          ...v,
+          alreadyListed: listedKeys.has(`${p.id}:${v.id}`),
+        }));
+        const baseListed = !hasVariants && listedKeys.has(`${p.id}:`);
+        return {
+          ...p,
+          hasVariants,
+          alreadyListed: hasVariants ? variants.every((v) => v.alreadyListed) : baseListed,
+          variants,
+        };
+      });
 
-    return { items, total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) };
+      return { items, total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) };
+    } catch (error) {
+      this.logger.error(
+        `browseGlobalCatalog failed storeId=${storeId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throwMappedPrismaError(error, 'browseGlobalCatalog');
+      throw error;
+    }
   }
 
   listStoreListings(storeId: string) {

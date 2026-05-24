@@ -192,7 +192,7 @@ async function request<T>(
     } catch {
       message = t('common.genericError');
     }
-    throw new Error(message || `${t('common.genericError')}. ${t('common.retry')}`);
+    throw new ApiError(response.status, message || `${t('common.genericError')}. ${t('common.retry')}`);
   }
 
   const payload = normalizeAssetUrlsDeep((await response.json()) as T);

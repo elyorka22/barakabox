@@ -1,10 +1,11 @@
-import { CashbackType, ProductUnit } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { CashbackType, Prisma, ProductUnit } from '@prisma/client';
+import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
   IsEnum,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   MaxLength,
@@ -12,6 +13,18 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+
+function emptyToUndefined({ value }: { value: unknown }) {
+  if (value === '' || value === null) return undefined;
+  return value;
+}
+
+function optionalBoolean({ value }: { value: unknown }): boolean | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (value === true || value === 'true' || value === 1 || value === '1') return true;
+  if (value === false || value === 'false' || value === 0 || value === '0') return false;
+  return undefined;
+}
 
 /** Nested variant on global product create (optional batch). */
 export class CreateGlobalVariantNestedDto {
@@ -26,17 +39,19 @@ export class CreateGlobalVariantNestedDto {
   value!: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   @MaxLength(2000)
   imageUrl?: string;
 
-  /** Alias for imageUrl (admin clients). */
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   @MaxLength(2000)
   image?: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   @MaxLength(64)
   sku?: string;
@@ -54,43 +69,54 @@ export class CreateGlobalProductDto {
   name!: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   @MaxLength(120)
   slug?: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   @MaxLength(4000)
   description?: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   @MaxLength(64)
   categoryId?: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   @MaxLength(120)
   brand?: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   @MaxLength(2000)
   imageUrl?: string;
 
-  /** Alias for imageUrl (admin clients). */
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   @MaxLength(2000)
   image?: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsEnum(ProductUnit)
   unit?: ProductUnit;
 
   @IsOptional()
+  @Transform(optionalBoolean)
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsObject()
+  attributes?: Record<string, unknown>;
 
   @IsOptional()
   @IsArray()
@@ -107,42 +133,54 @@ export class UpdateGlobalProductDto {
   name?: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   @MaxLength(120)
   slug?: string;
 
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? null : value))
   @IsString()
   @MaxLength(4000)
   description?: string | null;
 
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? null : value))
   @IsString()
   @MaxLength(64)
   categoryId?: string | null;
 
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? null : value))
   @IsString()
   @MaxLength(120)
   brand?: string | null;
 
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? null : value))
   @IsString()
   @MaxLength(2000)
   imageUrl?: string | null;
 
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? null : value))
   @IsString()
   @MaxLength(2000)
   image?: string | null;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsEnum(ProductUnit)
   unit?: ProductUnit;
 
   @IsOptional()
+  @Transform(optionalBoolean)
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsObject()
+  attributes?: Record<string, unknown> | null;
 }
 
 export class CreateGlobalVariantDto {
@@ -157,16 +195,19 @@ export class CreateGlobalVariantDto {
   value!: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   @MaxLength(2000)
   imageUrl?: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   @MaxLength(2000)
   image?: string;
 
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   @MaxLength(64)
   sku?: string;
@@ -185,6 +226,15 @@ export function resolveGlobalImageUrl(input: {
   return url || null;
 }
 
+export function normalizeAttributes(
+  value: Record<string, unknown> | null | undefined,
+): Prisma.InputJsonValue {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Prisma.InputJsonValue;
+}
+
 export class CreateStoreListingDto {
   @IsString()
   globalProductId!: string;
@@ -193,16 +243,19 @@ export class CreateStoreListingDto {
   @IsString()
   globalVariantId?: string;
 
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   price!: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   oldPrice?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(0)
   stock?: number;
@@ -212,27 +265,32 @@ export class CreateStoreListingDto {
   cashbackType?: CashbackType;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(0)
   cashbackValue?: number;
 
   @IsOptional()
+  @Transform(optionalBoolean)
   @IsBoolean()
   isVisible?: boolean;
 }
 
 export class UpdateStoreListingDto {
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   price?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   oldPrice?: number | null;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(0)
   stock?: number;
@@ -242,19 +300,23 @@ export class UpdateStoreListingDto {
   cashbackType?: CashbackType;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(0)
   cashbackValue?: number;
 
   @IsOptional()
+  @Transform(optionalBoolean)
   @IsBoolean()
   isVisible?: boolean;
 
   @IsOptional()
+  @Transform(optionalBoolean)
   @IsBoolean()
   isTop?: boolean;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(0)
   topOrder?: number;

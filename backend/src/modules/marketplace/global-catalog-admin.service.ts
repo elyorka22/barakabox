@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CacheService } from '../../infrastructure/cache/cache.service';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
@@ -8,6 +13,7 @@ import {
   CreateGlobalProductDto,
   CreateGlobalVariantDto,
   UpdateGlobalProductDto,
+  normalizeAttributes,
   resolveGlobalImageUrl,
 } from './dto/global-catalog.dto';
 
@@ -21,6 +27,8 @@ const globalProductSelect = {
   imageUrl: true,
   imageCardUrl: true,
   imageThumbUrl: true,
+  imagesJson: true,
+  attributes: true,
   isActive: true,
   categoryId: true,
   createdAt: true,
@@ -41,6 +49,8 @@ const globalProductSelect = {
 
 @Injectable()
 export class GlobalCatalogAdminService {
+  private readonly logger = new Logger(GlobalCatalogAdminService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
@@ -66,7 +76,20 @@ export class GlobalCatalogAdminService {
     return withUniqueSlugSuffix(slug, Date.now().toString(36));
   }
 
-  listGlobalProducts(opts?: {
+  private async assertCategoryId(categoryId: string | null | undefined) {
+    const id = categoryId?.trim();
+    if (!id) return null;
+    const category = await this.prisma.category.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!category) {
+      throw new BadRequestException('Kategoriya topilmadi');
+    }
+    return id;
+  }
+
+  async listGlobalProducts(opts?: {
     q?: string;
     categoryId?: string;
     page?: number;
@@ -77,10 +100,15 @@ export class GlobalCatalogAdminService {
     const limit = Math.min(100, Math.max(1, opts?.limit ?? 24));
     const skip = (page - 1) * limit;
     const q = opts?.q?.trim();
+    const categoryId = opts?.categoryId?.trim() || undefined;
 
     const where: Prisma.GlobalProductWhereInput = {};
-    if (!opts?.includeInactive) where.isActive = true;
-    if (opts?.categoryId) where.categoryId = opts.categoryId;
+    if (!opts?.includeInactive) {
+      where.isActive = true;
+    }
+    if (categoryId) {
+      where.categoryId = categoryId;
+    }
     if (q) {
       where.OR = [
         { name: { contains: q, mode: 'insensitive' } },
@@ -89,27 +117,39 @@ export class GlobalCatalogAdminService {
       ];
     }
 
-    return Promise.all([
-      this.prisma.globalProduct.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { name: 'asc' },
-        select: globalProductSelect,
-      }),
-      this.prisma.globalProduct.count({ where }),
-    ]).then(([items, total]) => ({
-      items,
-      total,
-      page,
-      limit,
-      totalPages: Math.max(1, Math.ceil(total / limit)),
-    }));
+    try {
+      const [items, total] = await Promise.all([
+        this.prisma.globalProduct.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { name: 'asc' },
+          select: globalProductSelect,
+        }),
+        this.prisma.globalProduct.count({ where }),
+      ]);
+
+      return {
+        items,
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      };
+    } catch (error) {
+      this.logger.error(
+        `listGlobalProducts failed (page=${page}, q=${q ?? ''}, categoryId=${categoryId ?? ''})`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throwMappedPrismaError(error, 'listGlobalProducts');
+      throw error;
+    }
   }
 
   async createGlobalProduct(dto: CreateGlobalProductDto) {
     const slug = await this.uniqueSlug(dto.slug?.trim() || dto.name);
     const imageUrl = resolveGlobalImageUrl(dto);
+    const categoryId = await this.assertCategoryId(dto.categoryId);
 
     try {
       const product = await this.prisma.$transaction(async (tx) => {
@@ -118,10 +158,11 @@ export class GlobalCatalogAdminService {
             name: dto.name.trim(),
             slug,
             description: dto.description?.trim() || null,
-            categoryId: dto.categoryId || null,
+            categoryId,
             brand: dto.brand?.trim() || null,
             imageUrl,
             unit: dto.unit ?? 'dona',
+            attributes: normalizeAttributes(dto.attributes),
             isActive: dto.isActive ?? true,
           },
         });
@@ -148,8 +189,13 @@ export class GlobalCatalogAdminService {
       });
 
       this.touchStorefrontCache();
+      this.logger.log(`Created global product ${product.id} (${product.slug})`);
       return product;
     } catch (error) {
+      this.logger.error(
+        `createGlobalProduct failed name=${dto.name}`,
+        error instanceof Error ? error.stack : String(error),
+      );
       throwMappedPrismaError(error, 'createGlobalProduct');
       throw error;
     }
@@ -169,6 +215,9 @@ export class GlobalCatalogAdminService {
       ? resolveGlobalImageUrl({ imageUrl: dto.imageUrl, image: dto.image })
       : undefined;
 
+    const categoryId =
+      dto.categoryId !== undefined ? await this.assertCategoryId(dto.categoryId) : undefined;
+
     try {
       const updated = await this.prisma.globalProduct.update({
         where: { id },
@@ -176,9 +225,12 @@ export class GlobalCatalogAdminService {
           ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
           ...(slug !== undefined ? { slug } : {}),
           ...(dto.description !== undefined ? { description: dto.description } : {}),
-          ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {}),
+          ...(categoryId !== undefined ? { categoryId } : {}),
           ...(dto.brand !== undefined ? { brand: dto.brand } : {}),
           ...(dto.unit !== undefined ? { unit: dto.unit } : {}),
+          ...(dto.attributes !== undefined
+            ? { attributes: normalizeAttributes(dto.attributes ?? undefined) }
+            : {}),
           ...(imageProvided ? { imageUrl } : {}),
           ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         },
@@ -187,6 +239,10 @@ export class GlobalCatalogAdminService {
       this.touchStorefrontCache();
       return updated;
     } catch (error) {
+      this.logger.error(
+        `updateGlobalProduct failed id=${id}`,
+        error instanceof Error ? error.stack : String(error),
+      );
       throwMappedPrismaError(error, 'updateGlobalProduct');
       throw error;
     }
@@ -213,6 +269,10 @@ export class GlobalCatalogAdminService {
       this.touchStorefrontCache();
       return variant;
     } catch (error) {
+      this.logger.error(
+        `addVariant failed productId=${globalProductId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
       throwMappedPrismaError(error, 'addGlobalVariant');
       throw error;
     }

@@ -14,6 +14,8 @@ export type GlobalCatalogProduct = {
   description: string | null;
   brand: string | null;
   unit: string;
+  imagesJson?: unknown;
+  attributes?: Record<string, unknown> | null;
   imageUrl: string | null;
   imageCardUrl: string | null;
   imageThumbUrl: string | null;

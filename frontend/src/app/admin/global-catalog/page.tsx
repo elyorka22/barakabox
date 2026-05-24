@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { api, authStorage } from '@/lib/api';
+import { api, authStorage, isApiError } from '@/lib/api';
 import { normalizeAssetUrl } from '@/lib/asset-url';
 import { AdminGlobalProductFormDrawer } from '@/components/admin/global-catalog/admin-global-product-form-drawer';
 import { DEFAULT_PRODUCT_UNIT } from '@onlinebozor/product-units';
@@ -102,11 +102,15 @@ export default function AdminGlobalCatalogPage() {
         `/admin/marketplace/global-products?${params}`,
         token,
       );
-      setItems(res.items);
-      setTotal(res.total);
-      setTotalPages(res.totalPages);
+      setItems(Array.isArray(res?.items) ? res.items : []);
+      setTotal(typeof res?.total === 'number' ? res.total : 0);
+      setTotalPages(typeof res?.totalPages === 'number' ? res.totalPages : 1);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Yuklab bo‘lmadi');
+      if (isApiError(e)) {
+        setError(e.message);
+      } else {
+        setError(e instanceof Error ? e.message : 'Yuklab bo‘lmadi');
+      }
     } finally {
       setLoading(false);
     }
