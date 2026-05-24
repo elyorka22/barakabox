@@ -229,9 +229,9 @@ function ProductCardBase({
   const imageSizeClass = isTopCard
     ? 'max-h-[100%] max-w-[100%]'
     : isGridCard
-      ? 'max-h-[88%] max-w-[88%]'
+      ? 'max-h-[82%] max-w-[82%]'
       : 'max-h-[96%] max-w-[96%]';
-  const imageSurfaceClass = isGridCard ? 'bg-[#f4f4f5]' : PRODUCT_IMAGE_SURFACE_CLASS;
+  const imageSurfaceClass = PRODUCT_IMAGE_SURFACE_CLASS;
 
   return (
     <article
@@ -249,7 +249,7 @@ function ProductCardBase({
         >
           {activeVariant ? (
             <div
-              className={`relative aspect-square w-full shrink-0 overflow-hidden rounded-xl ${imageSurfaceClass}`}
+              className={`relative aspect-square w-full shrink-0 overflow-hidden ${isGridCard ? 'rounded-2xl' : 'rounded-xl'} ${imageSurfaceClass}`}
               onTouchStart={
                 isGridCard
                   ? undefined
@@ -277,7 +277,10 @@ function ProductCardBase({
                 {displayVariants.map((variant) => {
                   const src = resolveVariantImageUrl(variant, productImages);
                   return (
-                    <div key={variant.id} className="flex h-full min-w-full items-center justify-center px-1 pt-0.5">
+                    <div
+                      key={variant.id}
+                      className={`flex h-full min-w-full items-center justify-center ${isGridCard ? 'p-2' : 'px-1 pt-0.5'}`}
+                    >
                       <SafeImage
                         src={src || undefined}
                         alt={variant.flavor || name}
@@ -318,8 +321,8 @@ function ProductCardBase({
               ) : null}
 
               <div
-                className={`absolute z-10 flex max-w-[calc(100%-6px)] justify-end ${
-                  isGridCard ? 'bottom-0 right-0 translate-x-0.5 translate-y-0.5' : 'bottom-1 right-1'
+                className={`absolute z-10 flex justify-end ${
+                  isGridCard ? 'bottom-1.5 right-1.5 max-w-[calc(100%-12px)]' : 'bottom-1 right-1 max-w-[calc(100%-6px)]'
                 }`}
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => e.stopPropagation()}
@@ -335,6 +338,7 @@ function ProductCardBase({
                   storeSlug={storeSlug}
                   listingId={listingId}
                   addButtonTone={isGridCard ? 'dark' : 'green'}
+                  addButtonSize={isGridCard ? 'compact' : 'default'}
                 />
               </div>
             </div>

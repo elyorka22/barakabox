@@ -27,6 +27,7 @@ type Props = {
   storeSlug?: string;
   listingId?: string;
   addButtonTone?: 'green' | 'dark';
+  addButtonSize?: 'default' | 'compact';
 };
 
 function stopLinkNavigation(event: React.SyntheticEvent) {
@@ -87,11 +88,14 @@ function ProductCardCartControlBase({
   storeSlug,
   listingId,
   addButtonTone = 'green',
+  addButtonSize = 'default',
 }: Props) {
   const addBtnClass =
     addButtonTone === 'dark'
       ? 'bg-[#2d2d2d] shadow-[0_2px_8px_rgba(0,0,0,0.18)]'
       : `${ADD_GREEN} ${ADD_GREEN_SHADOW}`;
+  const addBtnSizeClass = addButtonSize === 'compact' ? 'h-7 w-7' : 'h-8 w-8';
+  const addIconSizeClass = addButtonSize === 'compact' ? 'h-3 w-3' : 'h-3.5 w-3.5';
   const quantity = useCartQuantity(variantId);
   const displayLabel = formatSellingModeQuantityCompact(quantity, sellingMode, unit ?? DEFAULT_PRODUCT_UNIT);
   const inCart = quantity > 0;
@@ -120,9 +124,9 @@ function ProductCardCartControlBase({
         }}
         disabled={disabled}
         aria-label={disabled ? 'Mahsulot tugagan' : "Savatga qo'shish"}
-        className={`product-card-add-btn flex h-8 w-8 items-center justify-center rounded-full text-white ${addBtnClass} transition-transform duration-100 active:scale-[0.9] disabled:opacity-45`}
+        className={`product-card-add-btn flex ${addBtnSizeClass} items-center justify-center rounded-full text-white ${addBtnClass} transition-transform duration-100 active:scale-[0.9] disabled:opacity-45`}
       >
-        <Plus className="h-3.5 w-3.5" strokeWidth={2.75} />
+        <Plus className={addIconSizeClass} strokeWidth={2.75} />
       </button>
     );
   }
