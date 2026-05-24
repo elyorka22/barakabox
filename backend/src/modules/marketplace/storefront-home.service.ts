@@ -93,28 +93,22 @@ export class StorefrontHomeService {
   private async buildHomepage() {
     const [legacyTopRows, marketplaceTopRows, storeShowcase, popularBlock, promotionsBlock] =
       await Promise.all([
-      this.prisma.product.findMany({
-        where: { ...STOREFRONT_PRODUCT_WHERE, isTopProduct: true },
-        select: storefrontProductSelect,
-        orderBy: [{ topOrder: 'asc' }, { updatedAt: 'desc' }],
-        take: StorefrontHomeService.TOP_LIMIT,
-      }),
-      this.prisma.storeProduct.findMany({
-        where: { ...VISIBLE_LISTING_WHERE, isTop: true },
-        select: storefrontListingSelect,
-        orderBy: [{ topOrder: 'asc' }, { updatedAt: 'desc' }],
-        take: StorefrontHomeService.TOP_LIMIT,
-      }),
-      this.storefrontStores.getHomeShowcase(),
-      this.prisma.store.findMany({
-        where: { isActive: true, isFeatured: true },
-        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-        take: 10,
-        select: storeCardSelect,
-      }),
-      this.marketplaceCatalog.listPopular(12),
-      this.marketplaceCatalog.listPromotions({ page: 1, limit: 12 }),
-    ]);
+        this.prisma.product.findMany({
+          where: { ...STOREFRONT_PRODUCT_WHERE, isTopProduct: true },
+          select: storefrontProductSelect,
+          orderBy: [{ topOrder: 'asc' }, { updatedAt: 'desc' }],
+          take: StorefrontHomeService.TOP_LIMIT,
+        }),
+        this.prisma.storeProduct.findMany({
+          where: { ...VISIBLE_LISTING_WHERE, isTop: true },
+          select: storefrontListingSelect,
+          orderBy: [{ topOrder: 'asc' }, { updatedAt: 'desc' }],
+          take: StorefrontHomeService.TOP_LIMIT,
+        }),
+        this.storefrontStores.getHomeShowcase(),
+        this.marketplaceCatalog.listPopular(12),
+        this.marketplaceCatalog.listPromotions({ page: 1, limit: 12 }),
+      ]);
 
     const legacyTop = legacyTopRows.map((r) => mapStorefrontProduct(r));
     const marketplaceTop = marketplaceTopRows.map(mapListingToStorefront);
