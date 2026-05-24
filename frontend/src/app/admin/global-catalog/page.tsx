@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
+import { isMarketplaceEnabled } from '@/lib/marketplace-enabled';
 import { api, authStorage, isApiError } from '@/lib/api';
 import { normalizeAssetUrl } from '@/lib/asset-url';
 import { AdminGlobalProductFormDrawer } from '@/components/admin/global-catalog/admin-global-product-form-drawer';
@@ -40,7 +42,12 @@ const EMPTY_VARIANT: GlobalVariantFormState = {
 };
 
 export default function AdminGlobalCatalogPage() {
+  const router = useRouter();
   const token = authStorage.getAccessToken();
+
+  useEffect(() => {
+    if (!isMarketplaceEnabled()) router.replace('/admin');
+  }, [router]);
 
   const [items, setItems] = useState<GlobalCatalogProduct[]>([]);
   const [total, setTotal] = useState(0);

@@ -1,3 +1,4 @@
+import { isMarketplaceEnabled } from '@/lib/marketplace-enabled';
 import {
   Bell,
   Building2,
@@ -47,12 +48,19 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
 
 export const ADMIN_NAV_GROUPS: AdminNavItem['group'][] = ['Asosiy', 'Boshqaruv', 'Monitoring', 'Tizim'];
 
+const MARKETPLACE_ADMIN_HREFS = new Set(['/admin/global-catalog', '/admin/stores']);
+
+function filterMarketplaceNav(items: AdminNavItem[]): AdminNavItem[] {
+  if (isMarketplaceEnabled()) return items;
+  return items.filter((item) => !MARKETPLACE_ADMIN_HREFS.has(item.href));
+}
+
 export function adminNavItemsForRole(actorRole?: string | null): AdminNavItem[] {
   const r = (actorRole ?? '').toUpperCase();
   if (r === 'SUPER_ADMIN' || r === 'ADMIN') {
-    return ADMIN_NAV_ITEMS;
+    return filterMarketplaceNav(ADMIN_NAV_ITEMS);
   }
-  return ADMIN_NAV_ITEMS.filter((item) => item.href !== '/admin/settings');
+  return filterMarketplaceNav(ADMIN_NAV_ITEMS.filter((item) => item.href !== '/admin/settings'));
 }
 
 export const LOGOUT_ITEM = { href: '/profile', label: 'Logout', icon: ShieldAlert };

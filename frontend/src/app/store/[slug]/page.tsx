@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import { isMarketplaceEnabled } from '@/lib/marketplace-enabled';
 import { MobileNav } from '@/components/app-nav';
 import { StorePageTracker } from '@/components/stores/store-page-tracker';
 import { StoreHero, StorePageClient } from '@/components/stores/store-page-client';
@@ -8,6 +9,9 @@ import { fetchStoreDetailServer, fetchStoreProductsServer } from '@/lib/stores-a
 type Props = { params: Promise<{ slug: string }> };
 
 export default async function StoreShowcasePage({ params }: Props) {
+  if (!isMarketplaceEnabled()) {
+    redirect('/');
+  }
   const { slug } = await params;
   const detail = await fetchStoreDetailServer(slug);
   if (!detail) notFound();

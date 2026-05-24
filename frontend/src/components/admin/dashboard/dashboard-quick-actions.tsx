@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { isMarketplaceEnabled } from '@/lib/marketplace-enabled';
 import {
   ArrowUpRight,
   Bike,
@@ -23,9 +24,13 @@ const ACTIONS = [
 ];
 
 export function DashboardQuickActions() {
+  const actions = isMarketplaceEnabled()
+    ? ACTIONS
+    : ACTIONS.filter((a) => a.href !== '/admin/global-catalog');
+
   return (
     <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-1">
-      {ACTIONS.map((action) => (
+      {actions.map((action) => (
         <Link
           key={action.href}
           href={action.href}

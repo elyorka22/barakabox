@@ -9,7 +9,9 @@ import { MobileNav } from '@/components/app-nav';
 import { CategoryCard } from '@/components/home/category-card';
 import { SafeImage } from '@/components/safe-image';
 import { ANALYTICS_EVENTS } from '@/lib/analytics/events';
+import { isMarketplaceEnabled } from '@/lib/marketplace-enabled';
 import { fetchMarketplaceSearch, type MarketplaceSearchResult } from '@/lib/marketplace-search';
+import { fetchProductsPage } from '@/lib/storefront-api';
 import { mapStorefrontProductToCardProps } from '@/lib/storefront-product-card';
 import { useProductSheet } from '@/lib/product-sheet-context';
 import type { StorefrontProduct } from '@/types/storefront-product';
@@ -75,7 +77,23 @@ export function SearchPageClient() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchMarketplaceSearch({ q, page });
+      const data = isMarketplaceEnabled()
+        ? await fetchMarketplaceSearch({ q, page })
+        : {
+            q,
+            provider: 'postgres' as const,
+            legacyProducts: await fetchProductsPage({ search: q, page, limit: 24 }),
+            listings: {
+              items: [],
+              total: 0,
+              page: 1,
+              limit: 24,
+              totalPages: 1,
+              hasMore: false,
+            },
+            stores: [],
+            categories: [],
+          };
       setResult(data);
       if (trackedRef.current !== q) {
         trackedRef.current = q;

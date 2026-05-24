@@ -9,7 +9,12 @@ import { HomeBannerCarousel } from '@/components/home/home-banner-carousel';
 import { CatalogInfiniteGrid, type CatalogSource } from '@/components/home/catalog-infinite-grid';
 import { PopularProductsCarousel } from '@/components/home/popular-products-carousel';
 import { HomeInstallCard } from '@/components/pwa/HomeInstallCard';
-import { fetchPromotionsPage, type PaginatedProducts } from '@/lib/storefront-api';
+import {
+  fetchHomepageSections,
+  fetchPromotionsPage,
+  fetchTopProducts,
+  type PaginatedProducts,
+} from '@/lib/storefront-api';
 import { fetchMarketplaceHome } from '@/lib/marketplace-home';
 import { TopProductsCarousel } from '@/components/home/top-products-carousel';
 import { HomeStoreTypes } from '@/components/home/home-store-types';
@@ -25,12 +30,14 @@ type Props = {
   initialCatalog: PaginatedProducts;
   catalogSource?: CatalogSource;
   initialStores?: StoreCard[];
+  marketplaceEnabled?: boolean;
 };
 
 export function HomePageClient({
   initialCatalog,
   catalogSource = 'legacy',
   initialStores = [],
+  marketplaceEnabled = false,
 }: Props) {
   const { openProduct, registerCatalog } = useProductSheet();
   const [promoProducts, setPromoProducts] = useState<StorefrontProduct[]>([]);
@@ -43,8 +50,11 @@ export function HomePageClient({
   const [marketplacePromos, setMarketplacePromos] = useState<StorefrontProduct[]>([]);
   const [showDeferredSections, setShowDeferredSections] = useState(false);
 
-  const discountedProducts =
-    promoProducts.length > 0 ? promoProducts : marketplacePromos;
+  const discountedProducts = marketplaceEnabled
+    ? promoProducts.length > 0
+      ? promoProducts
+      : marketplacePromos
+    : promoProducts;
 
   const loadPromotions = useCallback(async () => {
     setLoadingPromos(true);
@@ -82,6 +92,31 @@ export function HomePageClient({
   useEffect(() => {
     if (!showDeferredSections) return;
     let cancelled = false;
+
+    const loadLegacyExtras = async () => {
+      setLoadingTop(true);
+      try {
+        const [topRes, sections] = await Promise.all([
+          fetchTopProducts(15),
+          fetchHomepageSections(),
+        ]);
+        if (cancelled) return;
+        setTopProducts(topRes.items);
+        setPopularProducts(sections.popular ?? []);
+        const extra = [...topRes.items, ...(sections.popular ?? [])];
+        if (extra.length > 0) {
+          registerCatalog([...initialCatalog.items, ...extra]);
+        }
+      } catch {
+        if (!cancelled) {
+          setTopProducts([]);
+          setPopularProducts([]);
+        }
+      } finally {
+        if (!cancelled) setLoadingTop(false);
+      }
+    };
+
     const loadMarketplace = async () => {
       setLoadingTop(true);
       if (featuredStores.length === 0) setLoadingStores(true);
@@ -119,11 +154,14 @@ export function HomePageClient({
         }
       }
     };
-    void loadMarketplace();
+
+    if (marketplaceEnabled) void loadMarketplace();
+    else void loadLegacyExtras();
+
     return () => {
       cancelled = true;
     };
-  }, [showDeferredSections, initialCatalog.items, registerCatalog]);
+  }, [showDeferredSections, initialCatalog.items, registerCatalog, marketplaceEnabled, featuredStores.length]);
 
   return (
     <main className="bb-page bg-[#F8F8F8]">
@@ -166,9 +204,11 @@ export function HomePageClient({
         <HomeBannerCarousel />
         <HomeInstallCard />
 
-        <HomeStoreTypes />
+        {marketplaceEnabled ? <HomeStoreTypes /> : null}
 
-        <FeaturedStoresCarousel stores={featuredStores} loading={loadingStores} />
+        {marketplaceEnabled ? (
+          <FeaturedStoresCarousel stores={featuredStores} loading={loadingStores} />
+        ) : null}
 
         <HomeDiscountedCarousel
           products={discountedProducts}

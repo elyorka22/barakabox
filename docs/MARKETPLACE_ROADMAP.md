@@ -2,6 +2,20 @@
 
 Incremental migration. **Legacy `Product` / `BusinessProfile` remain** until validation completes.
 
+## FROZEN — single-seller mode (current)
+
+Marketplace UI and public APIs are **off by default** until third-party stores launch.
+
+| Env (backend) | Env (frontend) | Effect |
+|---------------|----------------|--------|
+| `MARKETPLACE_ENABLED=false` (default) | `NEXT_PUBLIC_MARKETPLACE_ENABLED=false` (default) | Legacy `Product` catalog only on storefront |
+
+**Still active:** `/products`, `/admin/products`, `/business` legacy mahsulotlar, cart/orders on `Product`.
+
+**Hidden/disabled:** `/stores`, `/store/:slug`, global catalog admin, store types on home, marketplace home blocks, business onboarding import.
+
+**To re-enable:** set both env vars to `true` and redeploy frontend + backend.
+
 ## Phase status
 
 | Phase | Topic | Status | Notes |
@@ -11,7 +25,7 @@ Incremental migration. **Legacy `Product` / `BusinessProfile` remain** until val
 | 3 | Store onboarding: Import UI | **Done** | Business → Katalog → Import tab |
 | 4 | Auto `StoreProduct` on Done | **Done** | `POST /businesses/catalog/listings/bulk` |
 | 5 | My Products (store panel) | **Done** | `StoreListingsPanel` — price/stock/visibility/top |
-| 6 | Storefront from `StoreProduct` | **Done** | Home catalog prefers `/marketplace/catalog`; legacy fallback |
+| 6 | Storefront from `StoreProduct` | **Frozen** | Main grid uses legacy `/products` while flag off |
 | 7 | Store pages `/store/:slug` | **Done** | Banner, categories, search, paginated products |
 | 8 | Homepage store types + promotions | **Done** | Types, featured stores, popular/top, promo carousel |
 | 9 | Performance | **Ongoing** | `StoreProduct(isVisible, oldPrice)` index; Redis cache |

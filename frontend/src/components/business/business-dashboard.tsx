@@ -16,11 +16,15 @@ import { StoreTopPanel } from '@/components/business/store-top-panel';
 import { StoreTeamPanel } from '@/components/business/store-team-panel';
 import { StoreAnalyticsPanel } from '@/components/business/store-analytics-panel';
 import { formatMoneyUz } from '@/lib/format';
+import { isMarketplaceEnabled } from '@/lib/marketplace-enabled';
 
 export function BusinessDashboard() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data, loading, error, reload, hasMarketplace } = useStorePanelDashboard();
+  const { data, loading, error, reload, hasMarketplace: hasMarketplaceStore } =
+    useStorePanelDashboard();
+  const marketplaceOn = isMarketplaceEnabled();
+  const hasMarketplace = marketplaceOn && hasMarketplaceStore;
   const initialTab = searchParams.get('tab');
   const [tab, setTab] = useState<BusinessTab>(
     initialTab === 'catalog' ||
@@ -34,6 +38,7 @@ export function BusinessDashboard() {
   );
 
   useEffect(() => {
+    if (!marketplaceOn) return;
     const token = authStorage.getAccessToken();
     if (!token || loading) return;
     void api
@@ -44,7 +49,14 @@ export function BusinessDashboard() {
         }
       })
       .catch(() => undefined);
-  }, [loading, router]);
+  }, [loading, router, marketplaceOn]);
+
+  useEffect(() => {
+    if (marketplaceOn) return;
+    if (tab === 'inventory' || tab === 'top' || tab === 'stats' || tab === 'team') {
+      setTab('home');
+    }
+  }, [marketplaceOn, tab]);
 
   const legacy = data?.legacy;
   const showTeam = (authStorage.getUser()?.role ?? '').toUpperCase() === 'STORE_OWNER';
@@ -140,13 +152,15 @@ export function BusinessDashboard() {
             <BusinessInventoryPanel inventory={legacy.inventory} />
           ) : null}
 
-          {!hasMarketplace ? (
+          {marketplaceOn && !hasMarketplace ? (
             <section className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
               Marketplace do‘koni ulanmagan. Admin migratsiya yoki do‘kon bog‘lashini bajarsin.
             </section>
           ) : null}
 
-          {legacy ? (
+          {legacy && !marketplaceOn ? (
+            <BusinessProductsPanel onRefresh={reload} />
+          ) : legacy ? (
             <details className="rounded-2xl bg-white p-3 text-sm shadow-sm ring-1 ring-black/[0.04]">
               <summary className="cursor-pointer font-semibold text-slate-700">
                 Legacy mahsulotlar (eski tizim)
@@ -163,9 +177,9 @@ export function BusinessDashboard() {
 
       {tab === 'catalog' ? (
         <div className="p-4 pb-24">
-          {hasMarketplace ? (
+          {marketplaceOn && hasMarketplace ? (
             <BusinessMarketplaceCatalogPanel />
-          ) : (
+          ) : marketplaceOn ? (
             <div className="rounded-2xl border border-dashed border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
               <p className="font-medium">Marketplace do‘koni ulanmadi</p>
               <p className="mt-1 text-xs text-amber-800">
@@ -180,6 +194,8 @@ export function BusinessDashboard() {
                 Qayta yuklash
               </button>
             </div>
+          ) : (
+            <BusinessProductsPanel onRefresh={reload} />
           )}
         </div>
       ) : null}
@@ -215,6 +231,7 @@ export function BusinessDashboard() {
         onTabChange={setTab}
         pendingCount={pendingOrders}
         showTeam={showTeam}
+        marketplaceEnabled={marketplaceOn}
       />
     </div>
   );

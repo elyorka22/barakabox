@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Pencil } from 'lucide-react';
+import { isMarketplaceEnabled } from '@/lib/marketplace-enabled';
 import { api, authStorage, isApiError } from '@/lib/api';
 import { normalizeAssetUrl } from '@/lib/asset-url';
 import { AdminStoreImageUpload } from '@/components/admin/stores/admin-store-image-upload';
@@ -54,7 +56,13 @@ const emptyForm = (): StoreForm => ({
 });
 
 export default function AdminStoresPage() {
+  const router = useRouter();
   const token = authStorage.getAccessToken();
+
+  useEffect(() => {
+    if (!isMarketplaceEnabled()) router.replace('/admin');
+  }, [router]);
+
   const [stores, setStores] = useState<AdminStore[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

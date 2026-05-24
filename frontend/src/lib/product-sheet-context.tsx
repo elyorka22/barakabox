@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { isMarketplaceEnabled } from '@/lib/marketplace-enabled';
 import { hydrateStorefrontProduct } from '@/lib/marketplace-product';
 import type { StorefrontProduct } from '@/types/storefront-product';
 
@@ -35,7 +36,7 @@ export function ProductSheetProvider({ children }: { children: ReactNode }) {
     setProduct(p);
     setIsOpen(true);
 
-    if (p.listingId && p.purchasable !== false) {
+    if (isMarketplaceEnabled() && p.listingId && p.purchasable !== false) {
       void hydrateStorefrontProduct(p)
         .then((full) => {
           setProduct(full);

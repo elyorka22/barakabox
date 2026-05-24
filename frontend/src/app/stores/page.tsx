@@ -1,5 +1,7 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { fetchStoresListServer } from '@/lib/stores-api';
+import { isMarketplaceEnabled } from '@/lib/marketplace-enabled';
 import { parseStoreTypeQuery, STORE_TYPE_CARDS } from '@/lib/store-types';
 import { StoreCardLink } from '@/components/stores/store-card';
 import { MobileNav } from '@/components/app-nav';
@@ -14,6 +16,10 @@ const SECTION_LABELS: Record<string, string> = {
 };
 
 export default async function StoresIndexPage({ searchParams }: Props) {
+  if (!isMarketplaceEnabled()) {
+    redirect('/');
+  }
+
   const { section, type } = await searchParams;
   const validSection =
     section === 'featured' || section === 'nearby' || section === 'top' || section === 'new'

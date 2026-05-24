@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { Filter, Loader2 } from 'lucide-react';
 import { fetchMarketplacePromotionsPage } from '@/lib/marketplace-catalog';
+import { isMarketplaceEnabled } from '@/lib/marketplace-enabled';
 import { fetchPromotionsPage, type PromotionSort } from '@/lib/storefront-api';
 import { MobileNav } from '@/components/app-nav';
 import { ProductCard } from '@/components/product-card';
@@ -29,14 +30,17 @@ export default function DiscountsPage() {
     else setLoadingMore(true);
     setError('');
     try {
-      const marketplaceRes = await fetchMarketplacePromotionsPage({
-        page: targetPage,
-        limit: 24,
-      });
-      const res =
-        marketplaceRes.total > 0
-          ? marketplaceRes
-          : await fetchPromotionsPage({ page: targetPage, limit: 24, sort });
+      const res = isMarketplaceEnabled()
+        ? await (async () => {
+            const marketplaceRes = await fetchMarketplacePromotionsPage({
+              page: targetPage,
+              limit: 24,
+            });
+            return marketplaceRes.total > 0
+              ? marketplaceRes
+              : await fetchPromotionsPage({ page: targetPage, limit: 24, sort });
+          })()
+        : await fetchPromotionsPage({ page: targetPage, limit: 24, sort });
       const items = res.items.filter(hasVisibleDiscount);
       setProducts((prev) => (replace ? items : [...prev, ...items]));
       setPage(res.page);

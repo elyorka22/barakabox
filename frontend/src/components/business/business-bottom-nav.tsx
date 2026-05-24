@@ -9,19 +9,32 @@ type Props = {
   onTabChange: (tab: BusinessTab) => void;
   pendingCount?: number;
   showTeam?: boolean;
+  marketplaceEnabled?: boolean;
 };
 
-export function BusinessBottomNav({ tab, onTabChange, pendingCount = 0, showTeam = false }: Props) {
-  const items: Array<{ id: BusinessTab; label: string; icon: typeof Home }> = [
-    { id: 'home', label: 'Bosh', icon: Home },
-    { id: 'orders', label: 'Buyurtma', icon: ShoppingBag },
-    { id: 'catalog', label: 'Katalog', icon: Package },
-    { id: 'inventory', label: 'Ombor', icon: Warehouse },
-    { id: 'top', label: 'Top', icon: Star },
-    { id: 'stats', label: 'Stat', icon: BarChart3 },
-  ];
+export function BusinessBottomNav({
+  tab,
+  onTabChange,
+  pendingCount = 0,
+  showTeam = false,
+  marketplaceEnabled = false,
+}: Props) {
+  const items: Array<{ id: BusinessTab; label: string; icon: typeof Home }> = marketplaceEnabled
+    ? [
+        { id: 'home', label: 'Bosh', icon: Home },
+        { id: 'orders', label: 'Buyurtma', icon: ShoppingBag },
+        { id: 'catalog', label: 'Katalog', icon: Package },
+        { id: 'inventory', label: 'Ombor', icon: Warehouse },
+        { id: 'top', label: 'Top', icon: Star },
+        { id: 'stats', label: 'Stat', icon: BarChart3 },
+      ]
+    : [
+        { id: 'home', label: 'Bosh', icon: Home },
+        { id: 'orders', label: 'Buyurtma', icon: ShoppingBag },
+        { id: 'catalog', label: 'Mahsulotlar', icon: Package },
+      ];
 
-  if (showTeam) {
+  if (showTeam && marketplaceEnabled) {
     items.push({ id: 'team', label: 'Jamoa', icon: Users });
   }
 

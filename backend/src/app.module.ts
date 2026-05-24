@@ -27,6 +27,7 @@ import { AppCacheModule } from './infrastructure/cache/cache.module';
 import { QueueService } from './infrastructure/queue/queue.service';
 import { EventEmitterService } from './infrastructure/events/event-emitter.service';
 import { validateEnv } from './infrastructure/config/env.validation';
+import { MarketplaceGateMiddleware } from './common/middleware/marketplace-gate.middleware';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
 
@@ -81,6 +82,6 @@ import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(RequestLoggerMiddleware).forRoutes('*');
+    consumer.apply(MarketplaceGateMiddleware, RequestLoggerMiddleware).forRoutes('*');
   }
 }
