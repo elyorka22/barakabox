@@ -8,6 +8,8 @@ import { isMarketplaceEnabled } from '@/lib/marketplace-enabled';
 import { fetchPromotionsPage, type PromotionSort } from '@/lib/storefront-api';
 import { MobileNav } from '@/components/app-nav';
 import { ProductCard } from '@/components/product-card';
+import { mapStorefrontProductToCardProps } from '@/lib/storefront-product-card';
+import { useProductSheet } from '@/lib/product-sheet-context';
 import { hasVisibleDiscount } from '@/lib/promotion-product';
 import type { StorefrontProduct } from '@/types/storefront-product';
 
@@ -17,6 +19,7 @@ const SORT_OPTIONS: { id: PromotionSort; label: string }[] = [
 ];
 
 export default function DiscountsPage() {
+  const { openProduct } = useProductSheet();
   const [products, setProducts] = useState<StorefrontProduct[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -98,43 +101,28 @@ export default function DiscountsPage() {
         ) : null}
 
         {loading ? (
-          <div className="mt-6 grid grid-cols-2 gap-x-1.5 gap-y-2">
+          <div className="catalog-grid mt-6">
             {Array.from({ length: 6 }).map((_, idx) => (
-              <div key={idx} className="bb-skeleton aspect-[3/4] rounded-[18px]" />
+              <div key={idx} className="bb-skeleton aspect-square rounded-xl" />
             ))}
           </div>
         ) : products.length === 0 ? (
           <p className="mt-8 text-center text-sm text-slate-500">Hozircha aksiya mahsulotlari yo‘q</p>
         ) : (
-          <div className="mt-4 grid grid-cols-2 gap-x-1.5 gap-y-2 sm:grid-cols-3">
-            {products.map((product, idx) => (
-              <ProductCard
-                key={product.id}
-                id={product.id}
-                name={product.name}
-                price={product.price}
-                unit={(product.unit ?? product.unitType) ?? undefined}
-                sellingMode={product.sellingMode ?? undefined}
-                variants={product.variants?.map((variant) => ({
-                  ...variant,
-                  price: variant.price,
-                  imageUrl: variant.imageUrl ?? product.imageCardUrl ?? product.imageUrl,
-                }))}
-                imageUrl={product.imageCardUrl ?? product.imageUrl}
-                stepAmount={product.stepAmount}
-                minimumAmount={product.minimumAmount}
-                imageCardUrl={product.imageCardUrl}
-                cashbackType={product.cashbackType ?? undefined}
-                cashbackValue={product.cashbackValue ?? undefined}
-                discountEnabled={product.discountEnabled}
-                discountedPrice={product.discountedPrice ?? product.effectivePrice ?? undefined}
-                promotionBadge={product.promotionBadge}
-                promotionEnabled={product.promotionEnabled}
-                promotionStartAt={product.promotionStartAt}
-                promotionEndAt={product.promotionEndAt}
-                imagePriority={idx < 4}
-              />
-            ))}
+          <div className="catalog-grid mt-4">
+            {products.map((product, idx) => {
+              const cardProps = mapStorefrontProductToCardProps(product, { grid: true });
+              return (
+                <div
+                  key={product.id}
+                  className="cursor-pointer"
+                  onClick={() => openProduct(product)}
+                  role="presentation"
+                >
+                  <ProductCard {...cardProps} imagePriority={idx < 6} />
+                </div>
+              );
+            })}
           </div>
         )}
 

@@ -15,7 +15,7 @@ import {
   resolveProductImageUrl,
   resolveVariantImageUrl,
 } from '@/lib/product-image';
-import { buildProductCardMetaLine } from '@/lib/product-card-meta';
+import { buildProductCardMetaLine, buildProductCardUnitLine } from '@/lib/product-card-meta';
 import { useProductSheet } from '@/lib/product-sheet-context';
 import { ProductCardCartControl } from '@/components/product-card/product-card-cart-control';
 import { ProductCardInfo } from '@/components/product-card/product-card-info';
@@ -61,7 +61,7 @@ export type ProductCardProps = {
   promotionEndAt?: string | null;
   imagePriority?: boolean;
   topBadge?: string | null;
-  cardVariant?: 'default' | 'top';
+  cardVariant?: 'default' | 'top' | 'grid';
 };
 
 function ProductCardBase({
@@ -180,6 +180,11 @@ function ProductCardBase({
     minimumAmount,
     stepAmount,
   });
+  const unitLine = buildProductCardUnitLine({
+    unit: unitType,
+    minimumAmount,
+    stepAmount,
+  });
 
   const storefrontProduct: StorefrontProduct = {
     id,
@@ -220,27 +225,47 @@ function ProductCardBase({
   const openSheet = () => openProduct(storefrontProduct);
 
   const isTopCard = cardVariant === 'top';
-  const imageSizeClass = isTopCard ? 'max-h-[100%] max-w-[100%]' : 'max-h-[96%] max-w-[96%]';
+  const isGridCard = cardVariant === 'grid';
+  const imageSizeClass = isTopCard
+    ? 'max-h-[100%] max-w-[100%]'
+    : isGridCard
+      ? 'max-h-[88%] max-w-[88%]'
+      : 'max-h-[96%] max-w-[96%]';
+  const imageSurfaceClass = isGridCard ? 'bg-[#f4f4f5]' : PRODUCT_IMAGE_SURFACE_CLASS;
 
   return (
-    <article className={`product-card flex h-full flex-col ${isTopCard ? 'product-card--top' : ''}`}>
-      <ProductCardInCartRing>
+    <article
+      className={`product-card flex h-full flex-col ${isTopCard ? 'product-card--top' : ''} ${isGridCard ? 'product-card--grid' : ''}`}
+    >
+      <ProductCardInCartRing variant={isGridCard ? 'grid' : 'default'}>
         <button
           type="button"
           onClick={openSheet}
-          className="product-card-surface flex h-full flex-col bg-white text-left transition-transform duration-150 ease-out active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100"
+          className={`product-card-surface flex h-full flex-col text-left ${
+            isGridCard
+              ? 'bg-transparent'
+              : 'bg-white transition-transform duration-150 ease-out active:scale-[0.98] motion-reduce:transition-none motion-reduce:active:scale-100'
+          }`}
         >
           {activeVariant ? (
             <div
-              className={`relative aspect-square w-full shrink-0 overflow-hidden ${PRODUCT_IMAGE_SURFACE_CLASS}`}
-              onTouchStart={(e) => {
-                e.stopPropagation();
-                setTouchStartX(e.changedTouches[0]?.clientX ?? null);
-              }}
-              onTouchEnd={(e) => {
-                e.stopPropagation();
-                handleTouchEnd(e.changedTouches[0]?.clientX ?? 0);
-              }}
+              className={`relative aspect-square w-full shrink-0 overflow-hidden rounded-xl ${imageSurfaceClass}`}
+              onTouchStart={
+                isGridCard
+                  ? undefined
+                  : (e) => {
+                      e.stopPropagation();
+                      setTouchStartX(e.changedTouches[0]?.clientX ?? null);
+                    }
+              }
+              onTouchEnd={
+                isGridCard
+                  ? undefined
+                  : (e) => {
+                      e.stopPropagation();
+                      handleTouchEnd(e.changedTouches[0]?.clientX ?? 0);
+                    }
+              }
             >
               {!imageLoaded ? (
                 <div className={`absolute inset-0 animate-pulse ${PRODUCT_IMAGE_SURFACE_CLASS}`} />
@@ -257,7 +282,7 @@ function ProductCardBase({
                         src={src || undefined}
                         alt={variant.flavor || name}
                         loading={imagePriority ? 'eager' : 'lazy'}
-                        sizes="(max-width: 768px) 50vw, 200px"
+                        sizes={isGridCard ? '(max-width: 768px) 33vw, 140px' : '(max-width: 768px) 50vw, 200px'}
                         decoding="async"
                         className={`${imageSizeClass} object-contain transition-opacity duration-300 ${
                           imageLoaded ? 'opacity-100' : 'opacity-0'
@@ -277,8 +302,10 @@ function ProductCardBase({
               ) : null}
               {effectiveDiscountPrice ? (
                 <span
-                  className={`pointer-events-none absolute z-[1] rounded-md bg-[#ef4444] px-1.5 py-0.5 text-[9px] font-bold text-white ${
-                    topBadge ? 'left-1.5 top-7' : 'left-1.5 top-1.5'
+                  className={`pointer-events-none absolute z-[1] font-bold text-white ${
+                    isGridCard
+                      ? 'bottom-1.5 left-1.5 rounded-md bg-[#ef4444] px-1 py-0.5 text-[10px]'
+                      : `rounded-md bg-[#ef4444] px-1.5 py-0.5 text-[9px] ${topBadge ? 'left-1.5 top-7' : 'left-1.5 top-1.5'}`
                   }`}
                 >
                   -{Math.max(1, Math.round(((activeBasePrice - effectiveDiscountPrice) / activeBasePrice) * 100))}%
@@ -291,7 +318,9 @@ function ProductCardBase({
               ) : null}
 
               <div
-                className="absolute bottom-1 right-1 z-10 flex max-w-[calc(100%-6px)] justify-end"
+                className={`absolute z-10 flex max-w-[calc(100%-6px)] justify-end ${
+                  isGridCard ? 'bottom-0 right-0 translate-x-0.5 translate-y-0.5' : 'bottom-1 right-1'
+                }`}
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => e.stopPropagation()}
               >
@@ -305,6 +334,7 @@ function ProductCardBase({
                   storeName={storeName}
                   storeSlug={storeSlug}
                   listingId={listingId}
+                  addButtonTone={isGridCard ? 'dark' : 'green'}
                 />
               </div>
             </div>
@@ -315,10 +345,12 @@ function ProductCardBase({
           <ProductCardInfo
             name={name}
             metaLine={metaLine}
+            unitLine={unitLine}
             basePrice={activeBasePrice}
             salePrice={effectiveDiscountPrice}
             cashbackType={cashbackType}
             cashbackValue={cashbackValue}
+            layout={isGridCard ? 'grid' : 'default'}
           />
         </button>
       </ProductCardInCartRing>

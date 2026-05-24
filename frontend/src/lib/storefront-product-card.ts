@@ -26,7 +26,10 @@ function cardVariants(product: StorefrontProduct): NonNullable<ProductCardProps[
   ];
 }
 
-export function mapStorefrontProductToCardProps(product: StorefrontProduct): ProductCardProps {
+export function mapStorefrontProductToCardProps(
+  product: StorefrontProduct,
+  opts?: { grid?: boolean },
+): ProductCardProps {
   return {
     id: product.id,
     listingId: product.listingId,
@@ -53,6 +56,6 @@ export function mapStorefrontProductToCardProps(product: StorefrontProduct): Pro
     promotionStartAt: product.promotionStartAt,
     promotionEndAt: product.promotionEndAt,
     topBadge: product.topBadge,
-    cardVariant: product.isTopProduct ? 'top' : 'default',
+    cardVariant: opts?.grid ? 'grid' : product.isTopProduct ? 'top' : 'default',
   };
 }

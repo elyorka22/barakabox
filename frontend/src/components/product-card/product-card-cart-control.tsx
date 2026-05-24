@@ -26,6 +26,7 @@ type Props = {
   storeName?: string;
   storeSlug?: string;
   listingId?: string;
+  addButtonTone?: 'green' | 'dark';
 };
 
 function stopLinkNavigation(event: React.SyntheticEvent) {
@@ -85,7 +86,12 @@ function ProductCardCartControlBase({
   storeName,
   storeSlug,
   listingId,
+  addButtonTone = 'green',
 }: Props) {
+  const addBtnClass =
+    addButtonTone === 'dark'
+      ? 'bg-[#2d2d2d] shadow-[0_2px_8px_rgba(0,0,0,0.18)]'
+      : `${ADD_GREEN} ${ADD_GREEN_SHADOW}`;
   const quantity = useCartQuantity(variantId);
   const displayLabel = formatSellingModeQuantityCompact(quantity, sellingMode, unit ?? DEFAULT_PRODUCT_UNIT);
   const inCart = quantity > 0;
@@ -114,7 +120,7 @@ function ProductCardCartControlBase({
         }}
         disabled={disabled}
         aria-label={disabled ? 'Mahsulot tugagan' : "Savatga qo'shish"}
-        className={`product-card-add-btn flex h-7 w-7 items-center justify-center rounded-full text-white ${ADD_GREEN} ${ADD_GREEN_SHADOW} transition-transform duration-100 active:scale-[0.9] disabled:opacity-45`}
+        className={`product-card-add-btn flex h-8 w-8 items-center justify-center rounded-full text-white ${addBtnClass} transition-transform duration-100 active:scale-[0.9] disabled:opacity-45`}
       >
         <Plus className="h-3.5 w-3.5" strokeWidth={2.75} />
       </button>

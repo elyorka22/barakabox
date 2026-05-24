@@ -44,11 +44,11 @@ const CatalogGridItem = memo(function CatalogGridItem({
   priorityImage: boolean;
 }) {
   const { openProduct } = useProductSheet();
-  const cardProps = mapStorefrontProductToCardProps(product);
+  const cardProps = mapStorefrontProductToCardProps(product, { grid: true });
 
   return (
     <div
-      className="catalog-grid-item cursor-pointer [content-visibility:auto] [contain-intrinsic-size:200px_220px]"
+      className="catalog-grid-item cursor-pointer [content-visibility:auto] [contain-intrinsic-size:140px_200px]"
       onClick={() => openProduct(product)}
       role="presentation"
     >
@@ -172,7 +172,7 @@ export function CatalogInfiniteGrid({
         ) : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-x-1.5 gap-y-2">
+      <div className="catalog-grid">
         {items.map((product, index) => (
           <CatalogGridItem key={product.id} product={product} priorityImage={index < 4} />
         ))}

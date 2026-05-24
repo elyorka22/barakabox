@@ -324,6 +324,18 @@ body {
   transform: scale(0.88);
 }
 
+/* Lavka-style 3-column product grid */
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 0.375rem;
+  row-gap: 0.75rem;
+}
+
+.product-card--grid .product-card-surface:active {
+  transform: none;
+}
+
 .detail-cta-btn:active {
   transform: scale(0.98);
 }

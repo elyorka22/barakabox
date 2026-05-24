@@ -20,6 +20,7 @@ import { TopProductsCarousel } from '@/components/home/top-products-carousel';
 import { HomeStoreTypes } from '@/components/home/home-store-types';
 import { FeaturedStoresCarousel } from '@/components/home/featured-stores-carousel';
 import { HomeDiscountedCarousel } from '@/components/home/home-discounted-carousel';
+import { HomeCategoriesRow } from '@/components/home/home-categories-row';
 import { HomeDeliveryBanner } from '@/components/home/home-delivery-banner';
 import type { StoreCard } from '@/lib/stores-api';
 import { useProductSheet } from '@/lib/product-sheet-context';
@@ -202,6 +203,9 @@ export function HomePageClient({
         </div>
 
         <HomeBannerCarousel />
+
+        <HomeCategoriesRow />
+
         <HomeInstallCard />
 
         {marketplaceEnabled ? <HomeStoreTypes /> : null}

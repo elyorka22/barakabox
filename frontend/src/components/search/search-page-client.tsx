@@ -36,7 +36,7 @@ function SearchProductGrid({ products }: { products: StorefrontProduct[] }) {
   return (
     <div className="catalog-grid mt-3">
       {products.map((product, idx) => {
-        const cardProps = mapStorefrontProductToCardProps(product);
+        const cardProps = mapStorefrontProductToCardProps(product, { grid: true });
         return (
           <div
             key={product.listingId ?? product.id}

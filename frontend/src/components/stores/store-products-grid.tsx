@@ -23,9 +23,9 @@ export function StoreProductsGrid({ products, storeName }: Props) {
   }, [products, registerCatalog]);
 
   return (
-    <ul className="grid grid-cols-2 gap-2 px-4">
+    <ul className="catalog-grid px-4">
       {products.map((product, idx) => {
-        const cardProps = mapStorefrontProductToCardProps(product);
+        const cardProps = mapStorefrontProductToCardProps(product, { grid: true });
         const canOpen = product.purchasable !== false;
         return (
           <li key={product.listingId ?? product.id}>
