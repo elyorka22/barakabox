@@ -157,12 +157,18 @@ export class ProductsService {
       if (categoryId) where.categoryId = categoryId;
       if (businessId) where.businessId = businessId;
 
-      const orderBy: Prisma.ProductOrderByWithRelationInput =
+      const orderBy: Prisma.ProductOrderByWithRelationInput | Prisma.ProductOrderByWithRelationInput[] =
         sort === 'price_asc'
           ? { price: 'asc' }
           : sort === 'price_desc'
             ? { price: 'desc' }
-            : { createdAt: 'desc' };
+            : categoryId || businessId
+              ? { createdAt: 'desc' }
+              : [
+                  { category: { sortOrder: 'asc' } },
+                  { category: { name: 'asc' } },
+                  { name: 'asc' },
+                ];
 
       const [rows, total] = await Promise.all([
         this.prisma.product.findMany({

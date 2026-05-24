@@ -28,6 +28,10 @@ export type StorefrontProduct = {
   isTopProduct?: boolean;
   topOrder?: number;
   topBadge?: string | null;
+  categoryId?: string | null;
+  categoryName?: string | null;
+  categorySlug?: string | null;
+  categorySortOrder?: number;
   /** Marketplace listing id (when shown from StoreProduct). */
   listingId?: string;
   storeId?: string;

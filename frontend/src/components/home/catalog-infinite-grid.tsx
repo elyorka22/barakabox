@@ -1,8 +1,10 @@
 'use client';
 
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ProductCard } from '@/components/product-card';
 import { fetchMarketplaceCatalogPage } from '@/lib/marketplace-catalog';
+import { groupProductsByCategory } from '@/lib/group-products-by-category';
 import { fetchProductsPage, type PaginatedProducts } from '@/lib/storefront-api';
 import { mapStorefrontProductToCardProps } from '@/lib/storefront-product-card';
 import { useProductSheet } from '@/lib/product-sheet-context';
@@ -21,6 +23,8 @@ type Props = {
   search?: string;
   sort?: string;
   className?: string;
+  /** Lavka-style sections by category (home catalog only). */
+  groupByCategory?: boolean;
 };
 
 function mergeUniqueProducts(prev: StorefrontProduct[], next: StorefrontProduct[]) {
@@ -83,6 +87,7 @@ export function CatalogInfiniteGrid({
   search,
   sort,
   className = '',
+  groupByCategory = false,
 }: Props) {
   const { registerCatalog } = useProductSheet();
   const [items, setItems] = useState<StorefrontProduct[]>(initial.items);
@@ -161,6 +166,16 @@ export function CatalogInfiniteGrid({
     return () => observer.disconnect();
   }, [hasMore, loadNextPage]);
 
+  const useCategorySections =
+    groupByCategory && !categoryId && !search?.trim() && !businessId && sort !== 'price_asc' && sort !== 'price_desc';
+
+  const categorySections = useMemo(
+    () => (useCategorySections ? groupProductsByCategory(items) : []),
+    [items, useCategorySections],
+  );
+
+  let globalCardIndex = 0;
+
   return (
     <section className={className} aria-labelledby="catalog-heading">
       <div className="mb-3 flex items-center justify-between">
@@ -172,12 +187,49 @@ export function CatalogInfiniteGrid({
         ) : null}
       </div>
 
-      <div className="catalog-grid">
-        {items.map((product, index) => (
-          <CatalogGridItem key={product.id} product={product} priorityImage={index < 4} />
-        ))}
-        {loading ? <CatalogSkeletonRow /> : null}
-      </div>
+      {useCategorySections ? (
+        <div className="space-y-6">
+          {categorySections.map((section) => (
+            <div key={section.categoryId ?? 'uncategorized'}>
+              {section.categorySlug ? (
+                <Link
+                  href={`/categories/${section.categorySlug}`}
+                  className="mb-2.5 block text-lg font-bold leading-tight text-[#111111]"
+                >
+                  {section.categoryName}
+                </Link>
+              ) : (
+                <h3 className="mb-2.5 text-lg font-bold leading-tight text-[#111111]">{section.categoryName}</h3>
+              )}
+              <div className="catalog-grid">
+                {section.products.map((product) => {
+                  const priorityImage = globalCardIndex < 4;
+                  globalCardIndex += 1;
+                  return (
+                    <CatalogGridItem
+                      key={product.id}
+                      product={product}
+                      priorityImage={priorityImage}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          {loading ? (
+            <div className="catalog-grid">
+              <CatalogSkeletonRow />
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className="catalog-grid">
+          {items.map((product, index) => (
+            <CatalogGridItem key={product.id} product={product} priorityImage={index < 4} />
+          ))}
+          {loading ? <CatalogSkeletonRow /> : null}
+        </div>
+      )}
 
       <div ref={sentinelRef} className="h-4 w-full" aria-hidden />
 

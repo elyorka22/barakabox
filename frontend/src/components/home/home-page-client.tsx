@@ -233,6 +233,7 @@ export function HomePageClient({
             <CatalogInfiniteGrid
               initial={initialCatalog}
               source={catalogSource}
+              groupByCategory
               className="mt-5 pb-24"
             />
           </>
@@ -242,6 +243,7 @@ export function HomePageClient({
             <CatalogInfiniteGrid
               initial={initialCatalog}
               source={catalogSource}
+              groupByCategory
               className="mt-2"
             />
           </div>
