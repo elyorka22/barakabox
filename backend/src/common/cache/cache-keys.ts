@@ -26,13 +26,13 @@ export const CACHE_TTL = {
 
 export const cacheKeys = {
   productsHome: () => 'storefront:products:home:v1',
-  marketplaceHome: () => 'storefront:marketplace:home:v1',
+  marketplaceHome: () => 'storefront:marketplace:home:v2',
   marketplaceStores: (featured: boolean) =>
     `storefront:marketplace:stores:v1:${featured ? 'featured' : 'all'}`,
   marketplaceStore: (slug: string) =>
     `storefront:marketplace:store:v1:${encodeURIComponent(slug)}`,
   storesFeatured: () => 'storefront:stores:featured:v1',
-  storesShowcase: () => 'storefront:stores:showcase:v1',
+  storesShowcase: () => 'storefront:stores:showcase:v2',
   storesList: (
     section: string | undefined,
     page: number,

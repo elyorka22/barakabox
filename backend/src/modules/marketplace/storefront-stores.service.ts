@@ -38,13 +38,8 @@ export class StorefrontStoresService {
 
   getHomeShowcase() {
     return this.cache.getOrSet(cacheKeys.storesShowcase(), CACHE_TTL.storesShowcase, async () => {
-      const [featured, nearby, top, newlyAdded] = await Promise.all([
-        this.fetchSection('featured', SECTION_LIMIT),
-        this.fetchSection('nearby', SECTION_LIMIT),
-        this.fetchSection('top', SECTION_LIMIT),
-        this.fetchSection('new', SECTION_LIMIT),
-      ]);
-      return { featured, nearby, top, newlyAdded };
+      const nearby = await this.fetchSection('nearby', SECTION_LIMIT);
+      return { nearby };
     });
   }
 

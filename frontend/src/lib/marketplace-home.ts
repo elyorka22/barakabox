@@ -37,7 +37,7 @@ const EMPTY_HOME: MarketplaceHome = {
   featuredStores: [],
   marketplacePromotions: [],
   storeSections: [],
-  storeShowcase: { featured: [], nearby: [], top: [], newlyAdded: [] },
+  storeShowcase: { nearby: [] },
 };
 
 export async function fetchMarketplaceHomeServer(): Promise<MarketplaceHome> {

@@ -57,42 +57,14 @@ export function HomeStoresShowcase({ showcase, loading }: Props) {
     );
   }
 
-  if (!showcase) return null;
-
-  const hasAny =
-    showcase.featured.length > 0 ||
-    showcase.nearby.length > 0 ||
-    showcase.top.length > 0 ||
-    showcase.newlyAdded.length > 0;
-
-  if (!hasAny) return null;
+  if (!showcase || showcase.nearby.length === 0) return null;
 
   return (
-    <>
-      <StoreSection
-        id="home-stores-featured"
-        title="Tavsiya etilgan do‘konlar"
-        stores={showcase.featured}
-        seeAllHref="/stores?section=featured"
-      />
-      <StoreSection
-        id="home-stores-nearby"
-        title="Yaqin atrofdagi do‘konlar"
-        stores={showcase.nearby}
-        seeAllHref="/stores?section=nearby"
-      />
-      <StoreSection
-        id="home-stores-top"
-        title="Eng yaxshi do‘konlar"
-        stores={showcase.top}
-        seeAllHref="/stores?section=top"
-      />
-      <StoreSection
-        id="home-stores-new"
-        title="Yangi do‘konlar"
-        stores={showcase.newlyAdded}
-        seeAllHref="/stores?section=new"
-      />
-    </>
+    <StoreSection
+      id="home-stores-nearby"
+      title="Yaqin atrofdagi do‘konlar"
+      stores={showcase.nearby}
+      seeAllHref="/stores?section=nearby"
+    />
   );
 }

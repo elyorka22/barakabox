@@ -26,10 +26,7 @@ export type StoreCard = {
 };
 
 export type StoreShowcase = {
-  featured: StoreCard[];
   nearby: StoreCard[];
-  top: StoreCard[];
-  newlyAdded: StoreCard[];
 };
 
 export type StoreDetailResponse = {
