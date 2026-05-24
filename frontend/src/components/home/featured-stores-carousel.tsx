@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { SafeImage } from '@/components/safe-image';
-import type { FeaturedStore } from '@/lib/marketplace-home';
+import { StoreCardLink } from '@/components/stores/store-card';
+import type { StoreCard } from '@/lib/stores-api';
 
 type Props = {
-  stores: FeaturedStore[];
+  stores: StoreCard[];
 };
 
+/** Compact featured row (legacy); prefer HomeStoresShowcase on homepage. */
 export function FeaturedStoresCarousel({ stores }: Props) {
   if (stores.length === 0) return null;
 
@@ -23,25 +24,7 @@ export function FeaturedStoresCarousel({ stores }: Props) {
       </div>
       <div className="bb-scrollbar-hide flex gap-3 overflow-x-auto pb-1">
         {stores.map((store) => (
-          <Link
-            key={store.id}
-            href={`/stores/${store.slug}`}
-            className="flex min-w-[120px] flex-col items-center gap-2 rounded-2xl bg-white p-3 shadow-[0_4px_14px_rgba(17,24,39,0.06)] active:scale-[0.98]"
-          >
-            <div className="relative h-14 w-14 overflow-hidden rounded-full bg-slate-100">
-              {store.logoUrl ? (
-                <SafeImage
-                  src={store.logoUrl}
-                  alt={store.name}
-                  className="h-full w-full object-cover"
-                  sizes="56px"
-                />
-              ) : (
-                <span className="flex h-full w-full items-center justify-center text-2xl">🏪</span>
-              )}
-            </div>
-            <p className="line-clamp-2 text-center text-xs font-semibold text-[#111827]">{store.name}</p>
-          </Link>
+          <StoreCardLink key={store.id} store={store} variant="carousel" />
         ))}
       </div>
     </section>

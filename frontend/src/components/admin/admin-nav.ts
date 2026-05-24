@@ -1,6 +1,7 @@
 import {
   Bell,
   Building2,
+  Store,
   ChartLine,
   ClipboardList,
   Gift,
@@ -30,6 +31,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: '/admin/businesses', label: 'Businesses', icon: Building2, group: 'Boshqaruv' },
   { href: '/admin/products', label: 'Products', icon: Package, group: 'Boshqaruv' },
   { href: '/admin/global-catalog', label: 'Global katalog', icon: Library, group: 'Boshqaruv' },
+  { href: '/admin/stores', label: 'Do‘konlar', icon: Store, group: 'Boshqaruv' },
   { href: '/admin/orders', label: 'Orders', icon: ClipboardList, group: 'Boshqaruv' },
   { href: '/admin/cashback-transactions', label: 'Cashback', icon: Gift, group: 'Boshqaruv' },
   { href: '/admin/users', label: 'Users & CRM', icon: Users, group: 'Boshqaruv' },

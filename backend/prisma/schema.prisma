@@ -751,20 +751,23 @@ model GlobalVariant {
 
 /// Marketplace store (maps from BusinessProfile during migration).
 model Store {
-  id                String           @id @default(cuid())
-  name              String
-  slug              String           @unique
-  logoUrl           String?
-  bannerUrl         String?
-  address           String?
-  phone             String?
-  latitude          Decimal?         @db.Decimal(10, 7)
-  longitude         Decimal?         @db.Decimal(10, 7)
-  deliveryPrice     Int              @default(0)
-  minOrderPrice     Int              @default(0)
-  isActive          Boolean          @default(true)
-  isFeatured        Boolean          @default(false)
-  sortOrder         Int              @default(0)
+  id                    String           @id @default(cuid())
+  name                  String
+  slug                  String           @unique
+  logoUrl               String?
+  bannerUrl             String?
+  description           String?          @db.Text
+  address               String?
+  phone                 String?
+  deliveryTimeMinutes   Int?
+  rating                Decimal          @default(0) @db.Decimal(3, 2)
+  latitude              Decimal?         @db.Decimal(10, 7)
+  longitude             Decimal?         @db.Decimal(10, 7)
+  deliveryPrice         Int              @default(0)
+  minOrderPrice         Int              @default(0)
+  isActive              Boolean          @default(true)
+  isFeatured            Boolean          @default(false)
+  sortOrder             Int              @default(0)
   ownerUserId       String?
   businessProfileId String?          @unique
   createdAt         DateTime         @default(now())

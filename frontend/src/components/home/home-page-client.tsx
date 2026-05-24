@@ -15,8 +15,9 @@ import { formatMoneyUz } from '@/lib/format';
 import { fetchPromotionsPage, type PaginatedProducts } from '@/lib/storefront-api';
 import { fetchMarketplaceHome } from '@/lib/marketplace-home';
 import { TopProductsCarousel } from '@/components/home/top-products-carousel';
-import { FeaturedStoresCarousel } from '@/components/home/featured-stores-carousel';
+import { HomeStoresShowcase } from '@/components/home/home-stores-showcase';
 import { StoreSections } from '@/components/home/store-sections';
+import type { StoreShowcase } from '@/lib/stores-api';
 import { useProductSheet } from '@/lib/product-sheet-context';
 import type { StorefrontProduct } from '@/types/storefront-product';
 import { hasVisibleDiscount, resolveProductSalePricing } from '@/lib/promotion-product';
@@ -55,9 +56,7 @@ export function HomePageClient({ initialCatalog }: Props) {
   const [loadingPromos, setLoadingPromos] = useState(true);
   const [topProducts, setTopProducts] = useState<StorefrontProduct[]>([]);
   const [loadingTop, setLoadingTop] = useState(false);
-  const [featuredStores, setFeaturedStores] = useState<
-    Awaited<ReturnType<typeof fetchMarketplaceHome>>['featuredStores']
-  >([]);
+  const [storeShowcase, setStoreShowcase] = useState<StoreShowcase | null>(null);
   const [storeSections, setStoreSections] = useState<
     Awaited<ReturnType<typeof fetchMarketplaceHome>>['storeSections']
   >([]);
@@ -128,7 +127,7 @@ export function HomePageClient({ initialCatalog }: Props) {
         if (cancelled) return;
         const top = home.topProducts ?? [];
         setTopProducts(top);
-        setFeaturedStores(home.featuredStores ?? []);
+        setStoreShowcase(home.storeShowcase ?? null);
         setStoreSections(home.storeSections ?? []);
         setMarketplacePromos(home.marketplacePromotions ?? []);
         const extra = [...top, ...home.marketplacePromotions, ...home.storeSections.flatMap((s) => s.products)];
@@ -138,7 +137,7 @@ export function HomePageClient({ initialCatalog }: Props) {
       } catch {
         if (!cancelled) {
           setTopProducts([]);
-          setFeaturedStores([]);
+          setStoreShowcase(null);
           setStoreSections([]);
           setMarketplacePromos([]);
         }
@@ -193,6 +192,10 @@ export function HomePageClient({ initialCatalog }: Props) {
         <HomeBannerCarousel />
         <HomeInstallCard />
 
+        {showDeferredSections ? (
+          <HomeStoresShowcase showcase={storeShowcase} loading={loadingTop} />
+        ) : null}
+
         <section className="mt-6" aria-labelledby="home-categories-heading">
           <h2 id="home-categories-heading" className="sr-only">
             Kategoriyalar
@@ -214,10 +217,6 @@ export function HomePageClient({ initialCatalog }: Props) {
 
         {showDeferredSections ? (
           <>
-            <TopProductsCarousel products={topProducts} loading={loadingTop} />
-
-            <FeaturedStoresCarousel stores={featuredStores} />
-
             {discounted.length > 0 || marketplacePromos.length > 0 ? (
               <DiscountedCarousel
                 products={
@@ -229,6 +228,8 @@ export function HomePageClient({ initialCatalog }: Props) {
             ) : null}
 
             <HomeDeliveryBanner />
+
+            <TopProductsCarousel products={topProducts} loading={loadingTop} />
 
             <StoreSections sections={storeSections} onOpen={openProduct} />
 

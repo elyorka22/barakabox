@@ -124,9 +124,26 @@ export class StoreContextService {
 
   listStoresForAdmin() {
     return this.prisma.store.findMany({
-      where: { isActive: true },
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true, slug: true, businessProfileId: true },
+      orderBy: [{ isFeatured: 'desc' }, { name: 'asc' }],
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        logoUrl: true,
+        bannerUrl: true,
+        description: true,
+        address: true,
+        phone: true,
+        deliveryTimeMinutes: true,
+        rating: true,
+        deliveryPrice: true,
+        minOrderPrice: true,
+        isActive: true,
+        isFeatured: true,
+        sortOrder: true,
+        businessProfileId: true,
+        createdAt: true,
+      },
     });
   }
 }

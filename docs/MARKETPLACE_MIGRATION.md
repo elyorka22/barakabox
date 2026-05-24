@@ -196,6 +196,10 @@ Homepage order (additive — legacy catalog grid remains):
 | Method | Path |
 |--------|------|
 | GET | `/marketplace/home` |
+| GET | `/stores` — list (optional `section`, `page`, `limit`) |
+| GET | `/stores/featured` |
+| GET | `/stores/:slug` — detail + categories |
+| GET | `/stores/:slug/products` — paginated (`q`, `categoryId`, `promo`) |
 | GET | `/marketplace/stores` |
 | GET | `/marketplace/stores/:slug` |
 

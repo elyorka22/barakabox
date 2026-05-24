@@ -1,16 +1,10 @@
 import { api } from '@/lib/api';
 import { getApiBaseUrl } from '@/lib/seo';
+import type { StoreCard, StoreShowcase } from '@/lib/stores-api';
 import type { StorefrontProduct } from '@/types/storefront-product';
 
-export type FeaturedStore = {
-  id: string;
-  name: string;
-  slug: string;
-  logoUrl: string | null;
-  bannerUrl: string | null;
-  deliveryPrice: number;
-  minOrderPrice: number;
-};
+/** @deprecated Use StoreCard from stores-api */
+export type FeaturedStore = StoreCard;
 
 export type StoreSection = {
   store: { id: string; name: string; slug: string; logoUrl: string | null };
@@ -19,9 +13,10 @@ export type StoreSection = {
 
 export type MarketplaceHome = {
   topProducts: StorefrontProduct[];
-  featuredStores: FeaturedStore[];
+  featuredStores: StoreCard[];
   marketplacePromotions: StorefrontProduct[];
   storeSections: StoreSection[];
+  storeShowcase?: StoreShowcase;
 };
 
 export async function fetchMarketplaceHome(): Promise<MarketplaceHome> {
@@ -42,6 +37,7 @@ const EMPTY_HOME: MarketplaceHome = {
   featuredStores: [],
   marketplacePromotions: [],
   storeSections: [],
+  storeShowcase: { featured: [], nearby: [], top: [], newlyAdded: [] },
 };
 
 export async function fetchMarketplaceHomeServer(): Promise<MarketplaceHome> {

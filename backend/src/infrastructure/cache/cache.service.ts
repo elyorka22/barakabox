@@ -64,12 +64,16 @@ export class CacheService {
       cacheKeys.marketplaceHome(),
       cacheKeys.marketplaceStores(false),
       cacheKeys.marketplaceStores(true),
+      cacheKeys.storesFeatured(),
+      cacheKeys.storesShowcase(),
     ];
     for (const limit of [12, 15, 20, 24]) {
       keys.push(cacheKeys.productsTop(limit));
     }
     if (storeSlug?.trim()) {
-      keys.push(cacheKeys.marketplaceStore(storeSlug.trim()));
+      const slug = storeSlug.trim();
+      keys.push(cacheKeys.marketplaceStore(slug));
+      keys.push(cacheKeys.storeDetail(slug));
     }
     await Promise.all(keys.map((k) => this.del(k)));
   }

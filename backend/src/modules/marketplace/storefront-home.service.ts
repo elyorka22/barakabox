@@ -8,18 +8,15 @@ import {
   mapListingToStorefront,
   storefrontListingSelect,
 } from './storefront-listing.mapper';
+import { mapStoreCard, storeCardSelect, VISIBLE_STORE_LISTING_WHERE } from './store-card.mapper';
+import { StorefrontStoresService } from './storefront-stores.service';
 
 const STOREFRONT_PRODUCT_WHERE: Prisma.ProductWhereInput = {
   isActive: true,
   business: { isActive: true, status: 'APPROVED' },
 };
 
-const VISIBLE_LISTING_WHERE: Prisma.StoreProductWhereInput = {
-  isVisible: true,
-  stock: { gt: 0 },
-  store: { isActive: true },
-  globalProduct: { isActive: true },
-};
+const VISIBLE_LISTING_WHERE = VISIBLE_STORE_LISTING_WHERE;
 
 @Injectable()
 export class StorefrontHomeService {
@@ -30,6 +27,7 @@ export class StorefrontHomeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: CacheService,
+    private readonly storefrontStores: StorefrontStoresService,
   ) {}
 
   getHomepage() {
@@ -60,49 +58,35 @@ export class StorefrontHomeService {
     const where: Prisma.StoreWhereInput = { isActive: true };
     if (featured) where.isFeatured = true;
 
-    return this.prisma.store.findMany({
-      where,
-      orderBy: [{ isFeatured: 'desc' }, { sortOrder: 'asc' }, { name: 'asc' }],
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        logoUrl: true,
-        bannerUrl: true,
-        deliveryPrice: true,
-        minOrderPrice: true,
-        address: true,
-        _count: { select: { storeProducts: { where: VISIBLE_LISTING_WHERE } } },
-      },
-    });
+    return this.prisma.store
+      .findMany({
+        where,
+        orderBy: [{ isFeatured: 'desc' }, { sortOrder: 'asc' }, { name: 'asc' }],
+        select: storeCardSelect,
+      })
+      .then((rows) => rows.map(mapStoreCard));
   }
 
   private async fetchStoreBySlug(slug: string) {
-    const store = await this.prisma.store.findFirst({
-      where: { slug, isActive: true },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        logoUrl: true,
-        bannerUrl: true,
-        address: true,
-        phone: true,
-        deliveryPrice: true,
-        minOrderPrice: true,
-      },
-    });
-    if (!store) return null;
+    const detail = await this.storefrontStores.getStoreBySlug(slug);
+    if (!detail) return null;
 
-    const listings = await this.prisma.storeProduct.findMany({
-      where: { storeId: store.id, ...VISIBLE_LISTING_WHERE },
-      orderBy: [{ isTop: 'desc' }, { topOrder: 'asc' }, { createdAt: 'desc' }],
-      select: storefrontListingSelect,
+    const page = await this.storefrontStores.listStoreProducts(slug, {
+      page: 1,
+      limit: 48,
     });
 
     return {
-      store,
-      products: listings.map(mapListingToStorefront),
+      store: detail.store,
+      categories: detail.categories,
+      promotionCount: detail.promotionCount,
+      products: page.items,
+      productsMeta: {
+        page: page.page,
+        limit: page.limit,
+        total: page.total,
+        totalPages: page.totalPages,
+      },
     };
   }
 
@@ -113,6 +97,7 @@ export class StorefrontHomeService {
       featuredStores,
       promoListings,
       sectionStores,
+      storeShowcase,
     ] = await Promise.all([
       this.prisma.product.findMany({
         where: { ...STOREFRONT_PRODUCT_WHERE, isTopProduct: true },
@@ -130,15 +115,7 @@ export class StorefrontHomeService {
         where: { isActive: true, isFeatured: true },
         orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
         take: 10,
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          logoUrl: true,
-          bannerUrl: true,
-          deliveryPrice: true,
-          minOrderPrice: true,
-        },
+        select: storeCardSelect,
       }),
       this.prisma.storeProduct.findMany({
         where: {
@@ -158,6 +135,7 @@ export class StorefrontHomeService {
         take: StorefrontHomeService.STORE_SECTION_LIMIT,
         select: { id: true, name: true, slug: true, logoUrl: true },
       }),
+      this.storefrontStores.getHomeShowcase(),
     ]);
 
     const legacyTop = legacyTopRows.map((r) => mapStorefrontProduct(r));
@@ -186,9 +164,10 @@ export class StorefrontHomeService {
 
     return {
       topProducts,
-      featuredStores,
+      featuredStores: featuredStores.map(mapStoreCard),
       marketplacePromotions,
       storeSections: storeSections.filter((s) => s.products.length > 0),
+      storeShowcase,
     };
   }
 

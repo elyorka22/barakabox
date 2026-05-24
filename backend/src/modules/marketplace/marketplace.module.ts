@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { BusinessStoreCatalogController } from './business-store-catalog.controller';
 import { MarketplaceAdminController } from './marketplace-admin.controller';
 import { MarketplaceStorefrontController } from './marketplace-storefront.controller';
+import { StorefrontStoresController } from './storefront-stores.controller';
+import { StorefrontStoresService } from './storefront-stores.service';
 import { StorefrontHomeService } from './storefront-home.service';
 import { MarketplaceCatalogService } from './marketplace-catalog.service';
 import { DatabaseModule } from '../../infrastructure/database/database.module';
@@ -26,6 +28,7 @@ import { StoreAdminService } from './store-admin.service';
   controllers: [
     MarketplaceAdminController,
     MarketplaceStorefrontController,
+    StorefrontStoresController,
     MarketplaceSearchController,
     BusinessStoreCatalogController,
   ],
@@ -36,6 +39,7 @@ import { StoreAdminService } from './store-admin.service';
     StoreCatalogService,
     StoreContextService,
     StorefrontHomeService,
+    StorefrontStoresService,
     StorefrontSearchService,
     StorefrontListingProductService,
     StoreAnalyticsService,
@@ -48,6 +52,7 @@ import { StoreAdminService } from './store-admin.service';
     StoreCatalogService,
     StoreContextService,
     StorefrontHomeService,
+    StorefrontStoresService,
     StorefrontSearchService,
     StoreAnalyticsService,
     StoreAdminService,

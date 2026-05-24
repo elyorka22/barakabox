@@ -13,14 +13,18 @@ const storeSelect = {
   slug: true,
   logoUrl: true,
   bannerUrl: true,
+  description: true,
   address: true,
   phone: true,
+  deliveryTimeMinutes: true,
+  rating: true,
   deliveryPrice: true,
   minOrderPrice: true,
   isActive: true,
   isFeatured: true,
   sortOrder: true,
   businessProfileId: true,
+  createdAt: true,
 } satisfies Prisma.StoreSelect;
 
 export type StoreMediaKind = 'logo' | 'banner';
@@ -52,6 +56,13 @@ export class StoreAdminService {
           ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
           ...(dto.address !== undefined ? { address: dto.address?.trim() || null } : {}),
           ...(dto.phone !== undefined ? { phone: dto.phone?.trim() || null } : {}),
+          ...(dto.description !== undefined
+            ? { description: dto.description?.trim() || null }
+            : {}),
+          ...(dto.deliveryTimeMinutes !== undefined
+            ? { deliveryTimeMinutes: dto.deliveryTimeMinutes }
+            : {}),
+          ...(dto.rating !== undefined ? { rating: dto.rating } : {}),
           ...(dto.deliveryPrice !== undefined ? { deliveryPrice: dto.deliveryPrice } : {}),
           ...(dto.minOrderPrice !== undefined ? { minOrderPrice: dto.minOrderPrice } : {}),
           ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
