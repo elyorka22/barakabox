@@ -26,7 +26,7 @@ function ProductCardInfoBase({
   layout = 'default',
 }: Props) {
   if (layout === 'grid') {
-    const unit = unitLine.trim();
+    const unit = (unitLine ?? '').trim();
     const detail = metaLine.trim();
     const showDetail = Boolean(detail) && detail !== unit;
     return (
