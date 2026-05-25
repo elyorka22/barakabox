@@ -13,6 +13,8 @@ export const PRODUCT_UNIT_CODES = [
   'ml',
   'quti',
   'karobka',
+  'pachka',
+  'upakovka',
   'toplam',
 ] as const;
 
@@ -35,6 +37,8 @@ export const PRODUCT_UNIT_LABEL_UZ: Record<ProductUnitCode, string> = {
   ml: 'ml',
   quti: 'quti',
   karobka: 'karobka',
+  pachka: 'pachka',
+  upakovka: 'upakovka',
   toplam: "to'plam",
 };
 
@@ -54,6 +58,7 @@ export function normalizeIncomingProductUnit(value: unknown): ProductUnitCode | 
   if (v === 'paket') return 'quti';
   if (v === 'bog') return 'toplam';
   if (v === 'pack') return 'karobka';
+  if (v === 'qadoq') return 'upakovka';
   if (isProductUnitCode(v)) return v;
   return null;
 }
@@ -195,6 +200,8 @@ const PRODUCT_UNIT_LABEL_COMPACT: Record<ProductUnitCode, string> = {
   ml: 'ml',
   quti: 'quti',
   karobka: 'karobka',
+  pachka: 'pachka',
+  upakovka: 'upakovka',
   toplam: "to'plam",
 };
 

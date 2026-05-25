@@ -48,6 +48,8 @@ enum UnitType {
   ml
   quti
   karobka
+  pachka
+  upakovka
   paket
   toplam
   bog
@@ -63,6 +65,8 @@ enum ProductUnit {
   ml
   quti
   karobka
+  pachka
+  upakovka
   toplam
 }
 
