@@ -18,6 +18,8 @@ import {
 import { DashboardActivityFeed } from '@/components/admin/dashboard/dashboard-activity';
 import { DashboardQuickActions } from '@/components/admin/dashboard/dashboard-quick-actions';
 import { DashboardScheduledSection } from '@/components/admin/dashboard/dashboard-scheduled-section';
+import { StaffPushPrompt } from '@/components/staff/staff-push-prompt';
+import { ensureStaffPushSubscription } from '@/lib/staff-push';
 
 const DashboardAnalyticsCharts = dynamic(
   () =>
@@ -106,6 +108,8 @@ export default function AdminPage() {
           {error}
         </p>
       ) : null}
+
+      <StaffPushPrompt context="admin" variant="panel" />
 
       <div className="grid gap-3 lg:grid-cols-3">
         <DashboardSection

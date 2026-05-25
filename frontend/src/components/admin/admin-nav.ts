@@ -29,6 +29,7 @@ export type AdminNavItem = {
 
 export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, group: 'Asosiy' },
+  { href: '/admin/notifications', label: 'Push bildirishnomalar', icon: Bell, group: 'Asosiy' },
   { href: '/admin/businesses', label: 'Businesses', icon: Building2, group: 'Boshqaruv' },
   { href: '/admin/products', label: 'Products', icon: Package, group: 'Boshqaruv' },
   { href: '/admin/global-catalog', label: 'Global katalog', icon: Library, group: 'Boshqaruv' },
@@ -40,7 +41,6 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: '/admin/banners', label: 'Banners', icon: ImageIcon, group: 'Boshqaruv' },
   { href: '/admin/coupons', label: 'Coupons', icon: Percent, group: 'Boshqaruv' },
   { href: '/admin/uploads', label: 'Upload Jobs', icon: UploadCloud, group: 'Monitoring' },
-  { href: '/admin/notifications', label: 'Notifications', icon: Bell, group: 'Monitoring' },
   { href: '/admin/analytics', label: 'Analytics', icon: ChartLine, group: 'Monitoring' },
   { href: '/admin/logs', label: 'Logs & Errors', icon: Logs, group: 'Monitoring' },
   { href: '/admin/settings', label: 'Settings', icon: Settings, group: 'Tizim' },

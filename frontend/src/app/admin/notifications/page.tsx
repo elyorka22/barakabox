@@ -11,15 +11,13 @@ export default function AdminNotificationsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-lg font-semibold">Buyurtma bildirishnomalari</h2>
+      <div>
+        <h2 className="text-lg font-semibold text-[#0f172a]">Push bildirishnomalar</h2>
         <p className="mt-1 text-sm text-slate-500">
-          Yangi va rejalashtirilgan buyurtmalar haqida push — PWA yopiq bo‘lsa ham.
+          Yangi buyurtmalar haqida xabar — ilova yopiq bo‘lsa ham (PWA + ruxsat kerak).
         </p>
-        <div className="mt-4">
-          <StaffPushPrompt context="admin" />
-        </div>
       </div>
+      <StaffPushPrompt context="admin" variant="panel" />
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <h3 className="text-sm font-semibold text-slate-800">iPhone / iPad</h3>
         <ol className="mt-2 list-decimal space-y-1 pl-4 text-sm text-slate-600">

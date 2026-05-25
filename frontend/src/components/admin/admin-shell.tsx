@@ -15,7 +15,7 @@ type ExpandedMap = Record<string, boolean>;
 const defaultExpanded = (): ExpandedMap => ({
   Asosiy: true,
   Boshqaruv: true,
-  Monitoring: false,
+  Monitoring: true,
   Tizim: true,
 });
 

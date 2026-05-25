@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Bell, BellOff } from 'lucide-react';
+import { Bell } from 'lucide-react';
+import Link from 'next/link';
 import {
   fetchVapidPublicKey,
   getStaffPushSupport,
@@ -12,13 +13,14 @@ import {
 import { showToast } from '@/lib/toast';
 
 type Props = {
-  /** Where notification tap opens (admin uses /admin/orders). */
   context?: 'picker' | 'admin';
   className?: string;
+  /** Compact row for admin dashboard header area. */
+  variant?: 'card' | 'panel';
 };
 
-export function StaffPushPrompt({ context = 'picker', className = '' }: Props) {
-  const [supported, setSupported] = useState(false);
+export function StaffPushPrompt({ context = 'picker', className = '', variant = 'card' }: Props) {
+  const [supported, setSupported] = useState(true);
   const [serverEnabled, setServerEnabled] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default');
@@ -41,35 +43,42 @@ export function StaffPushPrompt({ context = 'picker', className = '' }: Props) {
     void refresh();
   }, [refresh]);
 
-  const enable = async () => {
-    setBusy(true);
-    try {
-      const result = await subscribeStaffPush();
-      if (!result.ok) {
-        if (result.reason === 'denied') {
-          showToast({ type: 'error', message: 'Bildirishnomaga ruxsat berilmadi' });
-        } else if (result.reason === 'server_disabled') {
-          showToast({ type: 'info', message: 'Serverda push hali yoqilmagan' });
-        } else {
-          showToast({ type: 'error', message: 'Push yoqib bo‘lmadi' });
-        }
-        await refresh();
+  const canEnable = supported && serverEnabled && permission !== 'denied';
+  const toggleDisabled = busy || !canEnable;
+
+  const onToggle = async (next: boolean) => {
+    if (next) {
+      if (!supported) {
+        showToast({ type: 'info', message: 'Brauzer pushni qo‘llab-quvvatlamaydi' });
         return;
       }
-      showToast({ type: 'success', message: 'Buyurtma bildirishnomalari yoqildi' });
-      setSubscribed(true);
-      setPermission('granted');
-    } catch (e) {
-      showToast({
-        type: 'error',
-        message: e instanceof Error ? e.message : 'Xatolik',
-      });
-    } finally {
-      setBusy(false);
+      if (!serverEnabled) {
+        showToast({ type: 'info', message: 'Serverda VAPID kalitlari yoqilmagan (backend .env)' });
+        return;
+      }
+      setBusy(true);
+      try {
+        const result = await subscribeStaffPush();
+        if (!result.ok) {
+          if (result.reason === 'denied') {
+            showToast({ type: 'error', message: 'Bildirishnomaga ruxsat berilmadi' });
+          } else {
+            showToast({ type: 'error', message: 'Push yoqib bo‘lmadi' });
+          }
+          await refresh();
+          return;
+        }
+        showToast({ type: 'success', message: 'Buyurtma bildirishnomalari yoqildi' });
+        setSubscribed(true);
+        setPermission('granted');
+      } catch (e) {
+        showToast({ type: 'error', message: e instanceof Error ? e.message : 'Xatolik' });
+      } finally {
+        setBusy(false);
+      }
+      return;
     }
-  };
 
-  const disable = async () => {
     setBusy(true);
     try {
       await unsubscribeStaffPush();
@@ -80,64 +89,73 @@ export function StaffPushPrompt({ context = 'picker', className = '' }: Props) {
     }
   };
 
-  if (!supported) {
-    return (
-      <div className={`rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900 ${className}`}>
-        Brauzer push bildirishnomalarni qo‘llab-quvvatlamaydi. Yangi buyurtmalarni ochiq panel orqali kuzating.
-      </div>
-    );
-  }
+  const statusNote = !supported
+    ? 'Brauzer pushni qo‘llab-quvvatlamaydi.'
+    : !serverEnabled
+      ? 'Serverda VAPID sozlanmagan — backend .env da kalitlar kerak.'
+      : permission === 'denied'
+        ? 'Ruxsat bloklangan — brauzer sozlamalaridan yoqing.'
+        : subscribed
+          ? 'Yangi buyurtmalar haqida push olasiz (PWA yopiq bo‘lsa ham).'
+          : 'Yoqish uchun tugmani yoqing va ruxsat bering.';
 
-  if (!serverEnabled) {
-    return (
-      <div className={`rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 ${className}`}>
-        Push serverda hali sozlanmagan (VAPID). Admin polling va ovoz signalidan foydalaning.
-      </div>
-    );
-  }
-
-  const hint =
-    context === 'admin'
-      ? 'PWA yopiq bo‘lsa ham yangi buyurtmalar haqida xabar olasiz.'
-      : 'Ilova yopiq bo‘lsa ham yangi buyurtmalar haqida xabar olasiz.';
+  const shellClass =
+    variant === 'panel'
+      ? `rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm ${className}`
+      : `rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-3 ${className}`;
 
   return (
-    <div className={`rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-3 ${className}`}>
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#111827] text-white">
-          {subscribed ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
+    <div className={shellClass}>
+      <div className="flex items-center gap-3">
+        <div
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+            subscribed ? 'bg-[#16A34A] text-white' : 'bg-[#111827] text-white'
+          }`}
+        >
+          <Bell className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-[#111827]">Buyurtma bildirishnomalari</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-[#6B7280]">{hint}</p>
-          {permission === 'denied' ? (
-            <p className="mt-2 text-xs text-rose-600">
-              Ruxsat bloklangan. Brauzer sozlamalaridan bildirishnomalarni yoqing.
-            </p>
-          ) : null}
+          <p className="text-sm font-semibold text-[#111827]">Buyurtma push bildirishnomalari</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-[#6B7280]">{statusNote}</p>
         </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={subscribed}
+          aria-label={subscribed ? 'Push yoqilgan' : 'Push o‘chirilgan'}
+          disabled={toggleDisabled}
+          onClick={() => void onToggle(!subscribed)}
+          className={`relative h-8 w-14 shrink-0 rounded-full transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-45 ${
+            subscribed ? 'bg-[#16A34A]' : 'bg-[#D1D5DB]'
+          }`}
+        >
+          <span
+            className={`absolute top-1 left-1 h-6 w-6 rounded-full bg-white shadow transition-transform duration-200 ${
+              subscribed ? 'translate-x-6' : 'translate-x-0'
+            }`}
+          />
+        </button>
       </div>
-      <div className="mt-3">
-        {subscribed ? (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void disable()}
-            className="w-full rounded-xl border border-[#E5E7EB] bg-white py-2.5 text-sm font-semibold text-[#374151] disabled:opacity-50"
-          >
-            O‘chirish
-          </button>
-        ) : (
-          <button
-            type="button"
-            disabled={busy || permission === 'denied'}
-            onClick={() => void enable()}
-            className="w-full rounded-xl bg-[#16A34A] py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            {busy ? 'Ulanmoqda…' : 'Yoqish'}
-          </button>
-        )}
-      </div>
+
+      {context === 'admin' && variant === 'panel' ? (
+        <p className="mt-3 text-[11px] text-slate-500">
+          Batafsil:{' '}
+          <Link href="/admin/notifications" className="font-medium text-emerald-700 underline">
+            Push sozlamalari
+          </Link>
+        </p>
+      ) : null}
+
+      {!subscribed && canEnable ? (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void onToggle(true)}
+          className="mt-3 w-full rounded-xl bg-[#16A34A] py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {busy ? 'Ulanmoqda…' : 'Ruxsat so‘rash va yoqish'}
+        </button>
+      ) : null}
     </div>
   );
 }
