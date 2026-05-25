@@ -800,6 +800,13 @@ export class ProductsService {
       }
     }
     return this.prisma.$transaction(async (tx) => {
+      const clearVariantDiscounts = data.discountEnabled === false;
+      if (clearVariantDiscounts && !data.variants) {
+        await tx.productVariant.updateMany({
+          where: { productId },
+          data: { discountPrice: null },
+        });
+      }
       if (data.variants) {
         const incomingIds = data.variants.map((variant) => variant.id).filter(Boolean) as string[];
         await tx.productVariant.updateMany({
@@ -811,40 +818,35 @@ export class ProductsService {
         });
         for (let i = 0; i < data.variants.length; i += 1) {
           const variant = data.variants[i];
+          const discountPrice = clearVariantDiscounts
+            ? null
+            : variant.discountPrice !== undefined
+              ? variant.discountPrice
+              : undefined;
+          const variantData = {
+            title: variant.title,
+            flavor: variant.flavor,
+            size: variant.size,
+            sku: variant.sku,
+            barcode: variant.barcode,
+            description: variant.description,
+            price: variant.price,
+            ...(discountPrice !== undefined ? { discountPrice } : {}),
+            stock: variant.stock,
+            imageUrl: variant.imageUrl,
+            sortOrder: variant.sortOrder ?? i,
+            isActive: true,
+          };
           if (variant.id) {
             await tx.productVariant.update({
               where: { id: variant.id },
-              data: {
-                title: variant.title,
-                flavor: variant.flavor,
-                size: variant.size,
-                sku: variant.sku,
-                barcode: variant.barcode,
-                description: variant.description,
-                price: variant.price,
-                discountPrice: variant.discountPrice,
-                stock: variant.stock,
-                imageUrl: variant.imageUrl,
-                sortOrder: variant.sortOrder ?? i,
-                isActive: true,
-              },
+              data: variantData,
             });
           } else {
             await tx.productVariant.create({
               data: {
                 productId,
-                title: variant.title,
-                flavor: variant.flavor,
-                size: variant.size,
-                sku: variant.sku,
-                barcode: variant.barcode,
-                description: variant.description,
-                price: variant.price,
-                discountPrice: variant.discountPrice,
-                stock: variant.stock,
-                imageUrl: variant.imageUrl,
-                sortOrder: variant.sortOrder ?? i,
-                isActive: true,
+                ...variantData,
               },
             });
           }

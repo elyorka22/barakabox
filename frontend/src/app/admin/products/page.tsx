@@ -295,9 +295,11 @@ export default function AdminProductsPage() {
       stock: Number(variant.stock),
       imageUrl: variant.imageUrl.trim() || undefined,
       sortOrder: idx,
-      ...(idx === 0 && form.discountEnabled && Number(form.discountedPrice) > 0
+      ...(form.discountEnabled && idx === 0 && Number(form.discountedPrice) > 0
         ? { discountPrice: Number(form.discountedPrice) }
-        : {}),
+        : !form.discountEnabled
+          ? { discountPrice: null }
+          : {}),
     }));
 
     const first = normalizedVariants[0];
@@ -305,9 +307,10 @@ export default function AdminProductsPage() {
       name: form.name.trim(),
       price: Number(form.price) > 0 ? Number(form.price) : first.price,
       discountEnabled: form.discountEnabled,
-      ...(form.discountEnabled && Number(form.discountedPrice) > 0
-        ? { discountedPrice: Number(form.discountedPrice) }
-        : {}),
+      discountedPrice:
+        form.discountEnabled && Number(form.discountedPrice) > 0
+          ? Number(form.discountedPrice)
+          : null,
       promotionBadge: form.promotionBadge || undefined,
       promotionEnabled: form.promotionEnabled,
       promotionStartAt: form.promotionEnabled && form.promotionStartAt ? new Date(form.promotionStartAt).toISOString() : undefined,

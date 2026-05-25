@@ -219,7 +219,13 @@ export function AdminProductFormDrawer({
                   <input
                     type="checkbox"
                     checked={form.discountEnabled}
-                    onChange={(e) => setForm((p) => ({ ...p, discountEnabled: e.target.checked }))}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        discountEnabled: e.target.checked,
+                        ...(e.target.checked ? {} : { discountedPrice: '' }),
+                      }))
+                    }
                   />
                   Chegirma yoqilsin
                 </label>
