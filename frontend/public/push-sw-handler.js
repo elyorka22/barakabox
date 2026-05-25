@@ -1,4 +1,12 @@
-/* Web Push handlers — loaded by the PWA service worker via importScripts. */
+/* Web Push handlers — imported by /sw.js (Workbox PWA) or usable as minimal fallback SW. */
+
+self.addEventListener('install', function () {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', function (event) {
+  event.waitUntil(self.clients.claim());
+});
 
 function parsePushData(event) {
   try {

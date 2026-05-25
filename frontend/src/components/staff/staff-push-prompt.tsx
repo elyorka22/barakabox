@@ -15,9 +15,16 @@ import { showToast } from '@/lib/toast';
 type Props = {
   context?: 'picker' | 'admin';
   className?: string;
-  /** Compact row for admin dashboard header area. */
   variant?: 'card' | 'panel';
 };
+
+function formatPushError(result: { reason: string; errorMessage?: string; step?: string }): string {
+  const parts: string[] = [];
+  if (result.step) parts.push(`Qadam: ${result.step}`);
+  if (result.errorMessage) parts.push(result.errorMessage);
+  else parts.push(result.reason);
+  return parts.join(' — ');
+}
 
 export function StaffPushPrompt({ context = 'picker', className = '', variant = 'card' }: Props) {
   const [supported, setSupported] = useState(true);
@@ -25,6 +32,7 @@ export function StaffPushPrompt({ context = 'picker', className = '', variant = 
   const [subscribed, setSubscribed] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default');
   const [busy, setBusy] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const s = getStaffPushSupport();
@@ -46,6 +54,31 @@ export function StaffPushPrompt({ context = 'picker', className = '', variant = 
   const canEnable = supported && serverEnabled && permission !== 'denied';
   const toggleDisabled = busy || !canEnable;
 
+  const enablePush = async () => {
+    setBusy(true);
+    setLastError(null);
+    try {
+      const result = await subscribeStaffPush();
+      if (!result.ok) {
+        const msg = formatPushError(result);
+        setLastError(msg);
+        showToast({ type: 'error', message: msg });
+        await refresh();
+        return;
+      }
+      setLastError(null);
+      showToast({ type: 'success', message: 'Buyurtma bildirishnomalari yoqildi' });
+      setSubscribed(true);
+      setPermission('granted');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Noma’lum xatolik';
+      setLastError(msg);
+      showToast({ type: 'error', message: msg });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const onToggle = async (next: boolean) => {
     if (next) {
       if (!supported) {
@@ -56,30 +89,12 @@ export function StaffPushPrompt({ context = 'picker', className = '', variant = 
         showToast({ type: 'info', message: 'Serverda VAPID kalitlari yoqilmagan (backend .env)' });
         return;
       }
-      setBusy(true);
-      try {
-        const result = await subscribeStaffPush();
-        if (!result.ok) {
-          if (result.reason === 'denied') {
-            showToast({ type: 'error', message: 'Bildirishnomaga ruxsat berilmadi' });
-          } else {
-            showToast({ type: 'error', message: 'Push yoqib bo‘lmadi' });
-          }
-          await refresh();
-          return;
-        }
-        showToast({ type: 'success', message: 'Buyurtma bildirishnomalari yoqildi' });
-        setSubscribed(true);
-        setPermission('granted');
-      } catch (e) {
-        showToast({ type: 'error', message: e instanceof Error ? e.message : 'Xatolik' });
-      } finally {
-        setBusy(false);
-      }
+      await enablePush();
       return;
     }
 
     setBusy(true);
+    setLastError(null);
     try {
       await unsubscribeStaffPush();
       showToast({ type: 'info', message: 'Bildirishnomalar o‘chirildi' });
@@ -117,6 +132,11 @@ export function StaffPushPrompt({ context = 'picker', className = '', variant = 
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-[#111827]">Buyurtma push bildirishnomalari</p>
           <p className="mt-0.5 text-xs leading-relaxed text-[#6B7280]">{statusNote}</p>
+          {lastError ? (
+            <p className="mt-2 rounded-lg bg-rose-50 px-2 py-1.5 text-[11px] leading-snug text-rose-800">
+              {lastError}
+            </p>
+          ) : null}
         </div>
         <button
           type="button"
@@ -150,7 +170,7 @@ export function StaffPushPrompt({ context = 'picker', className = '', variant = 
         <button
           type="button"
           disabled={busy}
-          onClick={() => void onToggle(true)}
+          onClick={() => void enablePush()}
           className="mt-3 w-full rounded-xl bg-[#16A34A] py-2.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           {busy ? 'Ulanmoqda…' : 'Ruxsat so‘rash va yoqish'}
