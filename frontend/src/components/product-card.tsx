@@ -306,10 +306,10 @@ function ProductCardBase({
               ) : null}
               {effectiveDiscountPrice ? (
                 <span
-                  className={`pointer-events-none absolute z-[1] font-bold text-white ${
+                  className={`pointer-events-none absolute z-[1] font-bold text-white rounded-md bg-[#ef4444] ${
                     isGridCard
-                      ? 'bottom-1.5 left-1.5 rounded-md bg-[#ef4444] px-1 py-0.5 text-[10px]'
-                      : `rounded-md bg-[#ef4444] px-1.5 py-0.5 text-[9px] ${topBadge ? 'left-1.5 top-7' : 'left-1.5 top-1.5'}`
+                      ? `px-1 py-0.5 text-[10px] ${topBadge ? 'left-1.5 top-7' : 'left-1.5 top-1.5'}`
+                      : `px-1.5 py-0.5 text-[9px] ${topBadge ? 'left-1.5 top-7' : 'left-1.5 top-1.5'}`
                   }`}
                 >
                   -{Math.max(1, Math.round(((activeBasePrice - effectiveDiscountPrice) / activeBasePrice) * 100))}%
