@@ -22,23 +22,44 @@ export class PushNotificationService {
   }
 
   private initVapid(): void {
-    const publicKey = process.env.VAPID_PUBLIC_KEY?.trim();
-    const privateKey = process.env.VAPID_PRIVATE_KEY?.trim();
-    const subject = process.env.VAPID_SUBJECT?.trim() || 'mailto:support@chust-online-bozor.uz';
+    const publicKey = this.readEnvKey('VAPID_PUBLIC_KEY');
+    const privateKey = this.readEnvKey('VAPID_PRIVATE_KEY');
+    const subject = this.readEnvKey('VAPID_SUBJECT') || 'mailto:support@chust-online-bozor.uz';
     if (!publicKey || !privateKey) {
-      this.logger.warn('VAPID keys missing — Web Push disabled until configured');
+      this.logger.warn(
+        'VAPID keys missing — Web Push disabled (set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY on backend process)',
+      );
       return;
     }
-    webpush.setVapidDetails(subject, publicKey, privateKey);
-    this.vapidReady = true;
+    try {
+      webpush.setVapidDetails(subject, publicKey, privateKey);
+      this.vapidReady = true;
+      this.logger.log('Web Push VAPID configured');
+    } catch (err) {
+      this.vapidReady = false;
+      this.logger.error(
+        `VAPID configuration failed: ${err instanceof Error ? err.message : 'unknown'}`,
+      );
+    }
+  }
+
+  /** Strip quotes/spaces from .env values (common copy-paste issue). */
+  private readEnvKey(name: string): string {
+    const raw = process.env[name];
+    if (!raw) return '';
+    return raw.trim().replace(/^['"]|['"]$/g, '');
   }
 
   isEnabled(): boolean {
+    if (!this.vapidReady) {
+      this.initVapid();
+    }
     return this.vapidReady;
   }
 
   getPublicKey(): string | null {
-    return process.env.VAPID_PUBLIC_KEY?.trim() || null;
+    const key = this.readEnvKey('VAPID_PUBLIC_KEY');
+    return key || null;
   }
 
   async upsertSubscription(

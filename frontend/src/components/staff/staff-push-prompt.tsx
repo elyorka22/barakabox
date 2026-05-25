@@ -33,7 +33,7 @@ export function StaffPushPrompt({ context = 'picker', className = '', variant = 
     setSubscribed(readStaffPushPref());
     try {
       const vapid = await fetchVapidPublicKey();
-      setServerEnabled(vapid.enabled && Boolean(vapid.publicKey));
+      setServerEnabled(Boolean(vapid.publicKey) && vapid.enabled);
     } catch {
       setServerEnabled(false);
     }
@@ -92,7 +92,7 @@ export function StaffPushPrompt({ context = 'picker', className = '', variant = 
   const statusNote = !supported
     ? 'Brauzer pushni qo‘llab-quvvatlamaydi.'
     : !serverEnabled
-      ? 'Serverda VAPID sozlanmagan — backend .env da kalitlar kerak.'
+      ? 'Serverda VAPID yo‘q — docker-compose/backend konteyneriga VAPID_* o‘zgaruvchilari uzatilmagan yoki backend qayta ishga tushirilmagan.'
       : permission === 'denied'
         ? 'Ruxsat bloklangan — brauzer sozlamalaridan yoqing.'
         : subscribed

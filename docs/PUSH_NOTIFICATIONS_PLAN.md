@@ -210,8 +210,10 @@ sequenceDiagram
 **Фаза 1 реализована** (2026-06): `PushModule`, миграция `PushSubscription`, SW `push-sw-handler.js`, UI picker/admin.
 
 На VPS обязательно:
-1. `npx web-push generate-vapid-keys` → `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` в `.env`
-2. `npx prisma migrate deploy`
+1. `npx web-push generate-vapid-keys` → `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` в **корневом** `.env` (для Docker Compose) и в `backend/.env.production`
+2. В `docker-compose.yml` переменные `VAPID_*` должны быть в секции `backend.environment` (уже добавлены)
+3. После изменения: `docker compose up -d --build backend`
+4. `npx prisma migrate deploy`
 3. Пересборка backend + frontend
 4. Picker/Admin: Profil yoki Notifications → **Yoqish**
 

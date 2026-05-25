@@ -18,6 +18,8 @@ services:
     build:
       context: ./backend
       dockerfile: ${BACKEND_DOCKERFILE:-Dockerfile}
+    env_file:
+      - .env
     environment:
       PORT: 4000
       DATABASE_URL: ${DATABASE_URL}
@@ -32,6 +34,10 @@ services:
       SPACES_BUCKET: ${SPACES_BUCKET}
       SPACES_KEY: ${SPACES_KEY}
       SPACES_SECRET: ${SPACES_SECRET}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:support@chust-online-bozor.uz}
+      MARKETPLACE_ENABLED: ${MARKETPLACE_ENABLED:-false}
     depends_on:
       redis:
         condition: service_healthy
