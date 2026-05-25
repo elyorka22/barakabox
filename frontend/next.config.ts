@@ -42,6 +42,7 @@ const withPWA = withPWAInit({
     skipWaiting: false,
     clientsClaim: true,
     disableDevLogs: true,
+    importScripts: ["/push-sw-handler.js"],
   },
 });
 

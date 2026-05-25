@@ -22,6 +22,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { CouponsModule } from './modules/coupons/coupons.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { MarketplaceModule } from './modules/marketplace/marketplace.module';
+import { PushModule } from './modules/push/push.module';
 import { RedisModule } from './infrastructure/redis/redis.module';
 import { AppCacheModule } from './infrastructure/cache/cache.module';
 import { QueueService } from './infrastructure/queue/queue.service';
@@ -69,6 +70,7 @@ import { CustomThrottlerGuard } from './common/guards/custom-throttler.guard';
     CouponsModule,
     AnalyticsModule,
     MarketplaceModule,
+    PushModule,
   ],
   controllers: [AppController],
   providers: [

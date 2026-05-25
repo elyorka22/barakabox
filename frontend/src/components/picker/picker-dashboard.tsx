@@ -19,6 +19,8 @@ import { PickerStatsPanel } from './picker-stats-panel';
 import { PickerRefreshFab } from './picker-refresh-fab';
 import { PickerOrderList } from './picker-order-list';
 import { showToast } from '@/lib/toast';
+import { StaffPushPrompt } from '@/components/staff/staff-push-prompt';
+import { ensureStaffPushSubscription } from '@/lib/staff-push';
 
 const TAB_ORDER: PickerTab[] = ['active', 'history', 'stats', 'profile'];
 
@@ -156,7 +158,9 @@ export function PickerDashboard() {
               ) : null}
 
               {tab === 'profile' ? (
-                <section className="rounded-2xl border border-[#ECECEC] bg-white p-4 shadow-sm">
+                <section className="space-y-3">
+                  <StaffPushPrompt context="picker" />
+                  <div className="rounded-2xl border border-[#ECECEC] bg-white p-4 shadow-sm">
                   <p className="text-lg font-semibold text-[#111827]">{user?.fullName ?? 'Picker'}</p>
                   <p className="text-sm text-[#6B7280]">{user?.email}</p>
                   <div className="mt-4 space-y-2 rounded-xl bg-[#FAFAFA] p-3 text-sm">
@@ -184,6 +188,7 @@ export function PickerDashboard() {
                   >
                     Chiqish
                   </button>
+                </div>
                 </section>
               ) : null}
             </motion.div>

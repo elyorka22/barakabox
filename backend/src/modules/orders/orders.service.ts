@@ -50,6 +50,7 @@ import {
 } from '../../common/utils/order-number.util';
 import { AnalyticsIngestService } from '../analytics/analytics-ingest.service';
 import { OrderScopeService } from './order-scope.service';
+import { PushNotificationService } from '../push/push.service';
 
 const pickerOrderListSelect = {
   id: true,
@@ -110,6 +111,7 @@ export class OrdersService implements OnModuleInit {
     private readonly cache: CacheService,
     private readonly analyticsIngest: AnalyticsIngestService,
     private readonly orderScope: OrderScopeService,
+    private readonly pushNotifications: PushNotificationService,
   ) {}
 
   private withOrderScope(
@@ -551,6 +553,20 @@ export class OrdersService implements OnModuleInit {
       orderNumber: order.orderNumber,
     });
     this.events.emit('order.created', { orderId: order.id, orderNumber: order.orderNumber });
+    void this.pushNotifications
+      .notifyNewOrder({
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        totalAmount: order.totalAmount,
+        itemCount: order.items?.length ?? 0,
+        storeId: order.storeId,
+        isScheduled: order.isScheduled,
+      })
+      .catch((err) =>
+        this.logger.warn(
+          `Push notify failed: ${err instanceof Error ? err.message : 'unknown'}`,
+        ),
+      );
     this.analyticsIngest.trackServerEvent({
       name: 'order_created',
       userId: order.userId ?? undefined,

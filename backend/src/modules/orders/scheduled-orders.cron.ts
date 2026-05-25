@@ -5,6 +5,7 @@ import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { EventEmitterService } from '../../infrastructure/events/event-emitter.service';
 import { QueueService } from '../../infrastructure/queue/queue.service';
+import { PushNotificationService } from '../push/push.service';
 
 @Injectable()
 export class ScheduledOrdersCron {
@@ -15,6 +16,7 @@ export class ScheduledOrdersCron {
     private readonly settingsService: SettingsService,
     private readonly events: EventEmitterService,
     private readonly queueService: QueueService,
+    private readonly pushNotifications: PushNotificationService,
   ) {}
 
   /** Every minute: activate scheduled orders entering prep window. */
@@ -30,7 +32,7 @@ export class ScheduledOrdersCron {
         isScheduled: true,
         scheduledAt: { lte: activateBefore },
       },
-      select: { id: true, scheduledAt: true, deliverySlot: true },
+      select: { id: true, orderNumber: true, storeId: true, scheduledAt: true, deliverySlot: true },
       take: 50,
     });
 
@@ -49,6 +51,13 @@ export class ScheduledOrdersCron {
         deliverySlot: order.deliverySlot,
       });
       await this.queueService.enqueue('order.scheduled.activated', { orderId: order.id });
+      void this.pushNotifications
+        .notifyScheduledOrderActivated({
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          storeId: order.storeId,
+        })
+        .catch(() => undefined);
     }
 
     this.logger.log(`Activated ${due.length} scheduled order(s) for picking`);

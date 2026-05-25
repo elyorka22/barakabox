@@ -170,6 +170,7 @@ model User {
   courierShifts   CourierShift[]
   uploadAuditLogs UploadAuditLog[]
   customerProfile Customer?
+  pushSubscriptions PushSubscription[]
 
   @@index([role])
   @@index([businessScopeId])
@@ -829,4 +830,21 @@ model StoreProduct {
   @@index([globalProductId])
   @@index([globalVariantId])
   @@index([isVisible, oldPrice])
+}
+
+/// Web Push subscription for staff (picker / admin) — order alerts when PWA is closed.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  role      Role
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([role])
 }

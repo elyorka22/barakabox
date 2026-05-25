@@ -1,31 +1,33 @@
 'use client';
 
-const notifications = [
-  { id: '1', title: 'Upload error spike', time: '5 daqiqa oldin', severity: 'HIGH' },
-  { id: '2', title: '3 ta yangi buyurtma', time: '12 daqiqa oldin', severity: 'INFO' },
-  { id: '3', title: 'Storage 80% ga yetdi', time: '1 soat oldin', severity: 'MEDIUM' },
-];
+import { useEffect } from 'react';
+import { StaffPushPrompt } from '@/components/staff/staff-push-prompt';
+import { ensureStaffPushSubscription } from '@/lib/staff-push';
 
 export default function AdminNotificationsPage() {
+  useEffect(() => {
+    void ensureStaffPushSubscription();
+  }, []);
+
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-lg font-semibold">Notifications</h2>
-        <p className="text-sm text-slate-500">Tizim va biznes trigger xabarnomalari.</p>
+        <h2 className="text-lg font-semibold">Buyurtma bildirishnomalari</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Yangi va rejalashtirilgan buyurtmalar haqida push — PWA yopiq bo‘lsa ham.
+        </p>
+        <div className="mt-4">
+          <StaffPushPrompt context="admin" />
+        </div>
       </div>
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="space-y-3">
-          {notifications.map((item) => (
-            <div key={item.id} className="rounded-xl border border-slate-100 p-3">
-              <div className="flex items-center justify-between">
-                <p className="font-medium">{item.title}</p>
-                <span className="text-xs text-slate-500">{item.time}</span>
-              </div>
-              <span className="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs">{item.severity}</span>
-            </div>
-          ))}
-        </div>
+        <h3 className="text-sm font-semibold text-slate-800">iPhone / iPad</h3>
+        <ol className="mt-2 list-decimal space-y-1 pl-4 text-sm text-slate-600">
+          <li>Safari → «Ulashish» → «Ekranga qo‘shish».</li>
+          <li>PWA ni oching va shu yerda «Yoqish» ni bosing.</li>
+          <li>iOS 16.4+ va ruxsat talab qilinadi.</li>
+        </ol>
       </div>
     </div>
   );
-}
+};

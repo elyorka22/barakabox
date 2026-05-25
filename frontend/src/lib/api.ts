@@ -280,6 +280,9 @@ export const authStorage = {
       }
     }
     this.clearAccessToken();
+    if (typeof window !== 'undefined') {
+      void import('@/lib/staff-push').then((m) => m.unsubscribeStaffPush());
+    }
   },
 };
 
